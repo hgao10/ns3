@@ -16,7 +16,7 @@ This repository enables the convenient execution of packet-level experiments usi
    
 3. Move the contents to the simulator directory:
    ```
-   mv ns-3.30.1/* simulator/
+   cp -r ns-3.30.1/* simulator/
    ```
    
 4. Remove the now-empty ns-3.30.1 folder
@@ -24,7 +24,10 @@ This repository enables the convenient execution of packet-level experiments usi
    rm -r ns-3.30.1
    ```
 
-5. Navigate to simulator: `cd simulator`
+5. Navigate to simulator:
+   ```
+   cd simulator
+   ```
 
 6. Replace the content of `src/internet/model/ipv4-global-routing.cc / .h` with that of `scratch/main/replace-ipv4-global-routing.cc / .h`:
    ```
