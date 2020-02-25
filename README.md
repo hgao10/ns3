@@ -2,6 +2,8 @@
 
 This repository enables the convenient execution of packet-level experiments using the ns-3 simulator. It only takes in the input of a configuration file, which describes the minimal necessary parameters, a topology file, and a flow arrival schedule. It has the ability to enable switch-id-seeded ECMP.
 
+**Make sure you fork this repository and continue on it in your own repository. This repository is kept simple on purpose.**
+
 ## Getting started
 
 1. Extract ns-3.30.1.zip (this is given for convenience, this is the generic ns-3):
