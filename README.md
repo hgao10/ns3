@@ -21,7 +21,7 @@ This repository enables the convenient execution of packet-level experiments usi
    cp -r ns-3.30.1/* simulator/
    ```
    
-4. Remove the now-empty ns-3.30.1 folder
+4. Remove the ns-3.30.1 folder as we do not need it anymore:
    ```
    rm -r ns-3.30.1
    ```
@@ -69,4 +69,4 @@ If you want to speed-up the simulation, this helps:
 ## Acknowledgements
 
 Based on code written by Hussain, who did his master thesis in the NDAL group.
-Refactored, extended and maintained by Simon.
+Refactored, extended and maintained by Simon. The ECMP extension is adapted from https://github.com/mkheirkhah/ecmp (retrieved February 20th, 2020).
