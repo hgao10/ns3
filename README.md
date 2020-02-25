@@ -66,6 +66,12 @@ If you want to speed-up the simulation, this helps:
  ./waf configure --build-profile=optimized
  ```
 
+The files within each run folder:
+* *config.properties* - Main properties file: the property key names should be self-explanatory. Please see the example runs to get an understanding.
+* *schedule.csv* - Each line defines a flow as follows: `flow_id,from_node_id,to_node_id,size_byte,start_time_ns,additional_parameters,metadata`
+* *topology.properties* - Self-explanatory properties. There is no difference with what is installed by main.cc between switches/ToRs/servers: they all get the same stack/hardware. The only difference is when interpreting the schedule.csv: if there are servers defined, from/to must be servers, else if there are no servers defined, from/to must be marked as ToRs (it's like a sanity check). Please see the example runs to get an understanding.
+
+
 ## Acknowledgements
 
 Based on code written by Hussain, who did his master thesis in the NDAL group.
