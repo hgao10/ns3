@@ -34,24 +34,25 @@ int64_t sim_start_time_ns_since_epoch;
 int64_t last_log_time_ns_since_epoch;
 int64_t total_simulation_duration_ns;
 int counter_estimate_remainder = 0;
-double PROGRESS_INTERVAL_NS = 10000000000;
+double progress_interval_ns = 10000000000; // First one at 10s
 void show_simulation_progress() {
     int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (now - last_log_time_ns_since_epoch > PROGRESS_INTERVAL_NS) {
+    if (now - last_log_time_ns_since_epoch > progress_interval_ns) {
         printf(
                 "%5.2f%% - Simulation Time = %.2fs ::: Wallclock Time = %.2fs\n",
                 (Simulator::Now().GetSeconds() / (total_simulation_duration_ns / 1e9)) * 100.0,
                 Simulator::Now().GetSeconds(),
                 (now - sim_start_time_ns_since_epoch) / 1e9
                 );
-        if (counter_estimate_remainder % 10 == 0) {
+        if (counter_estimate_remainder % 5 == 0) { // Every 5 minutes we show estimate
             printf(
-                    "Estimated time remaining: %.2f minutes\n",
+                    "Estimated wallclock time remaining: %.1f minutes\n",
                     ((total_simulation_duration_ns / 1e9 - Simulator::Now().GetSeconds()) / (Simulator::Now().GetSeconds() / ((now - sim_start_time_ns_since_epoch) / 1e9))) / 60.0
                     );
         }
         counter_estimate_remainder++;
         last_log_time_ns_since_epoch = now;
+        progress_interval_ns = 60000000000; // After the first, each update is every 60s
     }
 }
 
@@ -120,15 +121,25 @@ Topology read_and_print_topology(const std::string& filename) {
  * Read and print schedule.
  *
  * @param filename      schedule.csv filename
- * @param num_nodes     Number of nodes
+ * @param topology      Topology
  * @param schedule      Target vector to store schedule in
  *
  * @return 0 iff success, else non-zero
  */
-void read_and_print_schedule(const std::string& filename, int64_t num_nodes, std::vector<schedule_entry>& schedule) {
+void read_and_print_schedule(const std::string& filename, Topology& topology, std::vector<schedule_entry>& schedule) {
 
     // Read the schedule
-    read_schedule(filename, num_nodes, schedule);
+    read_schedule(filename, topology.num_nodes, schedule);
+
+    // Check endpoint validity
+    for (schedule_entry& entry : schedule) {
+        if (!topology.is_valid_flow_endpoint(entry.from_node_id)) {
+            throw std::invalid_argument(format_string("Invalid endpoint for a scheduled flow based on topology: %d", entry.from_node_id));
+        }
+        if (!topology.is_valid_flow_endpoint(entry.to_node_id)) {
+            throw std::invalid_argument(format_string("Invalid endpoint for a schedule flow based on topology: %d", entry.to_node_id));
+        }
+    }
 
     // Print schedule
     printf("SCHEDULE\n");
@@ -193,7 +204,7 @@ int main(int argc, char *argv[]) {
 
     // Schedule
     std::vector<schedule_entry> schedule;
-    read_and_print_schedule(run_dir + "/" + config["filename_schedule"], topology.num_nodes, schedule);
+    read_and_print_schedule(run_dir + "/" + config["filename_schedule"], topology, schedule);
 
     // Seed
     std::string simulation_seed_str = config["simulation_seed"];
@@ -275,12 +286,12 @@ int main(int argc, char *argv[]) {
         FlowSendHelper source(
                 "ns3::TcpSocketFactory",
                 InetSocketAddress(
-                        nodes.Get(entry.to_machine_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(),
+                        nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(),
                         1024
                 )
         );
         source.SetAttribute("MaxBytes", UintegerValue(entry.size_byte));
-        ApplicationContainer app = source.Install(nodes.Get(entry.from_machine_id));
+        ApplicationContainer app = source.Install(nodes.Get(entry.from_node_id));
         app.Start(NanoSeconds(entry.start_time_ns));
         apps.push_back(app);
     }
@@ -305,7 +316,7 @@ int main(int argc, char *argv[]) {
     fileFinished.close();
 
     // Run
-    printf("Running the simulation for %.1f seconds...\n", (simulation_end_time_ns / 1e9));
+    printf("Running the simulation for %.1f simulation seconds...\n", (simulation_end_time_ns / 1e9));
     Simulator::Run ();
     printf("Finished simulation.\n\n");
 
@@ -338,7 +349,7 @@ int main(int argc, char *argv[]) {
         // Write plain to the csv
         fprintf(
                 file_csv, "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s\n",
-                entry.flow_id, entry.from_machine_id, entry.to_machine_id, entry.size_byte, entry.start_time_ns,
+                entry.flow_id, entry.from_node_id, entry.to_node_id, entry.size_byte, entry.start_time_ns,
                 entry.start_time_ns + fct_ns, fct_ns, sent_byte, is_finished ? "Y" : "N"
         );
 
@@ -355,7 +366,7 @@ int main(int argc, char *argv[]) {
         sprintf(str_avg_rate_megabit_per_s, "%.1f Mbit/s", byte_to_megabit(sent_byte) / nanosec_to_sec(fct_ns));
         fprintf(
                 file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%s\n",
-                entry.flow_id, entry.from_machine_id, entry.to_machine_id, str_size_megabit, entry.start_time_ns,
+                entry.flow_id, entry.from_node_id, entry.to_node_id, str_size_megabit, entry.start_time_ns,
                 entry.start_time_ns + fct_ns, str_duration_ms, str_sent_megabit, str_progress_perc, str_avg_rate_megabit_per_s,
                 is_finished ? "Yes" : "DNF"
         );

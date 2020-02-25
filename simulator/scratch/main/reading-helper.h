@@ -14,8 +14,8 @@
 
 struct schedule_entry {
     int64_t flow_id;
-    int64_t from_machine_id;
-    int64_t to_machine_id;
+    int64_t from_node_id;
+    int64_t to_node_id;
     int64_t size_byte;
     int64_t start_time_ns;
     std::string additional_parameters;

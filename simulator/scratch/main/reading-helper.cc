@@ -18,7 +18,7 @@ bool schedule_sorter(const schedule_entry& i, const schedule_entry& j) {
  * Read the schedule.csv into a schedule.
  *
  * @param filename      File name of the schedule.csv
- * @param num_nodes  Total number of machines present (to check identifiers)
+ * @param num_nodes     Total number of nodes present (to check identifiers)
  * @param schedule      Schedule
 */
 void read_schedule(const std::string& filename, const int64_t num_nodes, std::vector<schedule_entry>& schedule) {
@@ -41,19 +41,19 @@ void read_schedule(const std::string& filename, const int64_t num_nodes, std::ve
             if (entry.flow_id != (int64_t) line_counter) {
                 throw std::invalid_argument(format_string("Flow ID is not ascending by one each line (violation: %" PRId64 ")\n", entry.flow_id));
             }
-            entry.from_machine_id = parse_positive_int64(comma_split[1]);
-            entry.to_machine_id = parse_positive_int64(comma_split[2]);
+            entry.from_node_id = parse_positive_int64(comma_split[1]);
+            entry.to_node_id = parse_positive_int64(comma_split[2]);
             entry.size_byte = parse_positive_int64(comma_split[3]);
             entry.start_time_ns = parse_positive_int64(comma_split[4]);
             entry.additional_parameters = comma_split[5];
             entry.metadata = comma_split[6];
 
-            // Check machine ID
-            if (entry.from_machine_id >= num_nodes) {
-                throw std::invalid_argument(format_string("Invalid from machine ID: %" PRId64 ".", entry.from_machine_id));
+            // Check node ID
+            if (entry.from_node_id >= num_nodes) {
+                throw std::invalid_argument(format_string("Invalid from node ID: %" PRId64 ".", entry.from_node_id));
             }
-            if (entry.to_machine_id >= num_nodes) {
-                throw std::invalid_argument(format_string("Invalid to machine ID: %" PRId64 ".", entry.to_machine_id));
+            if (entry.to_node_id >= num_nodes) {
+                throw std::invalid_argument(format_string("Invalid to node ID: %" PRId64 ".", entry.to_node_id));
             }
 
             // Put into schedule
