@@ -170,15 +170,15 @@ Ipv4GlobalRouting::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pack
         case UDP_PROT_NUMBER: {
             UdpHeader udpHeader;
             p->PeekHeader(udpHeader);
-            oss << "|" << udpHeader.GetDestinationPort() // UDP destination port
-                << "|" << udpHeader.GetSourcePort();     // UDP source port
+            oss << "|" << udpHeader.GetSourcePort()        // UDP source port
+                << "|" << udpHeader.GetDestinationPort();  // UDP destination port
             break;
         }
         case TCP_PROT_NUMBER: {
             TcpHeader tcpHeader;
             p->PeekHeader(tcpHeader);
-            oss << "|" << tcpHeader.GetDestinationPort() // TCP destination port
-                << "|" << tcpHeader.GetSourcePort();     // TCP source port
+            oss << "|" << tcpHeader.GetSourcePort()        // TCP source port
+                << "|" << tcpHeader.GetDestinationPort();  // TCP destination port
             break;
         }
         default: {
