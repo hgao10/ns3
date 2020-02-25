@@ -2,15 +2,19 @@
 
 
 /**
- * Sorter of the schedule by arriving time.
+ * Sorter of the schedule by (1) start time and (2) flow identifier.
  *
  * @param   i    Schedule entry i
  * @param   j    Schedule entry j
  *
- * @return Negative iff i arrives earlier than j
+ * @return True iff i starts earlier than j (or if equal start time: true iff flow id of i less than flow id of j)
 */
 bool schedule_sorter(const schedule_entry& i, const schedule_entry& j) {
-    return i.start_time_ns < j.start_time_ns;
+    if (i.start_time_ns == j.start_time_ns) {
+        return i.flow_id < j.flow_id;
+    } else {
+        return i.start_time_ns < j.start_time_ns;
+    }
 }
 
 
