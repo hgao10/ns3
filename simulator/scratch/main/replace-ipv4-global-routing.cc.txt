@@ -139,7 +139,10 @@ Ipv4GlobalRouting::AddASExternalRouteTo (Ipv4Address network,
 }
 
 /**
- * Calculates a hash
+ * Calculates a hash from the 5-tuple.
+ *
+ * It uses separators of | between the 5 values such that a coincidental
+ * concatenation does not lead to equal input between values.
  *
  * Adapted from: https://github.com/mkheirkhah/ecmp (February 20th, 2020)
  * 
@@ -155,27 +158,27 @@ Ipv4GlobalRouting::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pack
     Ptr<Node> node = m_ipv4->GetObject<Node>();
     
     std::ostringstream oss;
-    oss << node->GetId();  // Each switch has a unique identifier.
-                           // This added to the hash input to make sure that each node make a different decision
-                           // with the same 5-tuple.
-                           
-    oss << header.GetSource()      // Source IP
-        << header.GetDestination() // Destination IP
-        << header.GetProtocol();   // Protocol
+    oss << node->GetId() << "|";  // Each switch has a unique identifier.
+                                  // This added to the hash input to make sure that each node make a different decision
+                                  // with the same 5-tuple.
+
+    oss << header.GetSource() << "|"       // Source IP
+        << header.GetDestination() << "|"  // Destination IP
+        << ((int) header.GetProtocol());   // Protocol
 
     switch (header.GetProtocol()) {
         case UDP_PROT_NUMBER: {
             UdpHeader udpHeader;
             p->PeekHeader(udpHeader);
-            oss << udpHeader.GetDestinationPort() // UDP destination port
-                << udpHeader.GetSourcePort();     // UDP source port
+            oss << "|" << udpHeader.GetDestinationPort() // UDP destination port
+                << "|" << udpHeader.GetSourcePort();     // UDP source port
             break;
         }
         case TCP_PROT_NUMBER: {
             TcpHeader tcpHeader;
             p->PeekHeader(tcpHeader);
-            oss << tcpHeader.GetDestinationPort() // TCP destination port
-                << tcpHeader.GetSourcePort();     // TCP source port
+            oss << "|" << tcpHeader.GetDestinationPort() // TCP destination port
+                << "|" << tcpHeader.GetSourcePort();     // TCP source port
             break;
         }
         default: {
