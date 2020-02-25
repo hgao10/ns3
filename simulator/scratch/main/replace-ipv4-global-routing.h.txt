@@ -47,7 +47,7 @@ const uint8_t UDP_PROT_NUMBER = 17;
 
 typedef enum
 {
-    DEFAULT,
+    NO_ECMP,
     ECMP_5_TUPLE_HASH,
     ECMP_RANDOM
 } RoutingMode_t;

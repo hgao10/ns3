@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
     // ECMP routing
 
     // If you make some small adjustments in ipv4-global-routing.cc/h (copy over the replace....txt files into the src/internet/model versions)
-    ns3::Config::SetDefault("ns3::Ipv4GlobalRouting::RoutingMode", StringValue ("ECMP_5_TUPLE_HASH")); // Options: "DEFAULT", "ECMP_5_TUPLE_HASH", "ECMP_RANDOM"
+    ns3::Config::SetDefault("ns3::Ipv4GlobalRouting::RoutingMode", StringValue ("ECMP_5_TUPLE_HASH")); // Options: "NO_ECMP", "ECMP_5_TUPLE_HASH", "ECMP_RANDOM"
 
     ////////////////////////////////////////
     // Setup topology

@@ -46,9 +46,9 @@ Ipv4GlobalRouting::GetTypeId (void)
     .SetGroupName ("Internet")
     .AddAttribute("RoutingMode",
                 "Routing mode",
-                EnumValue(DEFAULT),
+                EnumValue(NO_ECMP),
                 MakeEnumAccessor(&Ipv4GlobalRouting::m_routingMode),
-                MakeEnumChecker(DEFAULT, "DEFAULT",
+                MakeEnumChecker(NO_ECMP, "NO_ECMP",
                                 ECMP_5_TUPLE_HASH, "ECMP_5_TUPLE_HASH",
                                 ECMP_RANDOM, "ECMP_RANDOM"))
     .AddAttribute ("RespondToInterfaceEvents",
@@ -62,7 +62,7 @@ Ipv4GlobalRouting::GetTypeId (void)
 
 Ipv4GlobalRouting::Ipv4GlobalRouting () 
   : m_respondToInterfaceEvents (false),
-    m_routingMode (DEFAULT)
+    m_routingMode (NO_ECMP)
 {
   NS_LOG_FUNCTION (this);
 
@@ -273,12 +273,10 @@ Ipv4GlobalRouting::LookupGlobal (const Ipv4Header &header, Ptr<const Packet> p, 
     }
   if (allRoutes.size () > 0 ) // if route(s) is found
     {
-      // pick up one of the routes uniformly at random if random
-      // ECMP routing is enabled, or always select the first route
-      // consistently if random ECMP routing is disabled
+      // Pick one of the routes based on the routing mode
       uint32_t selectIndex;
       switch (m_routingMode) {
-        case DEFAULT:
+        case NO_ECMP:
             selectIndex = 0;
             break;
         case ECMP_5_TUPLE_HASH:
@@ -296,6 +294,8 @@ Ipv4GlobalRouting::LookupGlobal (const Ipv4Header &header, Ptr<const Packet> p, 
                 selectIndex = 0;
             }
             break;
+        default:
+            throw std::runtime_error("Selected routing mode does not exist.");
       }
 
       Ipv4RoutingTableEntry* route = allRoutes.at (selectIndex); 
