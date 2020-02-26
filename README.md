@@ -59,17 +59,63 @@ This repository enables the convenient execution of packet-level experiments usi
     xdg-open ../runs/example_single/logs/flows.txt
     ```
  
- ## Notes
+ ## Speed-up the simulation
  
-If you want to speed-up the simulation, this helps:
+If you want to speed-up the simulation (disables logging), configuring as follows helps:
  ```bash
  ./waf configure --build-profile=optimized
  ```
 
-The files within each run folder:
-* *config.properties* - Main properties file: the property key names should be self-explanatory. Please see the example runs to get an understanding.
-* *schedule.csv* - Each line defines a flow as follows: `flow_id,from_node_id,to_node_id,size_byte,start_time_ns,additional_parameters,metadata`
-* *topology.properties* - Self-explanatory properties. There is no difference with what is installed by main.cc between switches/ToRs/servers: they all get the same stack/hardware. The only difference is when interpreting the schedule.csv: if there are servers defined, from/to must be servers, else if there are no servers defined, from/to must be marked as ToRs (it's like a sanity check). Please see the example runs to get an understanding.
+
+## Run folder
+
+The run folder must contain the input of a simulation.
+
+**config.properties**
+
+General properties of the simulation. The following are already defined:
+
+* `filename_topology` : Topology filename (relative to run folder)
+* `filename_schedule` : Schedule filename (relative to run folder)
+* `simulation_end_time_ns` : How long to run the simulation in simulation time (ns)
+* `simulation_seed` : If there is randomness present in the simulation, this guarantees reproducibility (exactly the same outcome) if the seed is the same
+* `link_data_rate_megabit_per_`s : Data rate set for all links (Mbit/s)
+* `link_delay_ns` : Propagation delay set for all links (ns)
+
+**schedule.csv**
+
+Flow arrival schedule. Each line defines a flow as follows:
+
+```
+flow_id,from_node_id,to_node_id,size_byte,start_time_ns,additional_parameters,metadata
+```
+
+Notes: flow_id must increment each line. All values except additional_parameters and metadata are mandatory. `additional_parameters` should be set if you want to configure special for each flow (e.g., different transport protocol). `metadata` is for identification later on (e.g., to indicate the workload it is part of).
+
+**topology.properties**
+
+The topological layout of the network. Please see the examples to understand each property. Besides it just defining a graph, the following rules apply:
+
+* If there are servers defined, they can only have edges to a ToR.
+* There is no difference with what is installed by main.cc for switches/ToRs/servers: they all get the same stack/hardware.
+* The only difference is when interpreting the schedule.csv: (a) if there are servers defined: from/to must be servers, (b) else if there are no servers defined, from/to must be marked as ToRs (it's like a sanity check).
+
+
+## Some recommendations and notes
+
+Based on some experience with packet-level simulation, I would like to add the following notes:
+
+* **Strong recommendation: keep any run input generation (e.g., config/schedule/topology) separate from the main.cc!** Make a different repository that generates run folders, which is then inputted using main.cc. Mixing up the run folders and the main function will lead to unmaintainable code, and is also unnecessary: the simulator is for simulating, not for generating simulation input. It also makes it more difficult to reproduce old runs. Just put all the generation code into another project repository, in which you use languages like Python which are more effective at this job anyway.
+
+* **Why is my simulation slow?** Discrete packet-level simulation speed (as in wallclock seconds for each simulation second) is chiefly determined by events of packets going being set over links. You can interpret this as follows:
+  - The wallclock time it takes to simulate 10 flows going over a single link is about the same as 1 flow going over a link.
+  - The wallclock time it takes to simulate a flow going over 5 links (hops) is roughly 5x as slow as a flow going over 1 link (hop).
+  - The wallclock time it takes to simulate a flow going over a 10 Mbit/s link for 100s takes about as long as a flow going over a 100 Mbit/s link for 10s.
+  - Idle links don't increase wallclock time because there are barely any events happening there (maybe routing updates).
+
+* **How do I implement feature X?** This repository is only a simple way to run a simulation, it is a starting point. You will have to write your own code if you want e.g. different delays or rates for different links, custom transport layer protocols, new queue implementations etc.. All of the things ns-3 has modularized already, and you can just implement and plug in (all of the three examples in the previous sentences can be done quite easily). There are things that are more difficult in ns-3, such as your own custom routing protocol.
+
+* **To maintain reproducibility, any randomness inside your code must be drawn from the ns-3 randomness classes which were initialized by the simulation seed!** Runs must be reproducible in a discrete event simulation run.
 
 
 ## Acknowledgements

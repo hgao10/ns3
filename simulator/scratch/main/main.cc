@@ -318,7 +318,13 @@ int main(int argc, char *argv[]) {
     // Run
     printf("Running the simulation for %.1f simulation seconds...\n", (simulation_end_time_ns / 1e9));
     Simulator::Run ();
-    printf("Finished simulation.\n\n");
+    printf("Finished simulation.\n");
+    int64_t sim_end_time_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    printf(
+            "Simulation of %.1f seconds took in wallclock time %.1f seconds.\n\n",
+            total_simulation_duration_ns / 1e9,
+            (sim_end_time_ns_since_epoch - sim_start_time_ns_since_epoch) / 1e9
+    );
 
     ////////////////////////////////////////
     // Store completion times

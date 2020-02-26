@@ -62,6 +62,15 @@ Topology::Topology(const std::string& filename) {
         throw std::invalid_argument("Servers are marked as ToRs");
     }
 
+    // Servers must be connected to ToRs only
+    for (int64_t node_id : this->servers) {
+        for (int64_t neighbor_id : adjacency_list[node_id]) {
+            if (this->switches_which_are_tors.find(neighbor_id) == this->switches_which_are_tors.end()) {
+                throw std::invalid_argument(format_string("Server node %" PRId64 " has an edge to node %" PRId64 " which is not a ToR.", node_id, neighbor_id));
+            }
+        }
+    }
+
     if (this->servers.size() > 0) {
         has_zero_servers = true;
     } else {
