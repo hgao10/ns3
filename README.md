@@ -79,7 +79,7 @@ General properties of the simulation. The following are already defined:
 * `filename_schedule` : Schedule filename (relative to run folder)
 * `simulation_end_time_ns` : How long to run the simulation in simulation time (ns)
 * `simulation_seed` : If there is randomness present in the simulation, this guarantees reproducibility (exactly the same outcome) if the seed is the same
-* `link_data_rate_megabit_per_`s : Data rate set for all links (Mbit/s)
+* `link_data_rate_megabit_per_s` : Data rate set for all links (Mbit/s)
 * `link_delay_ns` : Propagation delay set for all links (ns)
 
 **schedule.csv**
