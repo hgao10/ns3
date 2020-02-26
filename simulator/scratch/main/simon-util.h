@@ -92,6 +92,7 @@ double nanosec_to_millisec(int64_t num_seconds);
 double nanosec_to_microsec(int64_t num_seconds);
 
 // File system
+bool file_exists(std::string filename);
 void remove_file_if_exists(std::string filename);
 
 #endif //SIMON_UTIL_H

@@ -204,18 +204,17 @@ int main(int argc, char *argv[]) {
 
     // Schedule
     std::vector<schedule_entry> schedule;
-    read_and_print_schedule(run_dir + "/" + config["filename_schedule"], topology, schedule);
+    read_and_print_schedule(run_dir + "/" + get_param_or_fail("filename_schedule", config), topology, schedule);
 
     // Seed
-    std::string simulation_seed_str = config["simulation_seed"];
-    int64_t simulation_seed = (simulation_seed_str == "random") ? 389285205 : parse_positive_int64(simulation_seed_str);
+    int64_t simulation_seed = parse_positive_int64(get_param_or_fail("simulation_seed", config));
 
     // End time
-    int64_t simulation_end_time_ns = parse_positive_int64(config["simulation_end_time_ns"]);
+    int64_t simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", config));
 
     // Link properties
-    double link_data_rate_megabit_per_s = parse_positive_double(config["link_data_rate_megabit_per_s"]);
-    int64_t link_delay_ns = parse_positive_int64(config["link_delay_ns"]);
+    double link_data_rate_megabit_per_s = parse_positive_double(get_param_or_fail("link_data_rate_megabit_per_s", config));
+    int64_t link_delay_ns = parse_positive_int64(get_param_or_fail("link_delay_ns", config));
 
     ////////////////////////////////////////
     // Configure NS-3

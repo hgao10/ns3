@@ -89,7 +89,7 @@ bool starts_with(const std::string& str, const std::string& prefix) {
  * @return String without quotes (e.g., abc)
  */
 std::string remove_start_end_double_quote_if_present(std::string s) {
-    if (starts_with(s, "\"") && ends_with(s, "\"")) {
+    if (s.size() > 2 && starts_with(s, "\"") && ends_with(s, "\"")) {
         return s.substr(1, s.size() - 2);
     } else {
         return s;
@@ -433,13 +433,28 @@ double nanosec_to_microsec(int64_t num_nanosec) {
 }
 
 /**
+ * Check if a file exists.
+ *
+ * @param filename  Filename
+ *
+ * @return True iff the file exists
+ */
+bool file_exists(std::string filename) {
+    struct stat st = {0};
+    if (stat(filename.c_str(), &st) == 0) {
+        return S_ISREG(st.st_mode);
+    } else {
+        return false;
+    }
+}
+
+/**
  * Remove a file if it exists. If it exists but could not be removed, it throws an exception.
  *
  * @param filename  Filename to remove
  */
 void remove_file_if_exists(std::string filename) {
-    struct stat st = {0};
-    if (stat(filename.c_str(), &st) == 0) {
+    if (file_exists(filename)) {
         if (unlink(filename.c_str()) == -1) {
             throw std::runtime_error(format_string("File %s could not be removed.\n", filename.c_str()));
         }

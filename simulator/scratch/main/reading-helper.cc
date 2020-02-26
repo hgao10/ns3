@@ -27,6 +27,11 @@ bool schedule_sorter(const schedule_entry& i, const schedule_entry& j) {
 */
 void read_schedule(const std::string& filename, const int64_t num_nodes, std::vector<schedule_entry>& schedule) {
 
+    // Check that the file exists
+    if (!file_exists(filename)) {
+        throw std::runtime_error(format_string("File %s does not exist.", filename.c_str()));
+    }
+
     // Open file
     std::string line;
     std::ifstream schedule_file(filename);
