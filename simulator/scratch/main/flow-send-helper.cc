@@ -15,6 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
+ * Author: Simon
+ * Adapted from BulkSendHelper by:
  * Author: Geoge Riley <riley@ece.gatech.edu>
  * Adapted from OnOffHelper by:
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
