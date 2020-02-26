@@ -40,22 +40,22 @@ This repository enables the convenient execution of packet-level experiments usi
 7. Make sure you have the latest version of Python (3.7+)
    
 8. Configure
-    ```bash
+    ```
     ./waf configure
     ```
    
 9. Build
-    ```bash
+    ```
     ./waf
     ```
    
 10. Run the example:
-    ```bash
+    ```
     ./waf --run="main --run_dir='../runs/example_single'"
     ```
 
 11. Check out the results:
-    ```bash
+    ```
     xdg-open ../runs/example_single/logs/flows.txt
     ```
  
@@ -90,7 +90,7 @@ Flow arrival schedule. Each line defines a flow as follows:
 flow_id,from_node_id,to_node_id,size_byte,start_time_ns,additional_parameters,metadata
 ```
 
-Notes: flow_id must increment each line. All values except additional_parameters and metadata are mandatory. `additional_parameters` should be set if you want to configure special for each flow (e.g., different transport protocol). `metadata` is for identification later on (e.g., to indicate the workload it is part of).
+Notes: flow_id must increment each line. All values except additional_parameters and metadata are mandatory. `additional_parameters` should be set if you want to configure something special for each flow in main.cc (e.g., different transport protocol). `metadata` you can use for identification later on in the flows.csv/txt logs (e.g., to indicate the workload or coflow it was part of).
 
 **topology.properties**
 
@@ -100,6 +100,17 @@ The topological layout of the network. Please see the examples to understand eac
 * There is no difference with what is installed by main.cc for switches/ToRs/servers: they all get the same stack/hardware.
 * The only difference is when interpreting the schedule.csv: (a) if there are servers defined: from/to must be servers, (b) else if there are no servers defined, from/to must be marked as ToRs (it's like a sanity check).
 
+**The log files**
+
+There are three log files generated:
+
+* `finished.txt` : Contains "yes" if finished, "no" if not.
+* `flows.txt` : Flow results in a visually appealing table.
+* `flows.csv` : Flow results in CSV format for processing with each line:
+
+```
+flow_id,from_node_id,to_node_id,size_byte,start_time_ns,end_time_ns,duration_ns,amount_sent_byte,metadata
+```
 
 ## Some recommendations and notes
 

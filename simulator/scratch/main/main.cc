@@ -335,9 +335,9 @@ int main(int argc, char *argv[]) {
     FILE* file_csv = fopen((run_dir + "/logs/flows.csv").c_str(), "w+");
     FILE* file_txt = fopen((run_dir + "/logs/flows.txt").c_str(), "w+");
     fprintf(
-            file_txt, "%-12s%-10s%-10s%-16s%-18s%-18s%-16s%-16s%-13s%-16s%s\n",
+            file_txt, "%-12s%-10s%-10s%-16s%-18s%-18s%-16s%-16s%-13s%-16s%-12s%s\n",
             "Flow ID", "Source", "Target", "Size", "Start time (ns)",
-            "End time (ns)", "Duration", "Sent", "Progress", "Avg. rate", "Finished?"
+            "End time (ns)", "Duration", "Sent", "Progress", "Avg. rate", "Finished?", "Metadata"
     );
     std::vector<ApplicationContainer>::iterator it = apps.begin();
     for (schedule_entry& entry : schedule) {
@@ -354,9 +354,9 @@ int main(int argc, char *argv[]) {
 
         // Write plain to the csv
         fprintf(
-                file_csv, "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s\n",
+                file_csv, "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s,%s\n",
                 entry.flow_id, entry.from_node_id, entry.to_node_id, entry.size_byte, entry.start_time_ns,
-                entry.start_time_ns + fct_ns, fct_ns, sent_byte, is_finished ? "Y" : "N"
+                entry.start_time_ns + fct_ns, fct_ns, sent_byte, is_finished ? "Y" : "N", entry.metadata.c_str()
         );
 
         // Write nicely formatted to the text
@@ -371,10 +371,10 @@ int main(int argc, char *argv[]) {
         char str_avg_rate_megabit_per_s[100];
         sprintf(str_avg_rate_megabit_per_s, "%.1f Mbit/s", byte_to_megabit(sent_byte) / nanosec_to_sec(fct_ns));
         fprintf(
-                file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%s\n",
+                file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%-12s%s\n",
                 entry.flow_id, entry.from_node_id, entry.to_node_id, str_size_megabit, entry.start_time_ns,
                 entry.start_time_ns + fct_ns, str_duration_ms, str_sent_megabit, str_progress_perc, str_avg_rate_megabit_per_s,
-                is_finished ? "Yes" : "DNF"
+                is_finished ? "Yes" : "DNF", entry.metadata.c_str()
         );
 
         // Move on iterator
