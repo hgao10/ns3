@@ -57,18 +57,6 @@ void show_simulation_progress() {
 }
 
 /**
- * Set the data rate of a link.
- *
- * @param endpoints         Endpoints
- * @param data_rate_Mbps    Data rate in Mbit/s
- */
-void set_link_data_rate(NetDeviceContainer endpoints, int data_rate_Mbps) {
-    std::string data_rate = std::to_string(data_rate_Mbps) + "Mbps";
-    endpoints.Get(0)->SetAttribute("DataRate", StringValue(data_rate));
-    endpoints.Get(1)->SetAttribute("DataRate", StringValue(data_rate));
-}
-
-/**
  * Read and print config.
  *
  * @param filename  config.properties filename
