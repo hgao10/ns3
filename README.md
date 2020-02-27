@@ -62,7 +62,7 @@ This repository enables the convenient execution of packet-level experiments usi
  ## Speed-up the simulation
  
 If you want to speed-up the simulation (disables logging), configuring as follows helps:
- ```bash
+ ```
  ./waf configure --build-profile=optimized
  ```
 
