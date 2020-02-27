@@ -160,7 +160,7 @@ Ipv4GlobalRouting::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pack
     std::ostringstream oss;
     oss << node->GetId() << "|";  // Each switch has a unique identifier.
                                   // This added to the hash input to make sure that each node make a different decision
-                                  // with the same 5-tuple.
+                                  // with the same 5-tuple. This prevents hash polarization.
 
     oss << header.GetSource() << "|"       // Source IP
         << header.GetDestination() << "|"  // Destination IP
