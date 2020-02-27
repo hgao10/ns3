@@ -1,5 +1,5 @@
-#ifndef FLOWRUNNER_READING_HELPER_H
-#define FLOWRUNNER_READING_HELPER_H
+#ifndef READING_HELPER_H
+#define READING_HELPER_H
 
 #include <string>
 #include <vector>
@@ -24,4 +24,4 @@ struct schedule_entry {
 
 void read_schedule(const std::string& filename, int64_t num_nodes, std::vector<schedule_entry>& schedule);
 
-#endif //FLOWRUNNER_READING_HELPER_H
+#endif //READING_HELPER_H
