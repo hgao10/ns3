@@ -89,7 +89,7 @@ bool starts_with(const std::string& str, const std::string& prefix) {
  * @return String without quotes (e.g., abc)
  */
 std::string remove_start_end_double_quote_if_present(std::string s) {
-    if (s.size() > 2 && starts_with(s, "\"") && ends_with(s, "\"")) {
+    if (s.size() >= 2 && starts_with(s, "\"") && ends_with(s, "\"")) {
         return s.substr(1, s.size() - 2);
     } else {
         return s;
@@ -343,6 +343,11 @@ std::set<int64_t> direct_set_union(std::set<int64_t> s1, std::set<int64_t> s2) {
 */
 void read_config(const std::string& filename, std::map<std::string, std::string>& config) {
 
+    // Check that the file exists
+    if (!file_exists(filename)) {
+        throw std::runtime_error(format_string("File %s does not exist.", filename.c_str()));
+    }
+
     // Open file
     std::string line;
     std::ifstream config_file(filename);
@@ -365,7 +370,7 @@ void read_config(const std::string& filename, std::map<std::string, std::string>
         }
         config_file.close();
     } else {
-        throw std::runtime_error(format_string("File %s could not be read.\n", filename.c_str()));
+        throw std::runtime_error(format_string("File %s could not be read.", filename.c_str()));
     }
 
 }
