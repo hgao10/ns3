@@ -31,10 +31,10 @@ This repository enables the convenient execution of packet-level experiments usi
    cd simulator
    ```
 
-6. Replace the content of `src/internet/model/ipv4-global-routing.cc / .h` with that of `scratch/main/replace-ipv4-global-routing.cc / .h`:
+6. Replace the content of `src/internet/model/ipv4-global-routing.cc / .h` with that of `src/basic-sim/model/replace-ipv4-global-routing.cc / .h`:
    ```
-   cp src/basic-sim/replace-ipv4-global-routing.cc.txt src/internet/model/ipv4-global-routing.cc
-   cp src/basic-sim/replace-ipv4-global-routing.h.txt src/internet/model/ipv4-global-routing.h
+   cp src/basic-sim/model/replace-ipv4-global-routing.cc.txt src/internet/model/ipv4-global-routing.cc
+   cp src/basic-sim/model/replace-ipv4-global-routing.h.txt src/internet/model/ipv4-global-routing.h
    ```
 
 7. Make sure you have the latest version of Python (3.7+)
