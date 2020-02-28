@@ -292,6 +292,7 @@ int basic_sim(std::string run_dir) {
         ApplicationContainer app = *it;
         Ptr<FlowSendApplication> flowSendApp = ((it->Get(0))->GetObject<FlowSendApplication>());
         bool is_finished = flowSendApp->IsFinished();
+        bool is_err = flowSendApp->IsClosedByError();
         int64_t sent_byte = flowSendApp->GetAckedBytes();
         int64_t fct_ns;
         if (is_finished) {
@@ -304,7 +305,7 @@ int basic_sim(std::string run_dir) {
         fprintf(
                 file_csv, "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s,%s\n",
                 entry.flow_id, entry.from_node_id, entry.to_node_id, entry.size_byte, entry.start_time_ns,
-                entry.start_time_ns + fct_ns, fct_ns, sent_byte, is_finished ? "Y" : "N", entry.metadata.c_str()
+                entry.start_time_ns + fct_ns, fct_ns, sent_byte, is_err ? "ERR" : (is_finished ? "YES" : "DNF"), entry.metadata.c_str()
         );
 
         // Write nicely formatted to the text
@@ -322,7 +323,7 @@ int basic_sim(std::string run_dir) {
                 file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%-12s%s\n",
                 entry.flow_id, entry.from_node_id, entry.to_node_id, str_size_megabit, entry.start_time_ns,
                 entry.start_time_ns + fct_ns, str_duration_ms, str_sent_megabit, str_progress_perc, str_avg_rate_megabit_per_s,
-                is_finished ? "Yes" : "DNF", entry.metadata.c_str()
+                is_err ? "ERR" : (is_finished ? "YES" : "DNF"), entry.metadata.c_str()
         );
 
         // Move on iterator
