@@ -60,7 +60,7 @@ std::string format_string( const std::string& format, Args ... args ) {
 // String manipulations
 std::string right_trim(std::string s);
 std::string left_trim(std::string s);
-std::string trim(std::string& s);
+std::string trim(std::string s);
 bool ends_with(const std::string& str, const std::string& suffix);
 bool starts_with(const std::string& str, const std::string& prefix);
 std::string remove_start_end_double_quote_if_present(std::string s);

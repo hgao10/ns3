@@ -19,10 +19,7 @@ def build(bld):
 
     module_test = bld.create_ns3_module_test_library('basic-sim')
     module_test.source = [
-        'test/end-to-end-test.cc',
-        'test/simon-util-test.cc',
-        'test/reading-helper-test.cc',
-        'test/topology-test.cc',
+        'test/basic-sim-test-suite.cc'
         ]
 
     headers = bld(features='ns3header')

@@ -41,7 +41,7 @@ This repository enables the convenient execution of packet-level experiments usi
    
 8. Configure
     ```
-    ./waf configure
+    ./waf configure --enable-tests
     ```
    
 9. Build
@@ -58,6 +58,16 @@ This repository enables the convenient execution of packet-level experiments usi
     ```
     xdg-open ../runs/example_single/logs/flows.txt
     ```
+ 
+ ## Running tests
+ 
+To run all the tests for the basic simulation:
+
+```
+cd simulator
+python test.py -s "basic-sim" -t test-results.txt
+xdg-open test-results.txt
+```
  
  ## Speed-up the simulation
  

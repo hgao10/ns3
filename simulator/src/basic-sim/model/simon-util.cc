@@ -53,7 +53,7 @@ std::string left_trim(std::string s) {
  *
  * @return Left-and-right-trimmed string
  */
-std::string trim(std::string& s) {
+std::string trim(std::string s) {
     return left_trim(right_trim(s));
 }
 
