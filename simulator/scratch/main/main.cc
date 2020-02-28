@@ -332,10 +332,12 @@ int main(int argc, char *argv[]) {
         // Retrieve statistics
         ApplicationContainer app = *it;
         Ptr<FlowSendApplication> flowSendApp = ((it->Get(0))->GetObject<FlowSendApplication>());
-        int64_t fct_ns = flowSendApp->GetCompletionTimeNs();
         bool is_finished = flowSendApp->IsFinished();
         int64_t sent_byte = flowSendApp->GetAckedBytes();
-        if (!is_finished) {
+        int64_t fct_ns;
+        if (is_finished) {
+            fct_ns = flowSendApp->GetCompletionTimeNs() - entry.start_time_ns;
+        } else {
             fct_ns = simulation_end_time_ns - entry.start_time_ns;
         }
 
