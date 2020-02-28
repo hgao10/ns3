@@ -2,7 +2,7 @@
 
 This repository enables the convenient execution of packet-level experiments using the ns-3 simulator. It only takes in the input of a configuration file, which describes the minimal necessary parameters, a topology file, and a flow arrival schedule. It has the ability to enable switch-id-seeded ECMP.
 
-**Make sure you fork this repository and continue on it in your own repository. This repository is kept simple on purpose.**
+**Make sure you fork this repository and continue on it in your own repository. This repository is kept simple on purpose. You can keep your fork up-to-date by pulling it in regularly from your own repository: `git pull git@gitlab.inf.ethz.ch:OU-SINGLA/ns3-ecmp.git`**
 
 ## Getting started
 
