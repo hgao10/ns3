@@ -1,5 +1,6 @@
 #include "reading-helper.h"
 
+namespace ns3 {
 
 /**
  * Sorter of the schedule by (1) start time and (2) flow identifier.
@@ -82,5 +83,7 @@ void read_schedule(const std::string& filename, const int64_t num_nodes, std::ve
 
     // Finally sort schedule ascending on time
     std::sort(schedule.begin(), schedule.end(), schedule_sorter);
+
+}
 
 }

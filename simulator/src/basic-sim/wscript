@@ -1,0 +1,43 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+# def options(opt):
+#     pass
+
+# def configure(conf):
+#     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
+
+def build(bld):
+    module = bld.create_ns3_module('basic-sim', ['core'])
+    module.source = [
+        'model/basic-sim.cc',
+        'model/flow-send-application.cc',
+        'model/reading-helper.cc',
+        'model/simon-util.cc',
+        'model/topology.cc',
+        'helper/flow-send-helper.cc',
+        ]
+
+    module_test = bld.create_ns3_module_test_library('basic-sim')
+    module_test.source = [
+        'test/end-to-end-test.cc',
+        'test/simon-util-test.cc',
+        'test/reading-helper-test.cc',
+        'test/topology-test.cc',
+        ]
+
+    headers = bld(features='ns3header')
+    headers.module = 'basic-sim'
+    headers.source = [
+        'model/basic-sim.h',
+        'model/flow-send-application.h',
+        'model/reading-helper.h',
+        'model/simon-util.h',
+        'model/topology.h',
+        'helper/flow-send-helper.h',
+        ]
+
+    if bld.env.ENABLE_EXAMPLES:
+        bld.recurse('examples')
+
+    # bld.ns3_python_bindings()
+

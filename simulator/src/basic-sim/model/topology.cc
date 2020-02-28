@@ -1,5 +1,7 @@
 #include "topology.h"
 
+namespace ns3 {
+
 Topology::Topology(const std::string& filename) {
     std::map<std::string, std::string> config;
     read_config(filename, config);
@@ -85,4 +87,6 @@ bool Topology::is_valid_flow_endpoint(int64_t node_id) {
     } else {
         return this->switches_which_are_tors.find(node_id) != this->servers.end();
     }
+}
+
 }
