@@ -94,5 +94,8 @@ double nanosec_to_microsec(int64_t num_seconds);
 // File system
 bool file_exists(std::string filename);
 void remove_file_if_exists(std::string filename);
+bool dir_exists(std::string dirname);
+void mkdir_if_not_exists(std::string dirname);
+std::vector<std::string> read_file_direct(const std::string& filename);
 
 #endif //SIMON_UTIL_H

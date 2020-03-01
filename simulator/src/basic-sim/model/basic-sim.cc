@@ -115,6 +115,7 @@ void read_and_print_schedule(const std::string& filename, Topology& topology, st
 
 int basic_sim(std::string run_dir) {
 
+    // Basis header
     printf("BASIS\n");
 
     // Run directory

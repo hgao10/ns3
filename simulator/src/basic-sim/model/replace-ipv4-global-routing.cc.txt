@@ -151,7 +151,7 @@ Ipv4GlobalRouting::AddASExternalRouteTo (Ipv4Address network,
  * 
  * @return Hash value
  */
-uint64_t
+uint32_t
 Ipv4GlobalRouting::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p)
 {
     NS_LOG_FUNCTION(header);
@@ -284,7 +284,7 @@ Ipv4GlobalRouting::LookupGlobal (const Ipv4Header &header, Ptr<const Packet> p, 
             break;
         case ECMP_5_TUPLE_HASH:
             if (allRoutes.size() > 1) {
-                uint64_t hash_value = ComputeFiveTupleHash(header, p);
+                uint32_t hash_value = ComputeFiveTupleHash(header, p);
                 selectIndex = hash_value % (allRoutes.size());
             } else {
                 selectIndex = 0;

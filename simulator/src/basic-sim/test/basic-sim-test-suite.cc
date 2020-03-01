@@ -15,7 +15,9 @@ public:
         AddTestCase(new SimonUtilTestCase, TestCase::QUICK);
         AddTestCase(new TopologyTestCase, TestCase::QUICK);
         AddTestCase(new ReadingHelperTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndOneToOneApartStartTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
     }
 };
 static BasicSimTestSuite basicSimTestSuite;

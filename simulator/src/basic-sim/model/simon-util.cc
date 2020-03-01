@@ -465,3 +465,67 @@ void remove_file_if_exists(std::string filename) {
         }
     }
 }
+
+/**
+ * Check if a directory exists.
+ *
+ * @param dirname  Directory name
+ *
+ * @return True iff the directory exists
+ */
+bool dir_exists(std::string dirname) {
+    struct stat st = {0};
+    if (stat(dirname.c_str(), &st) == 0) {
+        return S_ISDIR(st.st_mode);
+    } else {
+        return false;
+    }
+}
+
+/**
+ * Creates a directory if it does not exist.
+ *
+ * @param dirname  Directory name
+ *
+ * @return True iff the directory was created if it did not exist
+ */
+void mkdir_if_not_exists(std::string dirname) {
+    if (!dir_exists(dirname)) {
+        if (mkdir(dirname.c_str(), 0700) == -1) {
+            throw std::runtime_error(format_string("Directory \"%s\" could not be made.", dirname.c_str()));
+        }
+    }
+}
+
+/**
+ * Read the content of a file directly line-by-line into a vector of trimmed lines.
+ *
+ * @param   filename    File name
+ *
+ * @return Vector of trimmed lines
+ */
+std::vector<std::string> read_file_direct(const std::string& filename) {
+
+    // Check that the file exists
+    if (!file_exists(filename)) {
+        throw std::runtime_error(format_string("File %s does not exist.", filename.c_str()));
+    }
+
+    // Storage
+    std::vector<std::string> lines;
+
+    // Open file
+    std::string line;
+    std::ifstream input_file(filename);
+    if (input_file) {
+        while (getline(input_file, line)) {
+            lines.push_back(trim(line));
+        }
+        input_file.close();
+    } else {
+        throw std::runtime_error(format_string("File %s could not be read.", filename.c_str()));
+    }
+
+    return lines;
+
+}
