@@ -339,9 +339,13 @@ std::set<int64_t> direct_set_union(std::set<int64_t> s1, std::set<int64_t> s2) {
  * Read a config properties file into a mapping.
  *
  * @param   filename    File name of the config.ini
- * @param   config      Key-value map to store the configuration
+ *
+ * @return Key-value map with the configuration
 */
-void read_config(const std::string& filename, std::map<std::string, std::string>& config) {
+std::map<std::string, std::string> read_config(const std::string& filename) {
+
+    // Where to put it in
+    std::map<std::string, std::string> config;
 
     // Check that the file exists
     if (!file_exists(filename)) {
@@ -372,6 +376,8 @@ void read_config(const std::string& filename, std::map<std::string, std::string>
     } else {
         throw std::runtime_error(format_string("File %s could not be read.", filename.c_str()));
     }
+
+    return config;
 
 }
 

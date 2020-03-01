@@ -3,8 +3,7 @@
 namespace ns3 {
 
 Topology::Topology(const std::string& filename) {
-    std::map<std::string, std::string> config;
-    read_config(filename, config);
+    std::map<std::string, std::string> config = read_config(filename);
     this->num_nodes = parse_geq_one_int64(get_param_or_fail("num_nodes", config));
     this->num_undirected_edges = parse_geq_one_int64(get_param_or_fail("num_undirected_edges", config));
 

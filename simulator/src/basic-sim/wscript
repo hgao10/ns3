@@ -11,7 +11,7 @@ def build(bld):
     module.source = [
         'model/basic-sim.cc',
         'model/flow-send-application.cc',
-        'model/reading-helper.cc',
+        'model/schedule-reader.cc',
         'model/simon-util.cc',
         'model/topology.cc',
         'helper/flow-send-helper.cc',
@@ -27,7 +27,7 @@ def build(bld):
     headers.source = [
         'model/basic-sim.h',
         'model/flow-send-application.h',
-        'model/reading-helper.h',
+        'model/schedule-reader.h',
         'model/simon-util.h',
         'model/topology.h',
         'helper/flow-send-helper.h',

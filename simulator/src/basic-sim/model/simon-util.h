@@ -82,7 +82,7 @@ std::set<int64_t> direct_set_intersection(std::set<int64_t> s1, std::set<int64_t
 std::set<int64_t> direct_set_union(std::set<int64_t> s1, std::set<int64_t> s2);
 
 // Configuration reading
-void read_config(const std::string& filename, std::map<std::string, std::string>& config);
+std::map<std::string, std::string> read_config(const std::string& filename);
 std::string get_param_or_fail(const std::string& param_key, std::map<std::string, std::string>& additional_parameters);
 
 // Unit conversion

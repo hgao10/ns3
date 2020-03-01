@@ -37,14 +37,13 @@ void show_simulation_progress() {
  * Read and print config.
  *
  * @param filename  config.properties filename
- * @param config    Target map to put in config
  *
- * @return 0 iff success, else non-zero
+ * @return Config mapping
  */
-void read_and_print_config(const std::string& filename, std::map<std::string, std::string>& config) {
+std::map<std::string, std::string> read_and_print_config(const std::string& filename) {
 
     // Read the config
-    read_config(filename, config);
+    std::map<std::string, std::string> config = read_config(filename);
 
     // Print full config
     printf("CONFIGURATION\n-----\nKEY                             VALUE\n");
@@ -53,6 +52,8 @@ void read_and_print_config(const std::string& filename, std::map<std::string, st
         printf("%-30s  %s\n", it->first.c_str(), it->second.c_str());
     }
     printf("\n");
+
+    return config;
 
 }
 
@@ -85,19 +86,19 @@ Topology read_and_print_topology(const std::string& filename) {
 /**
  * Read and print schedule.
  *
- * @param filename      schedule.csv filename
- * @param topology      Topology
- * @param schedule      Target vector to store schedule in
+ * @param filename                  schedule.csv filename
+ * @param topology                  Topology
+ * @param simulation_end_time_ns    Simulation end time (ns)
  *
- * @return 0 iff success, else non-zero
+ * @return Schedule
  */
-void read_and_print_schedule(const std::string& filename, Topology& topology, std::vector<schedule_entry>& schedule) {
+std::vector<schedule_entry_t> read_and_print_schedule(const std::string& filename, Topology& topology, int64_t simulation_end_time_ns) {
 
     // Read the schedule
-    read_schedule(filename, topology.num_nodes, schedule);
+    std::vector<schedule_entry_t> schedule = read_schedule(filename, topology.num_nodes, simulation_end_time_ns);
 
     // Check endpoint validity
-    for (schedule_entry& entry : schedule) {
+    for (schedule_entry_t& entry : schedule) {
         if (!topology.is_valid_flow_endpoint(entry.from_node_id)) {
             throw std::invalid_argument(format_string("Invalid endpoint for a scheduled flow based on topology: %d", entry.from_node_id));
         }
@@ -110,6 +111,8 @@ void read_and_print_schedule(const std::string& filename, Topology& topology, st
     printf("SCHEDULE\n");
     printf("  > Read schedule (total flow start events: %lu)\n", schedule.size());
     printf("\n");
+
+    return schedule;
 
 }
 
@@ -144,21 +147,19 @@ int basic_sim(std::string run_dir) {
     printf("\n");
 
     // Config
-    std::map<std::string, std::string> config;
-    read_and_print_config(run_dir + "/" + "config.properties", config);
+    std::map<std::string, std::string> config = read_and_print_config(run_dir + "/" + "config.properties");
 
     // Topology
     Topology topology = read_and_print_topology(run_dir + "/" + get_param_or_fail("filename_topology", config));
 
+    // End time
+    int64_t simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", config));
+
     // Schedule
-    std::vector<schedule_entry> schedule;
-    read_and_print_schedule(run_dir + "/" + get_param_or_fail("filename_schedule", config), topology, schedule);
+    std::vector<schedule_entry_t> schedule = read_and_print_schedule(run_dir + "/" + get_param_or_fail("filename_schedule", config), topology, simulation_end_time_ns);
 
     // Seed
     int64_t simulation_seed = parse_positive_int64(get_param_or_fail("simulation_seed", config));
-
-    // End time
-    int64_t simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", config));
 
     // Link properties
     double link_data_rate_megabit_per_s = parse_positive_double(get_param_or_fail("link_data_rate_megabit_per_s", config));
@@ -229,7 +230,7 @@ int basic_sim(std::string run_dir) {
 
     // Install Source App
     std::vector<ApplicationContainer> apps;
-    for (schedule_entry& entry : schedule) {
+    for (schedule_entry_t& entry : schedule) {
         FlowSendHelper source(
                 "ns3::TcpSocketFactory",
                 InetSocketAddress(
@@ -287,7 +288,7 @@ int basic_sim(std::string run_dir) {
             "End time (ns)", "Duration", "Sent", "Progress", "Avg. rate", "Finished?", "Metadata"
     );
     std::vector<ApplicationContainer>::iterator it = apps.begin();
-    for (schedule_entry& entry : schedule) {
+    for (schedule_entry_t& entry : schedule) {
 
         // Retrieve statistics
         ApplicationContainer app = *it;

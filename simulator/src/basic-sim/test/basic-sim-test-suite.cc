@@ -14,7 +14,8 @@ public:
     BasicSimTestSuite() : TestSuite("basic-sim", UNIT) {
         AddTestCase(new SimonUtilTestCase, TestCase::QUICK);
         AddTestCase(new TopologyTestCase, TestCase::QUICK);
-        AddTestCase(new ReadingHelperTestCase, TestCase::QUICK);
+        AddTestCase(new ReadingHelperNormalTestCase, TestCase::QUICK);
+        AddTestCase(new ReadingHelperErrorTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneApartStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);

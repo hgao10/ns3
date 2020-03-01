@@ -46,7 +46,7 @@ public:
         topology_file.close();
     }
 
-    void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, std::vector<schedule_entry> write_schedule, std::vector<int64_t>& end_time_ns_list, std::vector<int64_t>& sent_byte_list) {
+    void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, std::vector<schedule_entry_t> write_schedule, std::vector<int64_t>& end_time_ns_list, std::vector<int64_t>& sent_byte_list) {
 
         // Make sure these are removed
         remove_file_if_exists(temp_dir + "/logs/finished.txt");
@@ -56,7 +56,7 @@ public:
         // Write schedule file
         std::ofstream schedule_file;
         schedule_file.open (temp_dir + "/schedule.csv");
-        for (schedule_entry entry : write_schedule) {
+        for (schedule_entry_t entry : write_schedule) {
             schedule_file
                     << entry.flow_id << ","
                     << entry.from_node_id << ","
@@ -165,7 +165,7 @@ public:
         write_single_topology();
 
         // A flow each way
-        std::vector<schedule_entry> schedule;
+        std::vector<schedule_entry_t> schedule;
         schedule.push_back({0, 0, 1, 1000000, 0, "", "abc"});
         schedule.push_back({1, 1, 0, 1000000, 0, "", ""});
 
@@ -196,7 +196,7 @@ public:
         write_single_topology();
 
         // A flow each way
-        std::vector<schedule_entry> schedule;
+        std::vector<schedule_entry_t> schedule;
         schedule.push_back({0, 0, 1, 1000000, 0, "", "first"});
         schedule.push_back({1, 0, 1, 1000000, 5000000000, "", "second"});
 
@@ -220,10 +220,10 @@ public:
     void DoRun () {
         prepare_test_dir();
 
-        int64_t simulation_end_time_ns = 2000000000;
+        int64_t simulation_end_time_ns = 100000000;
 
-        // One-to-one, 5s, 30.0 Mbit/s, 2 ms delay
-        write_basic_config(simulation_end_time_ns, 123456, 30.0, 2000000);
+        // One-to-one, 5s, 30.0 Mbit/s, 200 microsec delay
+        write_basic_config(simulation_end_time_ns, 123456, 30.0, 200000);
         std::ofstream topology_file;
         topology_file.open (temp_dir + "/topology.properties");
         topology_file << "num_nodes=4" << std::endl;
@@ -235,7 +235,7 @@ public:
         topology_file.close();
 
         // A flow each way
-        std::vector<schedule_entry> schedule;
+        std::vector<schedule_entry_t> schedule;
         for (int i = 0; i < 30; i++) {
             schedule.push_back({i, 0, 3, 100000000, 0, "", ""});
         }

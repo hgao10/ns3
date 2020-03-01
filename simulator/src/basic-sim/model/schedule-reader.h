@@ -1,5 +1,5 @@
-#ifndef READING_HELPER_H
-#define READING_HELPER_H
+#ifndef SCHEDULE_READER_H
+#define SCHEDULE_READER_H
 
 #include <string>
 #include <vector>
@@ -14,7 +14,7 @@
 
 namespace ns3 {
 
-struct schedule_entry {
+struct schedule_entry_t {
     int64_t flow_id;
     int64_t from_node_id;
     int64_t to_node_id;
@@ -24,8 +24,8 @@ struct schedule_entry {
     std::string metadata;
 };
 
-void read_schedule(const std::string& filename, int64_t num_nodes, std::vector<schedule_entry>& schedule);
+std::vector<schedule_entry_t> read_schedule(const std::string& filename, const int64_t num_nodes, const int64_t simulation_end_time_ns);
 
 }
 
-#endif //READING_HELPER_H
+#endif //SCHEDULE_READER_H

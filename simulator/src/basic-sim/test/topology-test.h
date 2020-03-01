@@ -13,7 +13,9 @@ class TopologyTestCase : public TestCase
 public:
     TopologyTestCase () : TestCase ("topology") {};
     void DoRun () {
-        // TODO: Topology
+        // TODO: Topology normal
+        // TODO: Topology empty
+        // TODO: Topology invalid cases
     }
 };
 
