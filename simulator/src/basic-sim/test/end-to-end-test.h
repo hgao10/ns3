@@ -161,7 +161,7 @@ public:
         int64_t simulation_end_time_ns = 5000000000;
 
         // One-to-one, 5s, 10.0 Mbit/s, 10 microseconds delay
-        write_basic_config(simulation_end_time_ns, 7688437, 10.0, 100000);
+        write_basic_config(simulation_end_time_ns, 123456, 10.0, 100000);
         write_single_topology();
 
         // A flow each way
@@ -192,7 +192,7 @@ public:
         int64_t simulation_end_time_ns = 10000000000;
 
         // One-to-one, 10s, 10.0 Mbit/s, 10 microseconds delay
-        write_basic_config(simulation_end_time_ns, 7688437, 10.0, 100000);
+        write_basic_config(simulation_end_time_ns, 654321, 10.0, 100000);
         write_single_topology();
 
         // A flow each way
@@ -223,7 +223,7 @@ public:
         int64_t simulation_end_time_ns = 2000000000;
 
         // One-to-one, 5s, 30.0 Mbit/s, 2 ms delay
-        write_basic_config(simulation_end_time_ns, 123456789, 30.0, 2000000);
+        write_basic_config(simulation_end_time_ns, 123456, 30.0, 2000000);
         std::ofstream topology_file;
         topology_file.open (temp_dir + "/topology.properties");
         topology_file << "num_nodes=4" << std::endl;
@@ -251,7 +251,7 @@ public:
             ASSERT_EQUAL(end_time_ns_list[i], simulation_end_time_ns);
             byte_sum += sent_byte_list[i];
         }
-        ASSERT_TRUE(byte_to_megabit(byte_sum) / nanosec_to_sec(simulation_end_time_ns) >= 45.0); // At leas 45 Mbit/s, given that probability of all of them going up is 0.5^30
+        ASSERT_TRUE(byte_to_megabit(byte_sum) / nanosec_to_sec(simulation_end_time_ns) >= 45.0); // At least 45 Mbit/s, given that probability of all of them going up is 0.5^30
 
     }
 };
