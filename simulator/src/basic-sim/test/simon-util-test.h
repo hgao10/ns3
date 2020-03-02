@@ -14,6 +14,8 @@ public:
     SimonUtilTestCase () : TestCase ("simon-util") {};
     void DoRun () {
 
+        bool caught = false;
+
         // Trimming
         ASSERT_EQUAL(trim("abc"), "abc");
         ASSERT_EQUAL(trim(" abc"), "abc");
@@ -43,10 +45,148 @@ public:
         ASSERT_TRUE(ends_with("abc", "bc"));
         ASSERT_TRUE(ends_with("abc", ""));
 
-        // TODO: Split string
-        // TODO: Parsing values
-        // TODO: Sets
-        // TODO: Configuration reading
+        // Split string
+        std::string str = ",a,,b,c,d;e,";
+        std::vector<std::string> spl = split_string(str, ",");
+        ASSERT_EQUAL(spl.size(), 7);
+        ASSERT_EQUAL(spl[0], "");
+        ASSERT_EQUAL(spl[1], "a");
+        ASSERT_EQUAL(spl[2], "");
+        ASSERT_EQUAL(spl[3], "b");
+        ASSERT_EQUAL(spl[4], "c");
+        ASSERT_EQUAL(spl[5], "d;e");
+        ASSERT_EQUAL(spl[6], "");
+        spl = split_string(str, ";");
+        ASSERT_EQUAL(spl.size(), 2);
+        ASSERT_EQUAL(spl[0], ",a,,b,c,d");
+        ASSERT_EQUAL(spl[1], "e,");
+        spl = split_string(str, ",;");
+        ASSERT_EQUAL(spl.size(), 8);
+        ASSERT_EQUAL(spl[0], "");
+        ASSERT_EQUAL(spl[1], "a");
+        ASSERT_EQUAL(spl[2], "");
+        ASSERT_EQUAL(spl[3], "b");
+        ASSERT_EQUAL(spl[4], "c");
+        ASSERT_EQUAL(spl[5], "d");
+        ASSERT_EQUAL(spl[6], "e");
+        ASSERT_EQUAL(spl[7], "");
+        str = "";
+        spl = split_string(str, ",");
+        ASSERT_EQUAL(spl.size(), 1);
+        ASSERT_EQUAL(spl[0], "");
+
+        // Parsing values
+
+        // Positive in64
+        ASSERT_EQUAL(parse_positive_int64("1"), 1);
+        ASSERT_EQUAL(parse_positive_int64("0"), 0);
+        caught = false;
+        try { parse_positive_int64(""); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_positive_int64("-6"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Positive int64 >= 1
+        ASSERT_EQUAL(parse_geq_one_int64("345"), 345);
+        ASSERT_EQUAL(parse_geq_one_int64("1"), 1);
+        caught = false;
+        try { parse_geq_one_int64("0"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Positive double
+        ASSERT_EQUAL(parse_positive_double("0.0"), 0.0);
+        ASSERT_EQUAL(parse_positive_double("-0.0"), 0.0);
+        ASSERT_EQUAL(parse_positive_double("6.89"), 6.89);
+        ASSERT_EQUAL(parse_positive_double("99"), 99.0);
+        caught = false;
+        try { parse_positive_double("-0.00001"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_positive_double("-8888"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Positive double in [0, 1]
+        ASSERT_EQUAL(parse_double_between_zero_and_one("0.0"), 0.0);
+        ASSERT_EQUAL(parse_double_between_zero_and_one("0.6"), 0.6);
+        ASSERT_EQUAL(parse_double_between_zero_and_one("1.0"), 1.0);
+        caught = false;
+        try { parse_double_between_zero_and_one("-0.00001"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_double_between_zero_and_one("1.00001"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Boolean
+        ASSERT_TRUE(parse_boolean("1"));
+        ASSERT_TRUE(parse_boolean("true"));
+        ASSERT_FALSE(parse_boolean("0"));
+        ASSERT_FALSE(parse_boolean("false"));
+        caught = false;
+        try { parse_boolean("y"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_boolean("falselytrue"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Set string
+        std::set<std::string> set_a = parse_set_string("set(a, b, 1245, , 77)");
+        ASSERT_EQUAL(set_a.size(), 5);
+        caught = false;
+        try { parse_set_string("seta, b, 1245, , 77)"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_set_string("a, b, c"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_set_string("set(a, b, c"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Set positive int64
+        std::set<int64_t> set_b = parse_set_positive_int64("set(100, 0, 1, 56)");
+        ASSERT_EQUAL(set_b.size(), 4);
+        caught = false;
+        try { parse_set_positive_int64("set(-1, 5, 6)"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+        caught = false;
+        try { parse_set_positive_int64("set(0, 5, 0.5)"); } catch (std::exception& e) { caught = true; }
+        ASSERT_TRUE(caught);
+
+        // Sets
+        std::set<int64_t> a;
+        a.insert(5);
+        a.insert(9);
+        a.insert(12);
+        std::set<int64_t> b;
+        b.insert(9);
+        b.insert(3);
+        b.insert(9999);
+        all_items_are_less_than(a, 13);
+        caught = false;
+        try {
+            all_items_are_less_than(a, 12);
+        } catch (std::exception& e) {
+            caught = true;
+        }
+        ASSERT_TRUE(caught);
+        ASSERT_EQUAL(direct_set_intersection(a, b).size(), 1);
+        ASSERT_EQUAL(direct_set_union(a, b).size(), 5);
+
+        // Configuration reading
+        std::ofstream config_file;
+        config_file.open ("temp.file");
+        config_file << "a=b" << std::endl;
+        config_file << "c=" << std::endl;
+        config_file << "#x=y" << std::endl;
+        config_file << "" << std::endl;
+        config_file << "7=9" << std::endl;
+        config_file.close();
+        std::map<std::string, std::string> config = read_config("temp.file");
+        ASSERT_EQUAL(get_param_or_fail("a", config), "b");
+        ASSERT_EQUAL(get_param_or_fail("c", config), "");
+        ASSERT_EQUAL(get_param_or_default("x", "abcd", config), "abcd");
+        ASSERT_EQUAL(get_param_or_fail("7", config), "9");
+        remove_file_if_exists("temp.file");
 
         // Unit conversion
         ASSERT_EQUAL_APPROX(byte_to_megabit(10000000), 80, 0.000001);

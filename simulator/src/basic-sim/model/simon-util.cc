@@ -104,7 +104,7 @@ std::string remove_start_end_double_quote_if_present(std::string s) {
  *
  * @return Split vector (e.g., [a, b, c])
  */
-std::vector<std::string> split_string(std::string& line, const std::string& delimiter) {
+std::vector<std::string> split_string(const std::string line, const std::string delimiter) {
 
     // Split by delimiter
     char *cline = (char*) line.c_str();
@@ -131,7 +131,7 @@ std::vector<std::string> split_string(std::string& line, const std::string& deli
  *
  * @return Split vector (e.g., [a, b, c])
  */
-std::vector<std::string> split_string(std::string& line, const std::string& delimiter, size_t expected) {
+std::vector<std::string> split_string(const std::string line, const std::string delimiter, size_t expected) {
 
     std::vector<std::string> the_split = split_string(line, delimiter);
 
@@ -236,7 +236,7 @@ bool parse_boolean(const std::string& str) {
  *
  * @return String set (e.g., {a, b, c})
  */
-std::set<std::string> parse_set_string(std::string& str) {
+std::set<std::string> parse_set_string(const std::string str) {
 
     // Check set(...)
     if (!starts_with(str, "set(") || !ends_with(str, ")")) {
@@ -270,7 +270,7 @@ std::set<std::string> parse_set_string(std::string& str) {
  *
  * @return Set of int64s
  */
-std::set<int64_t> parse_set_positive_int64(std::string& str) {
+std::set<int64_t> parse_set_positive_int64(const std::string str) {
     std::set<std::string> string_set = parse_set_string(str);
     std::set<int64_t> int64_set;
     for (std::string s : string_set) {
@@ -293,7 +293,7 @@ std::set<int64_t> parse_set_positive_int64(std::string& str) {
  * @param s         Set of int64s
  * @param number    Upper bound (non-inclusive) that all items must abide by.
  */
-void all_items_are_less_than(std::set<int64_t> s, int64_t number) {
+void all_items_are_less_than(const std::set<int64_t>& s, const int64_t number) {
     for (int64_t val : s) {
         if (val >= number) {
             throw std::invalid_argument(
@@ -315,7 +315,7 @@ void all_items_are_less_than(std::set<int64_t> s, int64_t number) {
  *
  * @return Intersection of set A and B
  */
-std::set<int64_t> direct_set_intersection(std::set<int64_t> s1, std::set<int64_t> s2) {
+std::set<int64_t> direct_set_intersection(const std::set<int64_t>& s1, const std::set<int64_t>& s2) {
     std::set<int64_t> intersect;
     set_intersection(s1.begin(), s1.end(), s2.begin(), s2.end(), std::inserter(intersect, intersect.begin()));
     return intersect;
@@ -329,7 +329,7 @@ std::set<int64_t> direct_set_intersection(std::set<int64_t> s1, std::set<int64_t
  *
  * @return Union of set A and B
  */
-std::set<int64_t> direct_set_union(std::set<int64_t> s1, std::set<int64_t> s2) {
+std::set<int64_t> direct_set_union(const std::set<int64_t>& s1, const std::set<int64_t>& s2) {
     std::set<int64_t> s_union;
     set_union(s1.begin(), s1.end(), s2.begin(), s2.end(), std::inserter(s_union, s_union.begin()));
     return s_union;
@@ -395,6 +395,25 @@ std::string get_param_or_fail(const std::string& param_key, std::map<std::string
         return config[param_key];
     } else {
         throw std::invalid_argument(format_string("Necessary parameter '%s' is not set.", param_key.c_str()));
+    }
+
+}
+
+/**
+ * Get the parameter value or if not found, return default value.
+ *
+ * @param param_key                 Parameter key
+ * @param default_value             Default value
+ * @param config                    Config parameters map
+ *
+ * @return Parameter value (if not present, the default value is returned)
+ */
+std::string get_param_or_default(const std::string& param_key, std::string default_value, std::map<std::string, std::string>& config) {
+
+    if (config.find(param_key) != config.end()) {
+        return config[param_key];
+    } else {
+        return default_value;
     }
 
 }

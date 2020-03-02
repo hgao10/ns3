@@ -64,8 +64,8 @@ std::string trim(std::string s);
 bool ends_with(const std::string& str, const std::string& suffix);
 bool starts_with(const std::string& str, const std::string& prefix);
 std::string remove_start_end_double_quote_if_present(std::string s);
-std::vector<std::string> split_string(std::string& line, const std::string& delimiter);
-std::vector<std::string> split_string(std::string& line, const std::string& delimiter, size_t expected);
+std::vector<std::string> split_string(std::string line, const std::string delimiter);
+std::vector<std::string> split_string(std::string line, const std::string delimiter, size_t expected);
 
 // Parsing values
 int64_t parse_positive_int64(const std::string& str);
@@ -73,17 +73,18 @@ int64_t parse_geq_one_int64(const std::string& str);
 double parse_positive_double(const std::string& str);;
 double parse_double_between_zero_and_one(const std::string& str);
 bool parse_boolean(const std::string& str);
-std::set<std::string> parse_set_string(std::string& line);
-std::set<int64_t> parse_set_positive_int64(std::string& line);
+std::set<std::string> parse_set_string(const std::string line);
+std::set<int64_t> parse_set_positive_int64(const std::string line);
 
 // Sets
-void all_items_are_less_than(std::set<int64_t> s, int64_t number);
-std::set<int64_t> direct_set_intersection(std::set<int64_t> s1, std::set<int64_t> s2);
-std::set<int64_t> direct_set_union(std::set<int64_t> s1, std::set<int64_t> s2);
+void all_items_are_less_than(const std::set<int64_t>& s, const int64_t number);
+std::set<int64_t> direct_set_intersection(const std::set<int64_t>& s1, const std::set<int64_t>& s2);
+std::set<int64_t> direct_set_union(const std::set<int64_t>& s1, const std::set<int64_t>& s2);
 
 // Configuration reading
 std::map<std::string, std::string> read_config(const std::string& filename);
-std::string get_param_or_fail(const std::string& param_key, std::map<std::string, std::string>& additional_parameters);
+std::string get_param_or_fail(const std::string& param_key, std::map<std::string, std::string>& config);
+std::string get_param_or_default(const std::string& param_key, std::string default_value, std::map<std::string, std::string>& config);
 
 // Unit conversion
 double byte_to_megabit(int64_t num_bytes);
