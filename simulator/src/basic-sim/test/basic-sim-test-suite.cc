@@ -13,7 +13,12 @@ class BasicSimTestSuite : public TestSuite {
 public:
     BasicSimTestSuite() : TestSuite("basic-sim", UNIT) {
         AddTestCase(new SimonUtilTestCase, TestCase::QUICK);
-        AddTestCase(new TopologyTestCase, TestCase::QUICK);
+        AddTestCase(new TopologyEmptyTestCase, TestCase::QUICK);
+        AddTestCase(new TopologySingleTestCase, TestCase::QUICK);
+        AddTestCase(new TopologyTorTestCase, TestCase::QUICK);
+        AddTestCase(new TopologyLeafSpineTestCase, TestCase::QUICK);
+        AddTestCase(new TopologyRingTestCase, TestCase::QUICK);
+        AddTestCase(new TopologyInvalidTestCase, TestCase::QUICK);
         AddTestCase(new ReadingHelperNormalTestCase, TestCase::QUICK);
         AddTestCase(new ReadingHelperErrorTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);

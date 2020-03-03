@@ -84,7 +84,7 @@ bool Topology::is_valid_flow_endpoint(int64_t node_id) {
     if (has_zero_servers) {
         return this->servers.find(node_id) != this->servers.end();
     } else {
-        return this->switches_which_are_tors.find(node_id) != this->servers.end();
+        return this->switches_which_are_tors.find(node_id) != this->switches_which_are_tors.end();
     }
 }
 
