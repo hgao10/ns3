@@ -122,8 +122,7 @@ int basic_sim(std::string run_dir) {
     printf("BASIS\n");
 
     // Run directory
-    struct stat st = {0};
-    if (stat(run_dir.c_str(), &st) == -1) {
+    if (!dir_exists(run_dir)) {
         printf("Run directory \"%s\" does not exist.", run_dir.c_str());
         return 0;
     } else {
@@ -131,19 +130,16 @@ int basic_sim(std::string run_dir) {
     }
 
     // Logs in run directory
-    st = {0};
     std::string logs_dir = run_dir + "/logs";
-    if (stat(logs_dir.c_str(), &st) != -1) {
+    if (dir_exists(logs_dir)) {
         printf("  > Emptying existing logs directory\n");
         remove_file_if_exists(logs_dir + "/finished.txt");
         remove_file_if_exists(logs_dir + "/flows.txt");
         remove_file_if_exists(logs_dir + "/flows.csv");
     } else {
-        if (mkdir(logs_dir.c_str(), 0700) == -1) {
-            throw std::runtime_error(format_string("Logs directory \"%s\" could not be made.", logs_dir.c_str()));
-        }
+        mkdir_if_not_exists(logs_dir);
     }
-    printf("  > Logs directory: %s\n", (run_dir + "/logs").c_str());
+    printf("  > Logs directory: %s\n", logs_dir.c_str());
     printf("\n");
 
     // Config
