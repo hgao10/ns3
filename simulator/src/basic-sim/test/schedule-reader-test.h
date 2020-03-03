@@ -8,10 +8,10 @@ using namespace ns3;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class ReadingHelperNormalTestCase : public TestCase
+class ScheduleReaderNormalTestCase : public TestCase
 {
 public:
-    ReadingHelperNormalTestCase () : TestCase ("reading-helper normal") {};
+    ScheduleReaderNormalTestCase () : TestCase ("schedule-reader normal") {};
     const std::string temp_dir = ".testtmpdir";
 
     void DoRun () {
@@ -54,10 +54,10 @@ public:
     }
 };
 
-class ReadingHelperErrorTestCase : public TestCase
+class ScheduleReaderInvalidTestCase : public TestCase
 {
 public:
-    ReadingHelperErrorTestCase () : TestCase ("reading-helper") {};
+    ScheduleReaderInvalidTestCase () : TestCase ("schedule-reader invalid") {};
     const std::string temp_dir = ".testtmpdir";
 
     void DoRun () {
