@@ -73,18 +73,18 @@ Topology::Topology(const std::string& filename) {
     }
 
     if (this->servers.size() > 0) {
-        has_zero_servers = true;
-    } else {
         has_zero_servers = false;
+    } else {
+        has_zero_servers = true;
     }
 
 }
 
 bool Topology::is_valid_flow_endpoint(int64_t node_id) {
     if (has_zero_servers) {
-        return this->servers.find(node_id) != this->servers.end();
-    } else {
         return this->switches_which_are_tors.find(node_id) != this->switches_which_are_tors.end();
+    } else {
+        return this->servers.find(node_id) != this->servers.end();
     }
 }
 
