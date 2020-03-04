@@ -65,7 +65,7 @@ To run all the tests for the basic simulation:
 
 ```
 cd simulator
-python test.py -v -s "basic-sim" -t test-results.txt
+python test.py -v -s "basic-sim" -t test-results
 xdg-open test-results.txt
 ```
  
