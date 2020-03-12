@@ -65,12 +65,12 @@ def get_schedule_poisson_arrival_uniform(seed, max_duration_ns, poisson_arrival_
 
 
 def schedule_generator(
-    out_filename,
-    arrival_rate_flows_per_s,
-    flow_size_byte,
-    runtime_ns,
-    node_ids,
-    seed_arrival,
+        out_filename,
+        arrival_rate_flows_per_s,
+        flow_size_byte,
+        runtime_ns,
+        node_ids,
+        seed_arrival,
 ):
 
     with open(out_filename, "w+") as f_schedule:
@@ -96,7 +96,7 @@ def main():
               " <out_filename> <arrival rate (flows/s)> <flow size (byte)> <runtime (s)> <# of nodes> <seed>")
         print("Example:")
         print("")
-        print("               python schedule_generator.py schedule.csv 100 100000 5 4 123456789")
+        print("               python schedule_generator_random.py schedule.csv 100 100000 10 4 123456789")
         print("")
     else:
         out_filename = args[0]

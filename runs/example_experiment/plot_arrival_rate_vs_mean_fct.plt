@@ -58,13 +58,18 @@ set yrange [0:]       # Explicitly set the y-range [lower:upper]
 # set mytics 3        # Set number of intermediate tics on y-axis (for log plots)
 
 # Font of the key (a.k.a. legend)
-set key font ",11"
+set key font ",14"
 set key reverse
 set key top left Left
+set key spacing 2
 
 #####################################
 ### PLOTS
 
 plot    \
-        "data/fct_ns_mean.txt" using 1:($2 / 1000000) title "" w lp ls 3, \
-        "data/fct_ns_mean.txt" using 1:($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 3, \
+        "data_random_schedule/fct_ns_mean.txt" using 1:($2 / 1000000) title "Poisson schedule" w lp ls 1, \
+        "data_random_schedule/fct_ns_mean.txt" using 1:($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 1, \
+        \
+        "data_perfect_schedule/fct_ns_mean.txt" using 1:($2 / 1000000) title "Perfect schedule" w lp ls 2, \
+        "data_perfect_schedule/fct_ns_mean.txt" using 1:($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 2, \
+
