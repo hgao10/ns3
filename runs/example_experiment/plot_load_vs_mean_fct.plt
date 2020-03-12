@@ -35,18 +35,18 @@ set style line 8 lt rgb "#7d7d7d" lw 2.4 pt 0 ps 1.4
 set style line 9 lt rgb "#000000" lw 2.4 pt 0 ps 1.4
 
 # Output
-set output "pdf/plot_arrival_rate_vs_99th_fct.pdf"
+set output "pdf/plot_load_vs_mean_fct.pdf"
 
 #####################################
 ### AXES AND KEY
 
 # Axes labels
-set xlabel "Flow arrival rate {/Symbol l} (flows/s)" # Markup: e.g. 99^{th}, {/Symbol s}, {/Helvetica-Italic P}
-set ylabel "99^{th} %-tile FCT (ms)"
+set xlabel "Load" # Markup: e.g. 99^{th}, {/Symbol s}, {/Helvetica-Italic P}
+set ylabel "Mean FCT (ms)"
 
 # Axes ranges
-set xrange [0:500]       # Explicitly set the x-range [lower:upper]
-set yrange [0:400]       # Explicitly set the y-range [lower:upper]
+set xrange [0:1]       # Explicitly set the x-range [lower:upper]
+set yrange [0:180]       # Explicitly set the y-range [lower:upper]
 # set xtics (0, 100, 300, 500, 700, 900)
 # set ytics <start>, <incr> {,<end>}
 # set format x "%.2f%%"  # Set the x-tic format, e.g. in this case it takes 2 sign. decimals: "24.13%""
@@ -70,9 +70,9 @@ set key spacing 2
 # Perfect: mean and 0 error bars, as it is not stochastic
 
 plot    \
-        "data_random_schedule/fct_ns_99th.txt" using 1:($2 / 1000000) title "Poisson schedule" w lp ls 1, \
-        "data_random_schedule/fct_ns_99th.txt" using 1:($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 1, \
+        "data_random_schedule/fct_ns_mean.txt" using ($1 / 500):($2 / 1000000) title "Poisson schedule" w lp ls 1, \
+        "data_random_schedule/fct_ns_mean.txt" using ($1 / 500):($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 1, \
         \
-        "data_perfect_schedule/fct_ns_99th.txt" using 1:($2 / 1000000) title "Perfect schedule" w lp ls 2, \
-        "data_perfect_schedule/fct_ns_99th.txt" using 1:($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 2, \
+        "data_perfect_schedule/fct_ns_mean.txt" using ($1 / 500):($2 / 1000000) title "Perfect schedule" w lp ls 2, \
+        "data_perfect_schedule/fct_ns_mean.txt" using ($1 / 500):($2 / 1000000):($3 / 1000000) title "" w yerrorbars ls 2, \
 

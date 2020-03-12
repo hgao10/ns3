@@ -1,6 +1,6 @@
 cd ../../simulator || exit 1
 
-for arrival_rate in 10 50 100 150 200 250 300 350 400
+for arrival_rate in 10 50 100 150 200 250 300 350 400 450 500
 do
   folder_name="../runs/example_experiment/runs/run_perfect_schedule_${arrival_rate}"
   rm -rf ${folder_name}/logs

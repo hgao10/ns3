@@ -1,4 +1,4 @@
-# Example pipeline
+# Example experiment
 
 This run folder is an example of how one could setup an experiment.
 
@@ -9,10 +9,12 @@ This experiment details are as follows:
 
 * Topology: a ToR with 4 servers
 * Each link has a rate of 100 Mbit/s. If you run a single flow from A to B over a 100 Mbit/s link, it gets about 86.8 Mbit/s as goodput rate. (due to transport protocol / header overhead)
-* Bi-section bandwidth: (86.8 * 4) Mbit/s
+* Bi-section bandwidth: (4 * 100) Mbit/s
 * Flows size: fixed to 100KB
-* Maximum flow arrival rate supported under ideal conditions: (86.8 * 4) Mbit/s / 100KB = 434 flows/s (this is the **saturation point**, beyond which flows won't finish)
-* Arrival rate is varied on the x-axis: [10, 50, 100, 150, 200, 250, 300, 350, 400]
+* Maximum flow arrival rate supported under ideal conditions: 400 Mbit/s / 100KB = 500 flows/s
+* We set define 100% load as 500 flow/s, this is the **saturation point**, beyond which flows will start to not finish guaranteed as the arrival rate > service rate
+* Arrival rate is varied on the x-axis between 0 to 500 flows/s
+* The experiment is run for 10s. Of the flows starting at: [0s, 2s) are warm-up, [2s, 7s) are the measurements, and [7s, 10s) are cooldown. 
 
 There are two schedule generators:
 

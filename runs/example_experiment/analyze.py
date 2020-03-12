@@ -8,7 +8,7 @@ def analyze():
     for t in [("perfect_schedule", False, [0]), ("random_schedule", True, [0, 1, 2, 3, 4])]:
 
         # Base values
-        arrival_rates = [10, 50, 100, 150, 200, 250, 300, 350, 400]
+        arrival_rates = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
         seeds = t[2]
 
         # Where we store the statistics to generate plottable data files
