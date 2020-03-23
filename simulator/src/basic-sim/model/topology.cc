@@ -49,6 +49,10 @@ Topology::Topology(const std::string& filename) {
         throw std::invalid_argument("Indicated number of undirected edges does not match edge set");
     }
 
+    if (undirected_edges.size() != undirected_edges_set.size()) {
+        throw std::invalid_argument("Duplicates in edge set");
+    }
+
     // Node type hierarchy checks
 
     if (!direct_set_intersection(this->servers, this->switches).empty()) {
