@@ -10,16 +10,10 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
         : RoutingArbiter(topology, nodes, interface_idxs_for_edges
         ) {
 
-    int64_t n = topology->num_nodes;
+    ///////////////////////////
+    // Floyd-Warshall
 
-    // ECMP candidate list
-    for (int i = 0; i < topology->num_nodes; i++) {
-        std::vector<std::vector<int64_t>> v;
-        for (int j = 0; j < topology->num_nodes; j++) {
-            v.push_back(std::vector<int64_t>());
-        }
-        candidate_list.push_back(v);
-    }
+    int64_t n = topology->num_nodes;
 
     // Initialize with 0 distance to itself, and infinite distance to all others
     int n2 = n * n;
@@ -40,7 +34,7 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
         dist[n * edge.second + edge.first] = 1;
     }
 
-    // Floyd-Warshall
+    // Floyd-Warshall core
     for (int k = 0; k < n; k++) {
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
@@ -51,7 +45,23 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
         }
     }
 
-    // Now extract the choices
+    ///////////////////////////
+    // Determine from the shortest path distances
+    // the possible next hops
+
+    // ECMP candidate list: candidate_list[current][destination] = [ list of next hops ]
+    for (int i = 0; i < topology->num_nodes; i++) {
+        std::vector<std::vector<int64_t>> v;
+        for (int j = 0; j < topology->num_nodes; j++) {
+            v.push_back(std::vector<int64_t>());
+        }
+        candidate_list.push_back(v);
+    }
+
+    // Candidate next hops are determined in the following way:
+    // For each edge a -> b, for a destination t:
+    // If the shortest_path_distance(b, t) == shortest_path_distance(a, t) - 1
+    // then a -> b must be part of a shortest path from a towards t.
     for (std::pair<int64_t, int64_t> edge : topology->undirected_edges) {
         for (int j = 0; j < n; j++) {
             if (dist[edge.first * n + j] - 1 == dist[edge.second * n + j]) {

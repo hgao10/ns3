@@ -53,11 +53,15 @@ namespace ns3 {
     }
 
     /**
-     * Lookup an interface to send something going to a certain destination, coming in from a certain network device.
+     * Lookup the route towards the destination.
+     * Does not handle local delivery.
      *
-     * @param dest  Destination address
-     * @param oif   Origin interface
-     * @return
+     * @param dest      Destination IP address
+     * @param header    IPv4 header
+     * @param p         Packet
+     * @param oif       Output interface (set only if originated from the transport layer basically)
+     *
+     * @return Valid Ipv4 route
      */
     Ptr<Ipv4Route>
     Ipv4ArbitraryRouting::LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif) {
@@ -69,7 +73,7 @@ namespace ns3 {
 
         // Decide interface index
         uint32_t if_idx = 0;
-        if (Ipv4Mask("255.0.0.0").IsMatch(dest, Ipv4Address("127.0.0.1"))) { // Loop-back
+        if (loopbackMask.IsMatch(dest, loopbackIp)) { // Loop-back
             if_idx = 0;
 
         } else { // If not loop-back, it goes to the arbiter
@@ -81,10 +85,10 @@ namespace ns3 {
         Ptr<Ipv4Route> rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(dest);
         rtentry->SetSource(m_ipv4->SourceAddressSelection(if_idx, dest));
-        // rtentry->SetGateway(Ipv4Address("0.0.0.0")); // This also works because a point-to-point network device
-                                                        // does not care about ARP resolution.
-        uint32_t this_side_ip = m_ipv4->GetAddress(if_idx, 0).GetLocal().Get();
-        rtentry->SetGateway(Ipv4Address(this_side_ip - 1 + 2 * (this_side_ip % 2)));
+        rtentry->SetGateway(Ipv4Address("0.0.0.0")); // This also works because a point-to-point network device
+                                                     // does not care about ARP resolution.
+        // uint32_t this_side_ip = m_ipv4->GetAddress(if_idx, 0).GetLocal().Get();
+        // rtentry->SetGateway(Ipv4Address(this_side_ip - 1 + 2 * (this_side_ip % 2)));
         rtentry->SetOutputDevice(m_ipv4->GetNetDevice(if_idx));
         return rtentry;
 

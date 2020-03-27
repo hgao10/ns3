@@ -211,19 +211,11 @@ int basic_sim(std::string run_dir) {
     // Calculate and instantiate the routing
     printf("  > Calculating routing\n");
     RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
-    printf("  > Calculated ECMP\n");
     for (int i = 0; i < topology.num_nodes; i++) {
-        Ptr<Node> node = nodes.Get(i);
-        //int16_t a;
-        //Ptr<Ipv4ArbitraryRouting> p = node->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ListRouting>()->GetRoutingProtocol(0, a)->GetObject<Ipv4ArbitraryRouting>();
-        Ptr<Ipv4ArbitraryRouting> p = node->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>();
-        p->SetRoutingArbiter(&routingArbiter);
+        nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(&routingArbiter);
     }
 
-    // Populate the routing tables
-//    printf("  > Populating routing tables\n");
-//    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-//    printf("\n");
+    printf("\n");
 
     ////////////////////////////////////////
     // Schedule traffic
