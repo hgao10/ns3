@@ -188,7 +188,7 @@ int basic_sim(std::string run_dir) {
     Ipv4ListRoutingHelper list;
     list.Add (arbitraryRoutingHelper, 0);
     InternetStackHelper internet;
-    internet.SetRoutingHelper (list);
+    internet.SetRoutingHelper (arbitraryRoutingHelper); // list
     internet.Install(nodes); // Installs only the fast static host IPv4 routing
 
     // Set up links and assign IPs
@@ -214,12 +214,16 @@ int basic_sim(std::string run_dir) {
     printf("  > Calculated ECMP\n");
     for (int i = 0; i < topology.num_nodes; i++) {
         Ptr<Node> node = nodes.Get(i);
-        int16_t a;
-        Ptr<Ipv4ArbitraryRouting> p = node->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ListRouting>()->GetRoutingProtocol(0, a)->GetObject<Ipv4ArbitraryRouting>();
+        //int16_t a;
+        //Ptr<Ipv4ArbitraryRouting> p = node->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ListRouting>()->GetRoutingProtocol(0, a)->GetObject<Ipv4ArbitraryRouting>();
+        Ptr<Ipv4ArbitraryRouting> p = node->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>();
         p->SetRoutingArbiter(&routingArbiter);
     }
 
-    printf("\n");
+    // Populate the routing tables
+//    printf("  > Populating routing tables\n");
+//    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+//    printf("\n");
 
     ////////////////////////////////////////
     // Schedule traffic

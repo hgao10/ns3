@@ -72,10 +72,8 @@ namespace ns3 {
         if (Ipv4Mask("255.0.0.0").IsMatch(dest, Ipv4Address("127.0.0.1"))) { // Loop-back
             if_idx = 0;
 
-        } else if (dest == m_nodeSingleIpAddress) { // Local delivery
-            if_idx = 1;
-
-        } else { // If not loop-back or local delivery (albeit to another interface), it goes to the arbiter
+        } else { // If not loop-back, it goes to the arbiter
+                 // Local delivery has already been handled if it was input
             if_idx = m_routingArbiter->decide_next_interface(m_ipv4->GetObject<Node>()->GetId(), p, header);
         }
 
@@ -83,7 +81,10 @@ namespace ns3 {
         Ptr<Ipv4Route> rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(dest);
         rtentry->SetSource(m_ipv4->SourceAddressSelection(if_idx, dest));
-        rtentry->SetGateway(m_ipv4->GetAddress(if_idx, 0).GetLocal());  // m_ipv4->GetNetDevice(if_idx));
+        // rtentry->SetGateway(Ipv4Address("0.0.0.0")); // This also works because a point-to-point network device
+                                                        // does not care about ARP resolution.
+        uint32_t this_side_ip = m_ipv4->GetAddress(if_idx, 0).GetLocal().Get();
+        rtentry->SetGateway(Ipv4Address(this_side_ip - 1 + 2 * (this_side_ip % 2)));
         rtentry->SetOutputDevice(m_ipv4->GetNetDevice(if_idx));
         return rtentry;
 
@@ -121,8 +122,10 @@ namespace ns3 {
             throw std::runtime_error("Multi-cast not supported.");
         }
 
-        // Local delivery at the input interface
-        if (m_ipv4->IsDestinationAddress(ipHeader.GetDestination(), iif)) {
+        // Local delivery
+        if (m_ipv4->IsDestinationAddress(ipHeader.GetDestination(), iif)) { // WeakESModel is set by default to true,
+                                                                            // as such it works for any IP address
+                                                                            // on any interface of the node
             if (lcb.IsNull()) {
                 throw std::runtime_error("Local callback cannot be null");
             }
@@ -168,11 +171,6 @@ namespace ns3 {
             // Check that the subnet mask is maintained
             if (if_mask.Get() != Ipv4Mask("255.255.255.0").Get()) {
                 throw std::runtime_error("Each interface must have a subnet mask of 255.255.255.0");
-            }
-            
-            // Interface 1's IP address is used as the universal IP for this node
-            if (i == 1) {
-                this->m_nodeSingleIpAddress = if_addr;
             }
 
         }

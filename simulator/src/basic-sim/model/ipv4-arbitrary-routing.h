@@ -31,6 +31,8 @@
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-routing-protocol.h"
 #include "ns3/routing-arbiter.h"
+#include "ns3/point-to-point-net-device.h"
+#include "ns3/point-to-point-channel.h"
 
 namespace ns3 {
 
