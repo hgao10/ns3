@@ -106,7 +106,8 @@ private:
     Ipv4Address m_nodeSingleIpAddress;
     Ipv4Mask loopbackMask = Ipv4Mask("255.0.0.0");
     Ipv4Address loopbackIp = Ipv4Address("127.0.0.1");
-    
+    uint32_t m_nodeId;
+
 };
 
 } // Namespace ns3

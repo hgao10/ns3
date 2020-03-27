@@ -78,7 +78,7 @@ namespace ns3 {
 
         } else { // If not loop-back, it goes to the arbiter
                  // Local delivery has already been handled if it was input
-            if_idx = m_routingArbiter->decide_next_interface(m_ipv4->GetObject<Node>()->GetId(), p, header);
+            if_idx = m_routingArbiter->decide_next_interface(m_nodeId, p, header);
         }
 
         // Create routing entry
@@ -212,6 +212,7 @@ namespace ns3 {
                 NotifyInterfaceDown(i);
             }
         }
+        m_nodeId = m_ipv4->GetObject<Node>()->GetId();
     }
 
     void 
