@@ -43,6 +43,9 @@ Topology::Topology(const std::string& filename) {
         adjacency_list[b].insert(a);
     }
 
+    // Sort them for convenience
+    std::sort(undirected_edges.begin(), undirected_edges.end());
+
     if (undirected_edges.size() != (size_t) num_undirected_edges) {
         throw std::invalid_argument("Indicated number of undirected edges does not match edge set");
     }
