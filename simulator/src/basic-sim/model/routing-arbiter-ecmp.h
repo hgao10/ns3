@@ -22,6 +22,7 @@ public:
 private:
     ns3::Hasher hasher;
     std::vector<std::vector<std::vector<int64_t>>> candidate_list;
+    char hash_input_buff[17];
 };
 
 #endif //ROUTING_ARBITER_ECMP_H

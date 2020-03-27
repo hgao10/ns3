@@ -78,10 +78,7 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 /**
  * Calculates a hash from the 5-tuple.
  *
- * It uses separators of | between the 5 values such that a coincidental
- * concatenation does not lead to equal input between values.
- *
- * Adapted from: https://github.com/mkheirkhah/ecmp (February 20th, 2020)
+ * Inspired by: https://github.com/mkheirkhah/ecmp (February 20th, 2020)
  *
  * @param header IPv4 header
  * @param p      Packet
@@ -91,44 +88,54 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 uint64_t
 RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id)
 {
-    std::ostringstream oss;
-    oss << node_id << "|";  // Each switch has a unique identifier.
-    // This added to the hash input to make sure that each node make a different decision
-    // with the same 5-tuple. This prevents hash polarization.
-
-    oss << header.GetSource() << "|"       // Source IP
-        << header.GetDestination() << "|"  // Destination IP
-        << ((int) header.GetProtocol());   // Protocol
-
-    switch (header.GetProtocol()) {
+    std::memcpy(&hash_input_buff[0], &node_id, 4);
+    
+    // Source IP address
+    uint32_t src_ip = header.GetSource().Get();
+    std::memcpy(&hash_input_buff[4], &src_ip, 4);
+    
+    // Destination IP address
+    uint32_t dst_ip = header.GetDestination().Get();
+    std::memcpy(&hash_input_buff[8], &dst_ip, 4);
+    
+    // Protocol
+    uint8_t protocol = header.GetProtocol();
+    std::memcpy(&hash_input_buff[12], &protocol, 1);
+    
+    // If there are ports, add them to the input
+    switch (protocol) {
         case UDP_PROT_NUMBER: {
             UdpHeader udpHeader;
             p->PeekHeader(udpHeader);
-            oss << "|" << udpHeader.GetSourcePort()        // UDP source port
-                << "|" << udpHeader.GetDestinationPort();  // UDP destination port
+            uint16_t src_port = udpHeader.GetSourcePort();
+            uint16_t dst_port = udpHeader.GetDestinationPort();
+            std::memcpy(&hash_input_buff[13], &src_port, 2);
+            std::memcpy(&hash_input_buff[15], &dst_port, 2);
             break;
         }
         case TCP_PROT_NUMBER: {
             TcpHeader tcpHeader;
             p->PeekHeader(tcpHeader);
-            oss << "|" << tcpHeader.GetSourcePort()        // TCP source port
-                << "|" << tcpHeader.GetDestinationPort();  // TCP destination port
+            uint16_t src_port = tcpHeader.GetSourcePort();
+            uint16_t dst_port = tcpHeader.GetDestinationPort();
+            std::memcpy(&hash_input_buff[13], &src_port, 2);
+            std::memcpy(&hash_input_buff[15], &dst_port, 2);
             break;
         }
         default: {
+            hash_input_buff[13] = 0;
+            hash_input_buff[14] = 0;
+            hash_input_buff[15] = 0;
+            hash_input_buff[16] = 0;
             break;
         }
     }
-
-    std::string data = oss.str();
     hasher.clear();
-    uint32_t hash = hasher.GetHash32(data);
-    oss.str("");
-    return hash;
+    return hasher.GetHash32(hash_input_buff, 17);
 }
 
 int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
-    uint64_t hash = ComputeFiveTupleHash(ipHeader, pkt, current_node_id);
+    uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, current_node_id);
     int s = candidate_list[current_node_id][target_node_id].size();
     return candidate_list[current_node_id][target_node_id][hash % s];
 }
