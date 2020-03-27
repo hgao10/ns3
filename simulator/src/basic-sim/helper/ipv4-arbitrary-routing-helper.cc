@@ -27,26 +27,26 @@
 #include "ns3/assert.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-routing-protocol.h"
-#include "ipv4-fast-static-host-routing-helper.h"
+#include "ipv4-arbitrary-routing-helper.h"
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("Ipv4FastStaticHostRoutingHelper");
+NS_LOG_COMPONENT_DEFINE ("Ipv4ArbitraryRoutingHelper");
 
-Ipv4FastStaticHostRoutingHelper::Ipv4FastStaticHostRoutingHelper() {
+Ipv4ArbitraryRoutingHelper::Ipv4ArbitraryRoutingHelper() {
     // Left empty intentionally
 }
 
-Ipv4FastStaticHostRoutingHelper::Ipv4FastStaticHostRoutingHelper (const Ipv4FastStaticHostRoutingHelper &o) {
+Ipv4ArbitraryRoutingHelper::Ipv4ArbitraryRoutingHelper (const Ipv4ArbitraryRoutingHelper &o) {
     // Left empty intentionally
 }
 
-Ipv4FastStaticHostRoutingHelper* Ipv4FastStaticHostRoutingHelper::Copy (void) const {
-  return new Ipv4FastStaticHostRoutingHelper (*this);
+Ipv4ArbitraryRoutingHelper* Ipv4ArbitraryRoutingHelper::Copy (void) const {
+  return new Ipv4ArbitraryRoutingHelper (*this);
 }
 
-Ptr<Ipv4RoutingProtocol> Ipv4FastStaticHostRoutingHelper::Create (Ptr<Node> node) const {
-  return CreateObject<Ipv4FastStaticHostRouting> ();
+Ptr<Ipv4RoutingProtocol> Ipv4ArbitraryRoutingHelper::Create (Ptr<Node> node) const {
+  return CreateObject<Ipv4ArbitraryRouting> ();
 }
 
 

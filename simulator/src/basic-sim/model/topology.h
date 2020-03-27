@@ -4,8 +4,6 @@
 #include <utility>
 #include "simon-util.h"
 
-namespace ns3 {
-
 class Topology
 {
 public:
@@ -25,7 +23,5 @@ private:
     bool has_zero_servers;
 
 };
-
-}
 
 #endif //TOPOLOGY_H

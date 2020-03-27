@@ -18,8 +18,8 @@
  * Author: Simon Kassing <kassings@ethz.ch>
  */
 
-#ifndef IPV4_FAST_STATIC_HOST_ROUTING_H
-#define IPV4_FAST_STATIC_HOST_ROUTING_H
+#ifndef IPV4_ARBITRARY_ROUTING_H
+#define IPV4_ARBITRARY_ROUTING_H
 
 #include <list>
 #include <utility>
@@ -30,6 +30,7 @@
 #include "ns3/ptr.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-routing-protocol.h"
+#include "ns3/routing-arbiter.h"
 
 namespace ns3 {
 
@@ -40,13 +41,13 @@ class Ipv4Address;
 class Ipv4Header;
 class Node;
 
-class Ipv4FastStaticHostRouting : public Ipv4RoutingProtocol
+class Ipv4ArbitraryRouting : public Ipv4RoutingProtocol
 {
 public:
   static TypeId GetTypeId (void);
 
-  Ipv4FastStaticHostRouting ();
-  virtual ~Ipv4FastStaticHostRouting ();
+  Ipv4ArbitraryRouting ();
+  virtual ~Ipv4ArbitraryRouting ();
 
   /**
    * Used by the transport-layer to output.
@@ -88,21 +89,22 @@ public:
           ErrorCallback ecb
           );
 
-  void AddHostRouteTo(Ipv4Address dest, uint32_t interface);
-
   virtual void NotifyInterfaceUp (uint32_t interface);
   virtual void NotifyInterfaceDown (uint32_t interface);
   virtual void NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address);
   virtual void NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address);
   virtual void PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit = Time::S) const;
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
+  void SetRoutingArbiter (RoutingArbiter* routingArbiter);
 
 private:
-    std::map<uint32_t, std::vector<uint32_t>> host_ip_to_if_list;
     Ptr<Ipv4> m_ipv4;
-    Ptr<Ipv4Route> LookupStatic (Ipv4Address dest, Ptr<NetDevice> oif = 0);
+    Ptr<Ipv4Route> LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif = 0);
+    RoutingArbiter* m_routingArbiter = 0;
+    Ipv4Address m_nodeSingleIpAddress;
+    
 };
 
 } // Namespace ns3
 
-#endif /* IPV4_FAST_STATIC_HOST_ROUTING_H */
+#endif /* IPV4_ARBITRARY_ROUTING_H */

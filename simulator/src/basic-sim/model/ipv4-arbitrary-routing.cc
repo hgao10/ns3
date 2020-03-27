@@ -31,42 +31,25 @@
 #include "ns3/simulator.h"
 #include "ns3/ipv4-route.h"
 #include "ns3/output-stream-wrapper.h"
-#include "ipv4-fast-static-host-routing.h"
+#include "ipv4-arbitrary-routing.h"
 
 namespace ns3 {
 
-    NS_LOG_COMPONENT_DEFINE ("Ipv4FastStaticHostRouting");
+    NS_LOG_COMPONENT_DEFINE ("Ipv4ArbitraryRouting");
 
-    NS_OBJECT_ENSURE_REGISTERED (Ipv4FastStaticHostRouting);
+    NS_OBJECT_ENSURE_REGISTERED (Ipv4ArbitraryRouting);
 
     TypeId
-    Ipv4FastStaticHostRouting::GetTypeId(void) {
-        static TypeId tid = TypeId("ns3::Ipv4FastStaticHostRouting")
+    Ipv4ArbitraryRouting::GetTypeId(void) {
+        static TypeId tid = TypeId("ns3::Ipv4ArbitraryRouting")
                 .SetParent<Ipv4RoutingProtocol>()
                 .SetGroupName("Internet")
-                .AddConstructor<Ipv4FastStaticHostRouting>();
+                .AddConstructor<Ipv4ArbitraryRouting>();
         return tid;
     }
 
-    Ipv4FastStaticHostRouting::Ipv4FastStaticHostRouting() : m_ipv4(0) {
+    Ipv4ArbitraryRouting::Ipv4ArbitraryRouting() : m_ipv4(0) {
         NS_LOG_FUNCTION(this);
-    }
-
-    /**
-     * Add a host route to the interface list.
-     *
-     * TODO: Check for duplicates
-     *
-     * @param dest          Destination IP address (no mask)
-     * @param interface     Interface index
-     */
-    void
-    Ipv4FastStaticHostRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface) {
-        if (this->host_ip_to_if_list.find(dest.Get()) == this->host_ip_to_if_list.end()) {
-            this->host_ip_to_if_list.insert({dest.Get(), std::vector<uint32_t>()});
-        }
-        std::vector<uint32_t> *if_list = &this->host_ip_to_if_list[dest.Get()];
-        if_list->push_back(interface);
     }
 
     /**
@@ -76,31 +59,24 @@ namespace ns3 {
      * @param oif   Origin interface
      * @return
      */
-    Ptr <Ipv4Route>
-    Ipv4FastStaticHostRouting::LookupStatic(Ipv4Address dest, Ptr <NetDevice> oif) {
+    Ptr<Ipv4Route>
+    Ipv4ArbitraryRouting::LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif) {
 
         // Multi-cast not supported
         if (dest.IsLocalMulticast()) {
             throw std::runtime_error("Multi-cast is not supported");
         }
 
+        // Decide interface index
         uint32_t if_idx = 0;
-
-        // Loop-back (not added to the routing table explicitly)
-        if (Ipv4Mask("255.0.0.0").IsMatch(dest, Ipv4Address("127.0.0.1"))) {
+        if (Ipv4Mask("255.0.0.0").IsMatch(dest, Ipv4Address("127.0.0.1"))) { // Loop-back
             if_idx = 0;
 
-        } else { // If not loop-back, it must be delivered to another interface
+        } else if (dest == m_nodeSingleIpAddress) { // Local delivery
+            if_idx = 1;
 
-            // Perform look-up
-            std::map< uint32_t, std::vector<uint32_t>>::iterator it = this->host_ip_to_if_list.find(dest.Get());
-            if (it == this->host_ip_to_if_list.end()) {
-                throw std::runtime_error("No route found: not permitted");
-            } else {
-                std::vector <uint32_t> *if_list = &(it->second);
-                if_idx = (*if_list)[0];
-            }
-
+        } else { // If not loop-back or local delivery (albeit to another interface), it goes to the arbiter
+            if_idx = m_routingArbiter->decide_next_interface(m_ipv4->GetObject<Node>()->GetId(), p, header);
         }
 
         // Create routing entry
@@ -114,7 +90,7 @@ namespace ns3 {
     }
 
     Ptr <Ipv4Route>
-    Ipv4FastStaticHostRouting::RouteOutput(Ptr <Packet> p, const Ipv4Header &header, Ptr <NetDevice> oif,
+    Ipv4ArbitraryRouting::RouteOutput(Ptr <Packet> p, const Ipv4Header &header, Ptr <NetDevice> oif,
                                            Socket::SocketErrno &sockerr) {
         NS_LOG_FUNCTION(this << p << header << oif << sockerr);
         Ipv4Address destination = header.GetDestination();
@@ -126,12 +102,12 @@ namespace ns3 {
 
         // Perform lookup
         sockerr = Socket::ERROR_NOTERROR;
-        return LookupStatic(destination, oif);
+        return LookupStatic(destination, header, p, oif);
 
     }
 
     bool
-    Ipv4FastStaticHostRouting::RouteInput(Ptr<const Packet> p, const Ipv4Header &ipHeader, Ptr<const NetDevice> idev,
+    Ipv4ArbitraryRouting::RouteInput(Ptr<const Packet> p, const Ipv4Header &ipHeader, Ptr<const NetDevice> idev,
                                           UnicastForwardCallback ucb, MulticastForwardCallback mcb,
                                           LocalDeliverCallback lcb, ErrorCallback ecb) {
         NS_ASSERT(m_ipv4 != 0);
@@ -156,23 +132,21 @@ namespace ns3 {
 
         // Check if input device supports IP forwarding
         if (m_ipv4->IsForwarding(iif) == false) {
-            NS_LOG_LOGIC("Forwarding disabled for this interface");
-            ecb(p, ipHeader, Socket::ERROR_NOROUTETOHOST);
-            return true;
+            throw std::runtime_error("Forwarding must be enabled for every interface");
         }
 
         // Uni-cast delivery
-        ucb(LookupStatic(ipHeader.GetDestination()), p, ipHeader);
+        ucb(LookupStatic(ipHeader.GetDestination(), ipHeader, p), p, ipHeader);
         return true;
 
     }
 
-    Ipv4FastStaticHostRouting::~Ipv4FastStaticHostRouting() {
+    Ipv4ArbitraryRouting::~Ipv4ArbitraryRouting() {
         NS_LOG_FUNCTION(this);
     }
 
     void
-    Ipv4FastStaticHostRouting::NotifyInterfaceUp(uint32_t i) {
+    Ipv4ArbitraryRouting::NotifyInterfaceUp(uint32_t i) {
 
         // One IP address per interface
         if (m_ipv4->GetNAddresses(i) != 1) {
@@ -195,35 +169,37 @@ namespace ns3 {
             if (if_mask.Get() != Ipv4Mask("255.255.255.0").Get()) {
                 throw std::runtime_error("Each interface must have a subnet mask of 255.255.255.0");
             }
-
-            // Add the route to the local interface
-            this->AddHostRouteTo(m_ipv4->GetAddress(i, 0).GetLocal(), i);
+            
+            // Interface 1's IP address is used as the universal IP for this node
+            if (i == 1) {
+                this->m_nodeSingleIpAddress = if_addr;
+            }
 
         }
 
     }
 
     void
-    Ipv4FastStaticHostRouting::NotifyInterfaceDown(uint32_t i) {
+    Ipv4ArbitraryRouting::NotifyInterfaceDown(uint32_t i) {
         throw std::runtime_error("Interfaces are not permitted to go down.");
     }
 
     void
-    Ipv4FastStaticHostRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address) {
+    Ipv4ArbitraryRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address) {
         if (m_ipv4->IsUp(interface)) {
             throw std::runtime_error("Not permitted to add IP addresses after the interface has gone up.");
         }
     }
 
     void
-    Ipv4FastStaticHostRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address) {
+    Ipv4ArbitraryRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address) {
         if (m_ipv4->IsUp(interface)) {
             throw std::runtime_error("Not permitted to remove IP addresses after the interface has gone up.");
         }
     }
 
     void
-    Ipv4FastStaticHostRouting::SetIpv4(Ptr <Ipv4> ipv4) {
+    Ipv4ArbitraryRouting::SetIpv4(Ptr <Ipv4> ipv4) {
         NS_LOG_FUNCTION(this << ipv4);
         NS_ASSERT(m_ipv4 == 0 && ipv4 != 0);
         m_ipv4 = ipv4;
@@ -236,8 +212,14 @@ namespace ns3 {
         }
     }
 
-    void Ipv4FastStaticHostRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const {
+    void 
+    Ipv4ArbitraryRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const {
         throw std::runtime_error("Not yet implemented");
+    }
+
+    void
+    Ipv4ArbitraryRouting::SetRoutingArbiter (RoutingArbiter* routingArbiter) {
+        m_routingArbiter = routingArbiter;
     }
 
 } // namespace ns3

@@ -189,11 +189,11 @@ int basic_sim(std::string run_dir) {
     // Install Internet on all nodes
     NodeContainer nodes;
     nodes.Create(topology.num_nodes);
-    Ipv4ArbitraryRoutingHelper arbitraryRoutingHelper;
+    Ipv4FastStaticHostRoutingHelper fastStaticHostRoutingHelper;
     Ipv4ListRoutingHelper list;
-    list.Add (arbitraryRoutingHelper, 0);
+    list.Add (fastStaticHostRoutingHelper, 0);
     InternetStackHelper internet;
-    internet.SetRoutingHelper (list);
+    //internet.SetRoutingHelper (list);
     internet.Install(nodes); // Installs only the fast static host IPv4 routing
 
     // Set up links and assign IPs
@@ -204,7 +204,7 @@ int basic_sim(std::string run_dir) {
     p2p.SetDeviceAttribute("DataRate", StringValue(std::to_string(link_data_rate_megabit_per_s) + "Mbps"));
     p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(link_delay_ns)));
     std::vector<std::pair<int32_t, int32_t>> interface_idxs_for_edges;
-    for (std::pair<int64_t, int64_t> link : topology.undirected_edges) { // TODO: for each node, find the edge such that nodes can be inferred afterwards
+    for (std::pair<int64_t, int64_t> link : topology.undirected_edges) {
         NetDeviceContainer container = p2p.Install(nodes.Get(link.first), nodes.Get(link.second));
         address.Assign(container);
         address.NewNetwork();
@@ -213,16 +213,25 @@ int basic_sim(std::string run_dir) {
         interface_idxs_for_edges.push_back(std::make_pair(a, b));
     }
 
-    // Calculate and instantiate the routing
-    printf("  > Calculating routing\n");
-    RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
-    printf("  > Calculated ECMP\n");
-    for (int i = 0; i < topology.num_nodes; i++) {
-        Ptr<Node> node = nodes.Get(i);
-        int16_t a;
-        Ptr<Ipv4ArbitraryRouting> p = node->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ListRouting>()->GetRoutingProtocol(0, a)->GetObject<Ipv4ArbitraryRouting>();
-        p->SetRoutingArbiter(&routingArbiter);
+    // Store IP address to node id (each interface has an IP address, so multiple IPs per node)
+    /*for (int i = 0; i < topology->num_nodes; i++) {
+        for (uint32_t j = 1; j < nodes.Get(i)->GetObject<Ipv4>()->GetNInterfaces(); j++) {
+            ip_to_node_id.insert({nodes.Get(i)->GetObject<Ipv4>()->GetAddress(j,0).GetLocal().Get(), i});
+        }
     }
+
+    // Save which interface is for which neighbor node id
+    int n2 = topology->num_nodes * topology->num_nodes;
+    this->neighbor_node_id_to_if_idx = new uint32_t[n2]();
+    for (int i = 0; i < topology->num_undirected_edges; i++) {
+        std::pair<int64_t, int64_t> edge = topology->undirected_edges[i];
+        this->neighbor_node_id_to_if_idx[edge.first * topology->num_nodes + edge.second] = interface_idxs_for_edges[i].first;
+        this->neighbor_node_id_to_if_idx[edge.second * topology->num_nodes + edge.first] = interface_idxs_for_edges[i].second;
+    }*/
+
+    // Populate the routing tables
+    printf("  > Populating routing tables\n");
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
     printf("\n");
 

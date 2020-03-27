@@ -16,8 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef IPV4_FAST_STATIC_HOST_ROUTING_HELPER_H
-#define IPV4_FAST_STATIC_HOST_ROUTING_HELPER_H
+#ifndef IPV4_ARBITRARY_ROUTING_HELPER_H
+#define IPV4_ARBITRARY_ROUTING_HELPER_H
 
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-static-routing.h"
@@ -28,7 +28,7 @@
 #include "ns3/ipv4-routing-helper.h"
 #include "ns3/node-container.h"
 #include "ns3/net-device-container.h"
-#include "ns3/ipv4-fast-static-host-routing.h"
+#include "ns3/ipv4-arbitrary-routing.h"
 
 namespace ns3 {
 
@@ -40,28 +40,28 @@ namespace ns3 {
  * This class is expected to be used in conjunction with 
  * ns3::InternetStackHelper::SetRoutingHelper
  */
-class Ipv4FastStaticHostRoutingHelper : public Ipv4RoutingHelper
+class Ipv4ArbitraryRoutingHelper : public Ipv4RoutingHelper
 {
 public:
   /*
-   * Construct an Ipv4FastStaticHostRoutingHelper object, used to make configuration
+   * Construct an Ipv4ArbitraryRoutingHelper object, used to make configuration
    * of static routing easier.
    */
-  Ipv4FastStaticHostRoutingHelper ();
+  Ipv4ArbitraryRoutingHelper ();
 
   /**
-   * \brief Construct an Ipv4FastStaticHostRoutingHelper from another previously 
+   * \brief Construct an Ipv4ArbitraryRoutingHelper from another previously 
    * initialized instance (Copy Constructor).
    */
-  Ipv4FastStaticHostRoutingHelper (const Ipv4FastStaticHostRoutingHelper &);
+  Ipv4ArbitraryRoutingHelper (const Ipv4ArbitraryRoutingHelper &);
 
   /**
-   * \returns pointer to clone of this Ipv4FastStaticHostRoutingHelper
+   * \returns pointer to clone of this Ipv4ArbitraryRoutingHelper
    *
    * This method is mainly for internal use by the other helpers;
    * clients are expected to free the dynamic memory allocated by this method
    */
-  Ipv4FastStaticHostRoutingHelper* Copy (void) const;
+  Ipv4ArbitraryRoutingHelper* Copy (void) const;
 
   /**
    * \param node the node on which the routing protocol will run
@@ -77,9 +77,9 @@ private:
    * assignment and prevent the compiler from happily inserting its own.
    * \returns
    */
-  Ipv4FastStaticHostRoutingHelper &operator = (const Ipv4FastStaticHostRoutingHelper &);
+  Ipv4ArbitraryRoutingHelper &operator = (const Ipv4ArbitraryRoutingHelper &);
 };
 
 } // namespace ns3
 
-#endif /* IPV4_FAST_STATIC_HOST_ROUTING_HELPER_H */
+#endif /* IPV4_ARBITRARY_ROUTING_HELPER_H */
