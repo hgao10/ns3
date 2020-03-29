@@ -84,7 +84,9 @@ namespace ns3 {
         // Create routing entry
         Ptr<Ipv4Route> rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(dest);
-        rtentry->SetSource(m_ipv4->SourceAddressSelection(if_idx, dest));
+        rtentry->SetSource(m_ipv4->SourceAddressSelection(if_idx, dest)); // This is basically the IP of the interface
+                                                                          // It is used by a transport layer to
+                                                                          // determine its source IP address
         rtentry->SetGateway(Ipv4Address("0.0.0.0")); // This also works because a point-to-point network device
                                                      // does not care about ARP resolution.
         // uint32_t this_side_ip = m_ipv4->GetAddress(if_idx, 0).GetLocal().Get();

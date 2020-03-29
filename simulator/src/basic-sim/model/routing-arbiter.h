@@ -36,7 +36,7 @@ public:
      * @param pkt                   Packet pointer
      * @param ipHeader              IPHeader instance
      *
-     * @return Neighbor node id (or -1 to drop)
+     * @return Neighbor node id to which to forward to
      */
     virtual int32_t decide_next_node_id(
             int32_t current_node_id,

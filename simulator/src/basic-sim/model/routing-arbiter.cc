@@ -38,7 +38,7 @@ int32_t RoutingArbiter::decide_next_interface(int32_t current_node, Ptr<const Pa
     // Ask the routing which node should be next
     uint32_t source_ip = ipHeader.GetSource().Get();
     uint32_t target_ip = ipHeader.GetDestination().Get();
-    int selected_node_id = decide_next_node_id(
+    int32_t selected_node_id = decide_next_node_id(
             current_node,
             ip_to_node_id[source_ip],
             ip_to_node_id[target_ip],
@@ -48,17 +48,12 @@ int32_t RoutingArbiter::decide_next_interface(int32_t current_node, Ptr<const Pa
     );
 
     // Invalid selected node id
-    if (selected_node_id < -1 || selected_node_id >= topology->num_nodes) {
+    if (selected_node_id < 0 || selected_node_id >= topology->num_nodes) {
         throw std::runtime_error(format_string(
-                "The selected next node %d is out of node id range of [-1, %" PRId64 ").",
+                "The selected next node %d is out of node id range of [0, %" PRId64 ").",
                 selected_node_id,
                 topology->num_nodes
         ));
-    }
-
-    // No selection means drop
-    if (selected_node_id == -1) {
-        return -1;
     }
 
     // Convert the neighbor node id to the interface index of the edge which connects to it
