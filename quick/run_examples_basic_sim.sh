@@ -14,3 +14,6 @@ mkdir ../runs/example_leaf_spine_servers/logs
 rm -rf ../runs/example_fat_tree_k4_servers/logs
 mkdir ../runs/example_fat_tree_k4_servers/logs
 ./waf --run="main --run_dir='../runs/example_fat_tree_k4_servers'" 2>&1 | tee ../runs/example_fat_tree_k4_servers/logs/console.txt
+rm -rf ../runs/example_big_grid/logs
+mkdir ../runs/example_big_grid/logs
+./waf --run="main --run_dir='../runs/example_big_grid'" 2>&1 | tee ../runs/example_big_grid/logs/console.txt

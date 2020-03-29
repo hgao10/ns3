@@ -1,8 +1,8 @@
 # Packet-level simulations
 
-This repository enables the convenient execution of packet-level experiments using the ns-3 simulator. It only takes in the input of a configuration file, which describes the minimal necessary parameters, a topology file, and a flow arrival schedule. It has the ability to enable switch-id-seeded ECMP.
+This repository enables the convenient execution of packet-level experiments using the ns-3 simulator. It only takes in the input of a configuration file, which describes the minimal necessary parameters, a topology file, and a flow arrival schedule. Default routing applied is switch-seeded 5-tuple ECMP.
 
-**Make sure you fork this repository and continue on it in your own repository. This repository is kept simple on purpose. You can keep your fork up-to-date by pulling it in regularly from your own repository: `git pull git@gitlab.inf.ethz.ch:OU-SINGLA/ns3-ecmp.git`**
+**Make sure you fork this repository and continue on it in your own repository. This repository is kept simple on purpose. You can keep your fork up-to-date by pulling it in regularly from your own repository: `git pull git@gitlab.inf.ethz.ch:OU-SINGLA/ns3-basic-sim.git`**
 
 ## Getting started
 
@@ -31,30 +31,24 @@ This repository enables the convenient execution of packet-level experiments usi
    cd simulator
    ```
 
-6. Replace the content of `src/internet/model/ipv4-global-routing.cc / .h` with that of `src/basic-sim/model/replace-ipv4-global-routing.cc / .h`:
-   ```
-   cp src/basic-sim/model/replace-ipv4-global-routing.cc.txt src/internet/model/ipv4-global-routing.cc
-   cp src/basic-sim/model/replace-ipv4-global-routing.h.txt src/internet/model/ipv4-global-routing.h
-   ```
-
-7. Make sure you have the latest version of Python (3.7+)
+6. Make sure you have a recent version of Python (3.6+)
    
-8. Configure
+7. Configure
     ```
     ./waf configure --enable-tests
     ```
    
-9. Build
+8. Build
     ```
     ./waf
     ```
    
-10. Run the example:
+9. Run the example:
     ```
     ./waf --run="main --run_dir='../runs/example_single'"
     ```
 
-11. Check out the results:
+10. Check out the results:
     ```
     xdg-open ../runs/example_single/logs/flows.txt
     ```
@@ -142,4 +136,4 @@ Based on some experience with packet-level simulation, I would like to add the f
 ## Acknowledgements
 
 Based on code written by Hussain, who did his master thesis in the NDAL group.
-Refactored, extended and maintained by Simon. The ECMP extension is adapted from https://github.com/mkheirkhah/ecmp (retrieved February 20th, 2020).
+Refactored, extended and maintained by Simon. The ECMP routing hashing function is inspired by https://github.com/mkheirkhah/ecmp (retrieved February 20th, 2020).
