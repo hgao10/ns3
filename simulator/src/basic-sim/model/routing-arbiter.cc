@@ -7,7 +7,7 @@ RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, std::vec
     this->nodes = nodes;
 
     // Store IP address to node id (each interface has an IP address, so multiple IPs per node)
-    for (int i = 0; i < topology->num_nodes; i++) {
+    for (uint32_t i = 0; i < topology->num_nodes; i++) {
         for (uint32_t j = 1; j < nodes.Get(i)->GetObject<Ipv4>()->GetNInterfaces(); j++) {
             ip_to_node_id.insert({nodes.Get(i)->GetObject<Ipv4>()->GetAddress(j,0).GetLocal().Get(), i});
         }
@@ -24,6 +24,15 @@ RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, std::vec
 
 }
 
+/**
+ * Decides what should be the next interface.
+ *
+ * @param current_node  Current node identifier
+ * @param pkt           Packet
+ * @param ipHeader      IP header of the packet
+ *
+ * @return Interface index
+ */
 int32_t RoutingArbiter::decide_next_interface(int32_t current_node, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
 
     // Ask the routing which node should be next
@@ -39,9 +48,9 @@ int32_t RoutingArbiter::decide_next_interface(int32_t current_node, Ptr<const Pa
     );
 
     // Invalid selected node id
-    if (selected_node_id >= topology->num_nodes) {
+    if (selected_node_id < -1 || selected_node_id >= topology->num_nodes) {
         throw std::runtime_error(format_string(
-                "The selected next node %d is out of node id range of [0, %" PRId64 ").",
+                "The selected next node %d is out of node id range of [-1, %" PRId64 ").",
                 selected_node_id,
                 topology->num_nodes
         ));

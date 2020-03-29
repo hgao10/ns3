@@ -36,7 +36,7 @@ public:
      * @param pkt                   Packet pointer
      * @param ipHeader              IPHeader instance
      *
-     * @return Neighbor node id (or -1 t
+     * @return Neighbor node id (or -1 to drop)
      */
     virtual int32_t decide_next_node_id(
             int32_t current_node_id,
@@ -49,7 +49,7 @@ public:
 
 protected:
     Topology* topology;
-    std::map<uint32_t, int32_t> ip_to_node_id; // TODO: Replace with recalculation for O(1) access
+    std::map<uint32_t, uint32_t> ip_to_node_id;
 
 private:
     ns3::NodeContainer nodes;
