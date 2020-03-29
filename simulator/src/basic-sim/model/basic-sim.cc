@@ -179,7 +179,7 @@ int basic_sim(std::string run_dir) {
     printf("SETTING UP TOPOLOGY\n");
 
     // Nodes
-    printf("  > Create nodes and install Internet stack on each\n");
+    printf("  > Creating nodes and installing Internet stack on each\n");
 
     // Install Internet on all nodes
     NodeContainer nodes;
@@ -231,6 +231,7 @@ int basic_sim(std::string run_dir) {
     }
 
     // Install Source App
+    printf("  > Setting up source applications\n");
     std::vector<ApplicationContainer> apps;
     for (schedule_entry_t& entry : schedule) {
         FlowSendHelper source(
@@ -259,6 +260,7 @@ int basic_sim(std::string run_dir) {
     for (double i = interval_s; i < simulation_end_time_ns / 1e9; i += interval_s) {
         Simulator::Schedule(Seconds(i), &show_simulation_progress);
     }
+    printf("Scheduled progress updates\n\n");
 
     // Print not yet finished
     std::ofstream fileFinished(run_dir + "/logs/finished.txt");
@@ -337,7 +339,7 @@ int basic_sim(std::string run_dir) {
     fclose(file_csv);
     fclose(file_txt);
 
-    printf("  > Flow log files have been written.\n");
+    printf("  > Flow log files have been written\n");
 
     ////////////////////////////////////////
     // End simulation
