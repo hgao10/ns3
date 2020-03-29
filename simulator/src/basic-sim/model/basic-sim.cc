@@ -184,12 +184,10 @@ int basic_sim(std::string run_dir) {
     // Install Internet on all nodes
     NodeContainer nodes;
     nodes.Create(topology.num_nodes);
-    Ipv4ArbitraryRoutingHelper arbitraryRoutingHelper;
-    Ipv4ListRoutingHelper list;
-    list.Add (arbitraryRoutingHelper, 0);
     InternetStackHelper internet;
-    internet.SetRoutingHelper (arbitraryRoutingHelper); // list
-    internet.Install(nodes); // Installs only the fast static host IPv4 routing
+    Ipv4ArbitraryRoutingHelper arbitraryRoutingHelper;
+    internet.SetRoutingHelper (arbitraryRoutingHelper);
+    internet.Install(nodes);
 
     // Set up links and assign IPs
     printf("  > Creating links\n");
@@ -210,7 +208,7 @@ int basic_sim(std::string run_dir) {
 
     // Calculate and instantiate the routing
     printf("  > Calculating routing\n");
-    RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+    RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges); // Remains alive for the entire simulation
     for (int i = 0; i < topology.num_nodes; i++) {
         nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(&routingArbiter);
     }
