@@ -145,6 +145,8 @@ namespace ns3 {
         }
 
         // Uni-cast delivery
+        // Info: If you want to decide that a packet should not be routed (dropped),
+        //       you can decide that here by not calling ucb(), but still returning true.
         ucb(LookupStatic(ipHeader.GetDestination(), ipHeader, p), p, ipHeader);
         return true;
 
