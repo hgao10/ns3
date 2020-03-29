@@ -53,7 +53,7 @@ protected:
 
 private:
     ns3::NodeContainer nodes;
-    uint32_t* neighbor_node_id_to_if_idx;
+    std::vector<uint32_t> neighbor_node_id_to_if_idx;
 
 };
 

@@ -73,6 +73,9 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
         }
     }
 
+    // Free up the distance matrix
+    delete[] dist;
+
 }
 
 /**
