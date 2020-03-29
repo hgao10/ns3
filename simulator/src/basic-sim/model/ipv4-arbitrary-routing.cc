@@ -59,7 +59,7 @@ namespace ns3 {
      * @param dest      Destination IP address
      * @param header    IPv4 header
      * @param p         Packet
-     * @param oif       Output interface (set only if originated from the transport layer basically)
+     * @param oif       Requested output interface
      *
      * @return Valid Ipv4 route
      */
@@ -69,6 +69,11 @@ namespace ns3 {
         // Multi-cast not supported
         if (dest.IsLocalMulticast()) {
             throw std::runtime_error("Multi-cast is not supported");
+        }
+
+        // No support for requested output interfaces
+        if (oif != 0) {
+            throw std::runtime_error("Requested output interfaces are not supported");
         }
 
         // Decide interface index
@@ -96,9 +101,23 @@ namespace ns3 {
 
     }
 
+    /**
+     * Get an output route.
+     *
+     * RouteOutput gets called once by TCP (tcp-socket-base.cc) with an header of which only the destination
+     * IP address is set in order to determine the source IP address for the socket.
+     *
+     * Subsequently, RouteOutput is called by TCP (tcp-l4-protocol.cc) on the sender node.
+     *
+     * @param p         Packet
+     * @param header    Header
+     * @param oif       Requested output interface
+     * @param sockerr   (Output) socket error, set if cannot find route
+     *
+     * @return IPv4 route
+     */
     Ptr <Ipv4Route>
-    Ipv4ArbitraryRouting::RouteOutput(Ptr <Packet> p, const Ipv4Header &header, Ptr <NetDevice> oif,
-                                           Socket::SocketErrno &sockerr) {
+    Ipv4ArbitraryRouting::RouteOutput(Ptr <Packet> p, const Ipv4Header &header, Ptr <NetDevice> oif, Socket::SocketErrno &sockerr) {
         NS_LOG_FUNCTION(this << p << header << oif << sockerr);
         Ipv4Address destination = header.GetDestination();
 
