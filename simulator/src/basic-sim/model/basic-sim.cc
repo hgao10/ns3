@@ -199,7 +199,7 @@ int basic_sim(std::string run_dir) {
     p2p.SetDeviceAttribute("DataRate", StringValue(std::to_string(link_data_rate_megabit_per_s) + "Mbps"));
     p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(link_delay_ns)));
     std::vector<std::pair<int32_t, int32_t>> interface_idxs_for_edges;
-    for (std::pair<int64_t, int64_t> link : topology.undirected_edges) { // TODO: for each node, find the edge such that nodes can be inferred afterwards
+    for (std::pair<int64_t, int64_t> link : topology.undirected_edges) {
         NetDeviceContainer container = p2p.Install(nodes.Get(link.first), nodes.Get(link.second));
         address.Assign(container);
         address.NewNetwork();
