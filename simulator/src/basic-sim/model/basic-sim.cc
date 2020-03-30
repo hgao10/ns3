@@ -14,8 +14,9 @@ int64_t now_ns_since_epoch() {
 int64_t sim_start_time_ns_since_epoch;
 int64_t last_log_time_ns_since_epoch;
 int64_t total_simulation_duration_ns;
-int counter_estimate_remainder = 0;
-double progress_interval_ns = 10000000000; // First one at 10s
+int counter_progress_updates = 0;
+double progress_interval_ns = 10000000000; // First one after 10s
+double simulation_event_interval_s = 0.00001;
 void show_simulation_progress() {
     int64_t now = now_ns_since_epoch();
     if (now - last_log_time_ns_since_epoch > progress_interval_ns) {
@@ -25,16 +26,25 @@ void show_simulation_progress() {
                 Simulator::Now().GetSeconds(),
                 (now - sim_start_time_ns_since_epoch) / 1e9
                 );
-        if (counter_estimate_remainder % 5 == 0) { // Every 5 minutes we show estimate
+        if (counter_progress_updates < 8 || counter_progress_updates % 5 == 0) { // The first 8 and every 5 progress updates we show estimate
             printf(
                     "Estimated wallclock time remaining: %.1f minutes\n",
                     ((total_simulation_duration_ns / 1e9 - Simulator::Now().GetSeconds()) / (Simulator::Now().GetSeconds() / ((now - sim_start_time_ns_since_epoch) / 1e9))) / 60.0
                     );
         }
-        counter_estimate_remainder++;
         last_log_time_ns_since_epoch = now;
-        progress_interval_ns = 60000000000; // After the first, each update is every 60s
+        if (counter_progress_updates < 4) {
+            progress_interval_ns = 10000000000; // The first five are every 10s
+        } else if (counter_progress_updates < 19) {
+            progress_interval_ns = 20000000000; // The next 15 are every 20s
+        } else if (counter_progress_updates < 99) {
+            progress_interval_ns = 60000000000; // The next 80 are every 60s
+        } else {
+            progress_interval_ns = 360000000000; // After that, it is every 360s = 5 minutes
+        }
+        counter_progress_updates++;
     }
+    Simulator::Schedule(Seconds(simulation_event_interval_s), &show_simulation_progress);
 }
 
 /**
@@ -275,11 +285,8 @@ int basic_sim(std::string run_dir) {
     // Schedule progress printing
     sim_start_time_ns_since_epoch = now_ns_since_epoch();
     last_log_time_ns_since_epoch = sim_start_time_ns_since_epoch;
-    double interval_s = 0.01;
-    for (double i = interval_s; i < simulation_end_time_ns / 1e9; i += interval_s) {
-        Simulator::Schedule(Seconds(i), &show_simulation_progress);
-    }
-    printf("Scheduled progress updates\n\n");
+    Simulator::Schedule(Seconds(simulation_event_interval_s), &show_simulation_progress);
+    printf("Scheduled progress update\n\n");
 
     // Print not yet finished
     std::ofstream fileFinished(run_dir + "/logs/finished.txt");
