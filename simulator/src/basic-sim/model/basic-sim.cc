@@ -224,7 +224,7 @@ int basic_sim(std::string run_dir) {
     printf("  > Calculating routing\n");
     RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges); // Remains alive for the entire simulation
     timestamps.push_back(std::make_pair("Routing arbiter base", routingArbiter.get_base_init_finish_ns_since_epoch()));
-    timestamps.push_back(std::make_pair("Routing arbiter ECMP", routingArbiter.get_init_finish_ns_since_epoch()));
+    timestamps.push_back(std::make_pair("Routing arbiter ECMP", routingArbiter.get_ecmp_init_finish_ns_since_epoch()));
     for (int i = 0; i < topology.num_nodes; i++) {
         nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(&routingArbiter);
     }

@@ -50,8 +50,6 @@ public:
             ns3::Ipv4Header const &ipHeader
     ) = 0;
 
-    virtual int64_t get_init_finish_ns_since_epoch() = 0;
-
 protected:
     Topology* topology;
     std::map<uint32_t, uint32_t> ip_to_node_id;

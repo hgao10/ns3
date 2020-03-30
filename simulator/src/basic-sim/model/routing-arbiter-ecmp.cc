@@ -78,7 +78,7 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
     // Free up the distance matrix
     delete[] dist;
 
-    init_finish_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    ecmp_init_finish_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 }
 
@@ -147,6 +147,6 @@ int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t
     return candidate_list[current_node_id][target_node_id][hash % s];
 }
 
-int64_t RoutingArbiterEcmp::get_init_finish_ns_since_epoch() {
-    return init_finish_ns_since_epoch;
+int64_t RoutingArbiterEcmp::get_ecmp_init_finish_ns_since_epoch() {
+    return ecmp_init_finish_ns_since_epoch;
 }
