@@ -14,7 +14,7 @@ RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, std::vec
     }
 
     // Save which interface is for which neighbor node id
-    this->neighbor_node_id_to_if_idx.resize(topology->num_nodes * topology->num_nodes, 0);
+    this->neighbor_node_id_to_if_idx = (uint32_t*) calloc(topology->num_nodes * topology->num_nodes, sizeof(uint32_t));
     for (int i = 0; i < topology->num_undirected_edges; i++) {
         std::pair<int64_t, int64_t> edge = topology->undirected_edges[i];
         this->neighbor_node_id_to_if_idx[edge.first * topology->num_nodes + edge.second] = interface_idxs_for_edges[i].first;
@@ -22,6 +22,10 @@ RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, std::vec
     }
     base_init_finish_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
+}
+
+RoutingArbiter::~RoutingArbiter() {
+    free(this->neighbor_node_id_to_if_idx);
 }
 
 int64_t RoutingArbiter::get_base_init_finish_ns_since_epoch() {

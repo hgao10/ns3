@@ -217,7 +217,7 @@ int basic_sim(std::string run_dir) {
         uint32_t b = container.Get(1)->GetIfIndex();
         interface_idxs_for_edges.push_back(std::make_pair(a, b));
     }
-    timestamps.push_back(std::make_pair("Create links and interface edge-if-idx mapping", now_ns_since_epoch()));
+    timestamps.push_back(std::make_pair("Create links and interface edge-to-if-idx mapping", now_ns_since_epoch()));
 
     // Calculate and instantiate the routing
     printf("  > Calculating routing\n");
