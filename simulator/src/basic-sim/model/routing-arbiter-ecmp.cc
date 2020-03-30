@@ -50,8 +50,10 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
     // the possible next hops
 
     // ECMP candidate list: candidate_list[current][destination] = [ list of next hops ]
+    candidate_list.reserve(topology->num_nodes);
     for (int i = 0; i < topology->num_nodes; i++) {
         std::vector<std::vector<uint32_t>> v;
+        v.reserve(topology->num_nodes);
         for (int j = 0; j < topology->num_nodes; j++) {
             v.push_back(std::vector<uint32_t>());
         }
