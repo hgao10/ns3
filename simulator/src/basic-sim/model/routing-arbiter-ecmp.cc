@@ -15,9 +15,13 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 
     int64_t n = topology->num_nodes;
 
+    // Enforce that more than 40000 nodes is not permitted (sqrt(2^31) ~= 46340, so let's call it an even 40000)
+    if (n > 40000) {
+        throw std::runtime_error("Cannot handle more than 40000 nodes");
+    }
+
     // Initialize with 0 distance to itself, and infinite distance to all others
-    int n2 = n * n;
-    int64_t* dist = new int64_t[n2];
+    int32_t* dist = new int32_t[n * n];
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             if (i == j) {
