@@ -143,6 +143,7 @@ int basic_sim(std::string run_dir) {
         remove_file_if_exists(logs_dir + "/finished.txt");
         remove_file_if_exists(logs_dir + "/flows.txt");
         remove_file_if_exists(logs_dir + "/flows.csv");
+        remove_file_if_exists(logs_dir + "/timing-results.txt");
     } else {
         mkdir_if_not_exists(logs_dir);
     }
