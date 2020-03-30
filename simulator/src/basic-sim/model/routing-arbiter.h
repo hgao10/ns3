@@ -25,6 +25,8 @@ class RoutingArbiter
 public:
     RoutingArbiter(Topology* topology, ns3::NodeContainer nodes, std::vector<std::pair<int32_t, int32_t>> interface_idxs_for_edges);
     int32_t decide_next_interface(int32_t current_node, ns3::Ptr<const ns3::Packet> pkt, ns3::Ipv4Header const &ipHeader);
+    uint32_t resolve_node_id_from_ip(uint32_t ip);
+    int64_t get_base_init_finish_ns_since_epoch();
 
     /**
      * From among the neighbors, decide where the packet needs to be routed to.
@@ -47,13 +49,17 @@ public:
             ns3::Ipv4Header const &ipHeader
     ) = 0;
 
+    virtual int64_t get_init_finish_ns_since_epoch() = 0;
+
 protected:
     Topology* topology;
     std::map<uint32_t, uint32_t> ip_to_node_id;
+    std::map<uint32_t, uint32_t>::iterator ip_to_node_id_it;
 
 private:
     ns3::NodeContainer nodes;
     std::vector<uint32_t> neighbor_node_id_to_if_idx;
+    int64_t base_init_finish_ns_since_epoch;
 
 };
 

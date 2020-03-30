@@ -51,9 +51,9 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 
     // ECMP candidate list: candidate_list[current][destination] = [ list of next hops ]
     for (int i = 0; i < topology->num_nodes; i++) {
-        std::vector<std::vector<int64_t>> v;
+        std::vector<std::vector<uint32_t>> v;
         for (int j = 0; j < topology->num_nodes; j++) {
-            v.push_back(std::vector<int64_t>());
+            v.push_back(std::vector<uint32_t>());
         }
         candidate_list.push_back(v);
     }
@@ -75,6 +75,8 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 
     // Free up the distance matrix
     delete[] dist;
+
+    init_finish_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 }
 
@@ -141,4 +143,8 @@ int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t
     uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, current_node_id);
     int s = candidate_list[current_node_id][target_node_id].size();
     return candidate_list[current_node_id][target_node_id][hash % s];
+}
+
+int64_t RoutingArbiterEcmp::get_init_finish_ns_since_epoch() {
+    return init_finish_ns_since_epoch;
 }

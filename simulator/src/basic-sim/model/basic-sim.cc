@@ -4,6 +4,10 @@
 
 namespace ns3 {
 
+int64_t now_ns_since_epoch() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 /**
  * Showing of simulation progress.
  */
@@ -13,7 +17,7 @@ int64_t total_simulation_duration_ns;
 int counter_estimate_remainder = 0;
 double progress_interval_ns = 10000000000; // First one at 10s
 void show_simulation_progress() {
-    int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    int64_t now = now_ns_since_epoch();
     if (now - last_log_time_ns_since_epoch > progress_interval_ns) {
         printf(
                 "%5.2f%% - Simulation Time = %.2fs ::: Wallclock Time = %.2fs\n",
@@ -118,6 +122,9 @@ std::vector<schedule_entry_t> read_and_print_schedule(const std::string& filenam
 
 int basic_sim(std::string run_dir) {
 
+    std::vector<std::pair<std::string, int64_t>> timestamps;
+    timestamps.push_back(std::make_pair("Start", now_ns_since_epoch()));
+
     // Basis header
     printf("BASIS\n");
 
@@ -141,18 +148,22 @@ int basic_sim(std::string run_dir) {
     }
     printf("  > Logs directory: %s\n", logs_dir.c_str());
     printf("\n");
+    timestamps.push_back(std::make_pair("Create logs directory", now_ns_since_epoch()));
 
     // Config
     std::map<std::string, std::string> config = read_and_print_config(run_dir + "/" + "config.properties");
+    timestamps.push_back(std::make_pair("Read config", now_ns_since_epoch()));
 
     // Topology
     Topology topology = read_and_print_topology(run_dir + "/" + get_param_or_fail("filename_topology", config));
+    timestamps.push_back(std::make_pair("Read topology", now_ns_since_epoch()));
 
     // End time
     int64_t simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", config));
 
     // Schedule
     std::vector<schedule_entry_t> schedule = read_and_print_schedule(run_dir + "/" + get_param_or_fail("filename_schedule", config), topology, simulation_end_time_ns);
+    timestamps.push_back(std::make_pair("Read schedule", now_ns_since_epoch()));
 
     // Seed
     int64_t simulation_seed = parse_positive_int64(get_param_or_fail("simulation_seed", config));
@@ -188,6 +199,7 @@ int basic_sim(std::string run_dir) {
     Ipv4ArbitraryRoutingHelper arbitraryRoutingHelper;
     internet.SetRoutingHelper (arbitraryRoutingHelper);
     internet.Install(nodes);
+    timestamps.push_back(std::make_pair("Create and install nodes", now_ns_since_epoch()));
 
     // Set up links and assign IPs
     printf("  > Creating links\n");
@@ -205,13 +217,17 @@ int basic_sim(std::string run_dir) {
         uint32_t b = container.Get(1)->GetIfIndex();
         interface_idxs_for_edges.push_back(std::make_pair(a, b));
     }
+    timestamps.push_back(std::make_pair("Create links and interface edge-if-idx mapping", now_ns_since_epoch()));
 
     // Calculate and instantiate the routing
     printf("  > Calculating routing\n");
     RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges); // Remains alive for the entire simulation
+    timestamps.push_back(std::make_pair("Routing arbiter base", routingArbiter.get_base_init_finish_ns_since_epoch()));
+    timestamps.push_back(std::make_pair("Routing arbiter ECMP", routingArbiter.get_init_finish_ns_since_epoch()));
     for (int i = 0; i < topology.num_nodes; i++) {
         nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(&routingArbiter);
     }
+    timestamps.push_back(std::make_pair("Set routing arbiter for each node", now_ns_since_epoch()));
 
     printf("\n");
 
@@ -229,6 +245,7 @@ int basic_sim(std::string run_dir) {
         ApplicationContainer app = sink.Install(nodes.Get(i));
         app.Start(Seconds(0.0));
     }
+    timestamps.push_back(std::make_pair("Setup traffic sinks", now_ns_since_epoch()));
 
     // Install Source App
     printf("  > Setting up source applications\n");
@@ -246,6 +263,7 @@ int basic_sim(std::string run_dir) {
         app.Start(NanoSeconds(entry.start_time_ns));
         apps.push_back(app);
     }
+    timestamps.push_back(std::make_pair("Setup traffic source applications", now_ns_since_epoch()));
 
     printf("\n");
 
@@ -254,7 +272,7 @@ int basic_sim(std::string run_dir) {
     //
 
     // Schedule progress printing
-    sim_start_time_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    sim_start_time_ns_since_epoch = now_ns_since_epoch();
     last_log_time_ns_since_epoch = sim_start_time_ns_since_epoch;
     double interval_s = 0.01;
     for (double i = interval_s; i < simulation_end_time_ns / 1e9; i += interval_s) {
@@ -271,12 +289,14 @@ int basic_sim(std::string run_dir) {
     printf("Running the simulation for %.1f simulation seconds...\n", (simulation_end_time_ns / 1e9));
     Simulator::Run ();
     printf("Finished simulation.\n");
-    int64_t sim_end_time_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    int64_t sim_end_time_ns_since_epoch = now_ns_since_epoch();
     printf(
             "Simulation of %.1f seconds took in wallclock time %.1f seconds.\n\n",
             total_simulation_duration_ns / 1e9,
             (sim_end_time_ns_since_epoch - sim_start_time_ns_since_epoch) / 1e9
     );
+
+    timestamps.push_back(std::make_pair("Run simulation", now_ns_since_epoch()));
 
     ////////////////////////////////////////
     // Store completion times
@@ -341,17 +361,47 @@ int basic_sim(std::string run_dir) {
 
     printf("  > Flow log files have been written\n");
 
+    timestamps.push_back(std::make_pair("Write flow log files", now_ns_since_epoch()));
+
     ////////////////////////////////////////
     // End simulation
     //
     Simulator::Destroy ();
     printf("  > Simulator is destroyed\n");
+    timestamps.push_back(std::make_pair("Destroy simulator", now_ns_since_epoch()));
+    printf("\n");
+
+    ////////////////////////////////////////
+    // Timing results
+    //
+
+    std::ofstream fileTimingResults(run_dir + "/logs/timing-results.txt");
+    printf("TIMING RESULTS\n");
+    printf("------\n");
+    int64_t t_prev = -1;
+    for (std::pair<std::string, int64_t>& ts : timestamps) {
+        if (t_prev == -1) {
+            t_prev = ts.second;
+        } else {
+            std::string line = format_string(
+                    "[%7.1f - %7.1f] (%.1fs) :: %s",
+                    (t_prev - timestamps[0].second) / 1e9,
+                    (ts.second - timestamps[0].second) / 1e9,
+                    (ts.second - t_prev) / 1e9,
+                    ts.first.c_str()
+                    );
+            std::cout << line << std::endl;
+            fileTimingResults << line << std::endl;
+            t_prev = ts.second;
+        }
+    }
+    fileTimingResults.close();
+    printf("\n");
 
     // Print final finished
     std::ofstream fileFinishedEnd(run_dir + "/logs/finished.txt");
     fileFinishedEnd << "Yes" << std::endl;
     fileFinishedEnd.close();
-    printf("  > Final finish is written\n\n");
 
     printf("Finished run successfully, exiting gracefully...\n");
 

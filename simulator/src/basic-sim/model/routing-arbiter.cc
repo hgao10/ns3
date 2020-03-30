@@ -24,7 +24,21 @@ RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, std::vec
         this->neighbor_node_id_to_if_idx[edge.first * topology->num_nodes + edge.second] = interface_idxs_for_edges[i].first;
         this->neighbor_node_id_to_if_idx[edge.second * topology->num_nodes + edge.first] = interface_idxs_for_edges[i].second;
     }
+    base_init_finish_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
+}
+
+int64_t RoutingArbiter::get_base_init_finish_ns_since_epoch() {
+    return base_init_finish_ns_since_epoch;
+}
+
+uint32_t RoutingArbiter::resolve_node_id_from_ip(uint32_t ip) {
+    ip_to_node_id_it = ip_to_node_id.find(ip);
+    if (ip_to_node_id_it != ip_to_node_id.end()) {
+        return ip_to_node_id_it->second;
+    } else {
+        throw std::invalid_argument(format_string("IP address %u is not mapped to a node id", ip));
+    }
 }
 
 /**
