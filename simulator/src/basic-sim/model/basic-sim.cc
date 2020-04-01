@@ -435,11 +435,16 @@ int basic_sim(std::string run_dir) {
 
     timestamps.push_back(std::make_pair("Write flow log files", now_ns_since_epoch()));
 
+    printf("\n");
+
     ////////////////////////////////////////
-    // End simulation
+    // Clean up simulation
     //
+    printf("CLEAN-UP\n");
+
     Simulator::Destroy ();
     printf("  > Simulator is destroyed\n");
+
     timestamps.push_back(std::make_pair("Destroy simulator", now_ns_since_epoch()));
     printf("\n");
 
