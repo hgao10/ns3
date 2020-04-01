@@ -346,6 +346,8 @@ int basic_sim(std::string run_dir) {
     // Perform simulation
     //
 
+    printf("SIMULATION\n");
+
     // Schedule progress printing
     sim_start_time_ns_since_epoch = now_ns_since_epoch();
     last_log_time_ns_since_epoch = sim_start_time_ns_since_epoch;
