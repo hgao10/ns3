@@ -81,7 +81,7 @@ FlowSendApplication::FlowSendApplication ()
     m_connected (false),
     m_totBytes (0),
     m_completionTimeNs (-1),
-    m_finished (false),
+    m_closedNormallyAfterFinish (false),
     m_closedByError (false)
 {
   NS_LOG_FUNCTION (this);
@@ -251,7 +251,11 @@ void FlowSendApplication::DataSend (Ptr<Socket>, uint32_t)
 }
 
 int64_t FlowSendApplication::GetAckedBytes() {
-    return m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+    if (m_closedNormallyAfterFinish || m_closedByError) {
+        return m_ackedBytes;
+    } else {
+        return m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+    }
 }
 
 int64_t FlowSendApplication::GetCompletionTimeNs() {
@@ -259,7 +263,7 @@ int64_t FlowSendApplication::GetCompletionTimeNs() {
 }
 
 bool FlowSendApplication::IsFinished() {
-    return m_finished;
+    return m_closedNormallyAfterFinish;
 }
 
 bool FlowSendApplication::IsClosedByError() {
@@ -269,12 +273,19 @@ bool FlowSendApplication::IsClosedByError() {
 void FlowSendApplication::SocketClosedNormal(Ptr<Socket> socket) {
     m_completionTimeNs = Simulator::Now().GetNanoSeconds();
     m_closedByError = false;
-    m_finished = true;
+    m_closedNormallyAfterFinish = true;
+    m_ackedBytes = m_totBytes;
+    if (m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() != 0) {
+        throw std::runtime_error("Socket closed normally but send buffer is not empty");
+    }
+    m_socket = 0;
 }
 
 void FlowSendApplication::SocketClosedError(Ptr<Socket> socket) {
     m_closedByError = true;
-    m_finished = false;
+    m_closedNormallyAfterFinish = false;
+    m_ackedBytes = m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+    m_socket = 0;
 }
 
 } // Namespace ns3

@@ -126,8 +126,9 @@ private:
   uint64_t        m_totBytes;     //!< Total bytes sent so far
   TypeId          m_tid;          //!< The type of protocol to use.
   int64_t         m_completionTimeNs; //!< Completion time in nanoseconds
-  bool            m_finished;         //!< Whether the flow is finished
+  bool            m_closedNormallyAfterFinish;   //!< Whether the flow is finished
   bool            m_closedByError;    //!< Whether the flow closed by error
+  uint64_t        m_ackedBytes;
 
   /// Traced Callback: sent packets
   TracedCallback<Ptr<const Packet> > m_txTrace;

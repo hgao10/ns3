@@ -27,10 +27,19 @@ void show_simulation_progress() {
                 (now - sim_start_time_ns_since_epoch) / 1e9
                 );
         if (counter_progress_updates < 8 || counter_progress_updates % 5 == 0) { // The first 8 and every 5 progress updates we show estimate
-            printf(
-                    "Estimated wallclock time remaining: %.1f minutes\n",
-                    ((total_simulation_duration_ns / 1e9 - Simulator::Now().GetSeconds()) / (Simulator::Now().GetSeconds() / ((now - sim_start_time_ns_since_epoch) / 1e9))) / 60.0
-                    );
+            int remaining_s = (int) ((total_simulation_duration_ns / 1e9 - Simulator::Now().GetSeconds()) / (Simulator::Now().GetSeconds() / ((now - sim_start_time_ns_since_epoch) / 1e9)));
+            int seconds = remaining_s % 60;
+            int minutes = ((remaining_s - seconds) / 60) % 60;
+            int hours = (remaining_s - seconds - minutes * 60) / 3600;
+            std::string remainder;
+            if (hours > 0) {
+                remainder = format_string("Estimated wallclock time remaining: %d hours %d minutes", hours, minutes);
+            } else if (minutes > 0) {
+                remainder = format_string("Estimated wallclock time remaining: %d minutes %d seconds", minutes, seconds);
+            } else {
+                remainder = format_string("Estimated wallclock time remaining: %d seconds", seconds);
+            }
+            std::cout << remainder << std::endl;
         }
         last_log_time_ns_since_epoch = now;
         if (counter_progress_updates < 4) {
@@ -243,6 +252,61 @@ int basic_sim(std::string run_dir) {
     printf("\n");
 
     ////////////////////////////////////////
+    // Setup TCP parameters
+    //
+
+    printf("TCP PARAMETERS\n");
+
+    // Initial congestion window
+    uint32_t init_cwnd_pkts = 10;  // 1 is default, but we use 10
+    printf("  > Initial CWND: %u packets\n", init_cwnd_pkts);
+    Config::SetDefault ("ns3::TcpSocket::InitialCwnd", UintegerValue (init_cwnd_pkts));
+
+    // MTU = 1500 byte, so lets say each packet is that size
+    // 100 packets is default queue size, so at most 101 packets of queue + transmit
+    // Queueing + transmission delay/hop = 101 * 1500 byte / link data rate
+    // Propagation delay/hop = link delay
+    //
+    // If the topology is big, lets assume 8 hops either direction worst case, so 16 hops total
+    // If the topology is not big, < 8 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
+    //
+    // num_hops * ((101 * 1500 bytes) / link data rate) + link delay)
+    int num_hops = std::min((int64_t) 16, topology.num_undirected_edges * 2);
+    double worst_case_rtt_ns = num_hops * ((101 * 1500) / (link_data_rate_megabit_per_s * 125000 / 1000000000) + link_delay_ns);
+
+    // Maximum segment lifetime
+    double max_seg_lifetime_s = 5 * worst_case_rtt_ns / 1e9; // 120s is default
+    printf("  > Maximum segment lifetime: %.3fms\n", max_seg_lifetime_s * 1e3);
+    Config::SetDefault ("ns3::TcpSocketBase::MaxSegLifetime", DoubleValue (max_seg_lifetime_s));
+
+    // Minimum retransmission timeout
+    double min_rto_ms = 1.5 * worst_case_rtt_ns / 1e6;  // 1s is default, Linux uses 200ms
+    printf("  > Minimum RTO: %.3fms\n", min_rto_ms);
+    Config::SetDefault ("ns3::TcpSocketBase::MinRto", TimeValue (MilliSeconds (min_rto_ms)));
+
+    // Initial RTT estimate
+    double initial_rtt_estimate_ms = 2 * worst_case_rtt_ns / 1e6;  // 1s is default
+    printf("  > Initial RTT measurement: %.3fms\n", initial_rtt_estimate_ms);
+    Config::SetDefault ("ns3::RttEstimator::InitialEstimation", TimeValue (MilliSeconds (initial_rtt_estimate_ms)));
+
+    // Connection timeout
+    double connection_timeout_ms = 2 * worst_case_rtt_ns / 1e6;  // 3s is default
+    printf("  > Connection timeout: %.3fms\n", connection_timeout_ms);
+    Config::SetDefault ("ns3::TcpSocket::ConnTimeout", TimeValue (MilliSeconds (connection_timeout_ms)));
+
+    // Delayed ACK timeout
+    double delayed_ack_timeout_ms = 0.2 * worst_case_rtt_ns / 1e6;  // 0.2s is default
+    printf("  > Delayed ACK timeout: %.3fms\n", delayed_ack_timeout_ms);
+    Config::SetDefault ("ns3::TcpSocket::DelAckTimeout", TimeValue (MilliSeconds (delayed_ack_timeout_ms)));
+
+    // Persist timeout
+    double persist_timeout_ms = 4 * worst_case_rtt_ns / 1e6;  // 6s is default
+    printf("  > Persist timeout: %.3fms\n", persist_timeout_ms);
+    Config::SetDefault ("ns3::TcpSocket::PersistTimeout", TimeValue (MilliSeconds (persist_timeout_ms)));
+
+    printf("\n");
+
+    ////////////////////////////////////////
     // Schedule traffic
     //
 
@@ -286,7 +350,6 @@ int basic_sim(std::string run_dir) {
     sim_start_time_ns_since_epoch = now_ns_since_epoch();
     last_log_time_ns_since_epoch = sim_start_time_ns_since_epoch;
     Simulator::Schedule(Seconds(simulation_event_interval_s), &show_simulation_progress);
-    printf("Scheduled progress update\n\n");
 
     // Print not yet finished
     std::ofstream fileFinished(run_dir + "/logs/finished.txt");
@@ -305,6 +368,7 @@ int basic_sim(std::string run_dir) {
     );
 
     timestamps.push_back(std::make_pair("Run simulation", now_ns_since_epoch()));
+
 
     ////////////////////////////////////////
     // Store completion times
