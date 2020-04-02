@@ -26,6 +26,7 @@ std::vector<schedule_entry_t> read_schedule(const std::string& filename, const i
 
         // Go over each line
         size_t line_counter = 0;
+        int64_t prev_start_time_ns = 0;
         while (getline(schedule_file, line)) {
 
             // Split on ,
@@ -43,6 +44,12 @@ std::vector<schedule_entry_t> read_schedule(const std::string& filename, const i
             entry.start_time_ns = parse_positive_int64(comma_split[4]);
             entry.additional_parameters = comma_split[5];
             entry.metadata = comma_split[6];
+
+            // Must be weakly ascending start time
+            if (prev_start_time_ns > entry.start_time_ns) {
+                throw std::invalid_argument(format_string("Start time is not weakly ascending (on line with flow ID: %" PRId64 ", violation: %" PRId64 ")\n", entry.flow_id, entry.start_time_ns));
+            }
+            prev_start_time_ns = entry.start_time_ns;
 
             // Check node IDs
             if (entry.from_node_id >= num_nodes) {
