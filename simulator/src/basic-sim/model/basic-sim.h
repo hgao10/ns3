@@ -28,6 +28,8 @@
 #include "ns3/topology.h"
 #include "ns3/flow-send-helper.h"
 #include "ns3/flow-send-application.h"
+#include "ns3/flow-sink-helper.h"
+#include "ns3/flow-sink.h"
 #include "ns3/routing-arbiter.h"
 #include "ns3/routing-arbiter-ecmp.h"
 #include "ns3/ipv4-arbitrary-routing.h"

@@ -316,7 +316,7 @@ int basic_sim(std::string run_dir) {
     // Install sink on each node
     printf("  > Setting up sinks\n");
     for (int i = 0; i < topology.num_nodes; i++) {
-        PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), 1024));
+        FlowSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), 1024));
         ApplicationContainer app = sink.Install(nodes.Get(i));
         app.Start(Seconds(0.0));
     }
@@ -370,7 +370,6 @@ int basic_sim(std::string run_dir) {
     );
 
     timestamps.push_back(std::make_pair("Run simulation", now_ns_since_epoch()));
-
 
     ////////////////////////////////////////
     // Store completion times

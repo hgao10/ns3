@@ -157,7 +157,7 @@ void FlowSendApplication::StartApplication (void) // Called at time specified by
         MakeCallback (&FlowSendApplication::ConnectionFailed, this));
       m_socket->SetSendCallback (
         MakeCallback (&FlowSendApplication::DataSend, this));
-      m_socket-> SetCloseCallbacks(
+      m_socket->SetCloseCallbacks(
                 MakeCallback(&FlowSendApplication::SocketClosedNormal, this),
                 MakeCallback(&FlowSendApplication::SocketClosedError, this)
         );
