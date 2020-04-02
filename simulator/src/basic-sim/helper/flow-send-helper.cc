@@ -30,17 +30,12 @@
 
 namespace ns3 {
 
-FlowSendHelper::FlowSendHelper (std::string protocol, Address address)
+FlowSendHelper::FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes)
 {
   m_factory.SetTypeId ("ns3::FlowSendApplication");
   m_factory.Set ("Protocol", StringValue (protocol));
   m_factory.Set ("Remote", AddressValue (address));
-}
-
-void
-FlowSendHelper::SetAttribute (std::string name, const AttributeValue &value)
-{
-  m_factory.Set (name, value);
+  m_factory.Set ("MaxBytes", UintegerValue (maxBytes));
 }
 
 ApplicationContainer

@@ -57,6 +57,43 @@ void show_simulation_progress() {
 }
 
 /**
+ * Start the next flow.
+ *
+ * @param  i   Index of the schedule entry
+ */
+NodeContainer* ptr_nodes;
+std::vector<ApplicationContainer>* ptr_apps;
+std::vector<schedule_entry_t>* ptr_schedule;
+void start_next_flow(int i) {
+
+    // Fetch the flow to start
+    schedule_entry_t& entry = (*ptr_schedule)[i];
+    int64_t now_ns = Simulator::Now().GetNanoSeconds();
+    if (now_ns != entry.start_time_ns) {
+        throw std::runtime_error("Scheduling start of a flow went horribly wrong");
+    }
+
+    // Helper to install the source application
+    FlowSendHelper source(
+            "ns3::TcpSocketFactory",
+            InetSocketAddress(ptr_nodes->Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
+            entry.size_byte
+    );
+
+    // Install it on the node and start it right now
+    ApplicationContainer app = source.Install(ptr_nodes->Get(entry.from_node_id));
+    app.Start(NanoSeconds(0));
+    ptr_apps->push_back(app);
+
+    // If there is a next flow to start, schedule its start
+    if (i + 1 != (int) ptr_schedule->size()) {
+        int64_t next_flow_ns = (*ptr_schedule)[i + 1].start_time_ns;
+        Simulator::Schedule(NanoSeconds(next_flow_ns - now_ns), &start_next_flow, i + 1);
+    }
+
+}
+
+/**
  * Read and print config.
  *
  * @param filename  config.properties filename
@@ -326,23 +363,17 @@ int basic_sim(std::string run_dir) {
     }
     timestamps.push_back(std::make_pair("Setup traffic sinks", now_ns_since_epoch()));
 
-    // Install Source App
-    printf("  > Setting up source applications\n");
+
+    // Setup all source applications
+    printf("  > Setting up traffic flow starter\n");
     std::vector<ApplicationContainer> apps;
-    for (schedule_entry_t& entry : schedule) {
-        FlowSendHelper source(
-                "ns3::TcpSocketFactory",
-                InetSocketAddress(
-                        nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(),
-                        1024
-                )
-        );
-        source.SetAttribute("MaxBytes", UintegerValue(entry.size_byte));
-        ApplicationContainer app = source.Install(nodes.Get(entry.from_node_id));
-        app.Start(NanoSeconds(entry.start_time_ns));
-        apps.push_back(app);
+    ptr_nodes = &nodes;
+    ptr_apps = &apps;
+    ptr_schedule = &schedule;
+    if (schedule.size() > 0) {
+        Simulator::Schedule(NanoSeconds(schedule[0].start_time_ns), &start_next_flow, 0);
     }
-    timestamps.push_back(std::make_pair("Setup traffic source applications", now_ns_since_epoch()));
+    timestamps.push_back(std::make_pair("Setup traffic flow starter", now_ns_since_epoch()));
 
     printf("\n");
 

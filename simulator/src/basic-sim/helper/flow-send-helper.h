@@ -33,6 +33,7 @@
 #include "ns3/net-device.h"
 #include "ns3/node-container.h"
 #include "ns3/application-container.h"
+#include "ns3/uinteger.h"
 
 namespace ns3 {
 
@@ -53,17 +54,9 @@ public:
    *        A typical value would be ns3::UdpSocketFactory.
    * \param address the address of the remote node to send traffic
    *        to.
+   * \param maxBytes Amount of bytes to send
    */
-  FlowSendHelper (std::string protocol, Address address);
-
-  /**
-   * Helper function used to set the underlying application attributes, 
-   * _not_ the socket attributes.
-   *
-   * \param name the name of the application attribute to set
-   * \param value the value of the application attribute to set
-   */
-  void SetAttribute (std::string name, const AttributeValue &value);
+  FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes);
 
   /**
    * Install an ns3::FlowSendApplication on each node of the input container
