@@ -257,6 +257,10 @@ int basic_sim(std::string run_dir) {
 
     printf("TCP PARAMETERS\n");
 
+    // Clock granularity
+    printf("  > Clock granularity: 1ns\n");
+    Config::SetDefault ("ns3::TcpSocketBase::ClockGranularity", TimeValue(NanoSeconds(1)));
+
     // Initial congestion window
     uint32_t init_cwnd_pkts = 10;  // 1 is default, but we use 10
     printf("  > Initial CWND: %u packets\n", init_cwnd_pkts);
@@ -275,34 +279,34 @@ int basic_sim(std::string run_dir) {
     double worst_case_rtt_ns = num_hops * ((101 * 1500) / (link_data_rate_megabit_per_s * 125000 / 1000000000) + link_delay_ns);
 
     // Maximum segment lifetime
-    double max_seg_lifetime_s = 5 * worst_case_rtt_ns / 1e9; // 120s is default
-    printf("  > Maximum segment lifetime: %.3fms\n", max_seg_lifetime_s * 1e3);
-    Config::SetDefault ("ns3::TcpSocketBase::MaxSegLifetime", DoubleValue (max_seg_lifetime_s));
+    int64_t max_seg_lifetime_ns = 5 * worst_case_rtt_ns; // 120s is default
+    printf("  > Maximum segment lifetime: %.3fms\n", max_seg_lifetime_ns / 1e6);
+    Config::SetDefault ("ns3::TcpSocketBase::MaxSegLifetime", DoubleValue (max_seg_lifetime_ns / 1e9));
 
     // Minimum retransmission timeout
-    double min_rto_ms = 1.5 * worst_case_rtt_ns / 1e6;  // 1s is default, Linux uses 200ms
-    printf("  > Minimum RTO: %.3fms\n", min_rto_ms);
-    Config::SetDefault ("ns3::TcpSocketBase::MinRto", TimeValue (MilliSeconds (min_rto_ms)));
+    int64_t min_rto_ns = (int64_t) (1.5 * worst_case_rtt_ns);  // 1s is default, Linux uses 200ms
+    printf("  > Minimum RTO: %.3fms\n", min_rto_ns / 1e6);
+    Config::SetDefault ("ns3::TcpSocketBase::MinRto", TimeValue (NanoSeconds (min_rto_ns)));
 
     // Initial RTT estimate
-    double initial_rtt_estimate_ms = 2 * worst_case_rtt_ns / 1e6;  // 1s is default
-    printf("  > Initial RTT measurement: %.3fms\n", initial_rtt_estimate_ms);
-    Config::SetDefault ("ns3::RttEstimator::InitialEstimation", TimeValue (MilliSeconds (initial_rtt_estimate_ms)));
+    int64_t initial_rtt_estimate_ns = 2 * worst_case_rtt_ns;  // 1s is default
+    printf("  > Initial RTT measurement: %.3fms\n", initial_rtt_estimate_ns / 1e6);
+    Config::SetDefault ("ns3::RttEstimator::InitialEstimation", TimeValue (NanoSeconds (initial_rtt_estimate_ns)));
 
     // Connection timeout
-    double connection_timeout_ms = 2 * worst_case_rtt_ns / 1e6;  // 3s is default
-    printf("  > Connection timeout: %.3fms\n", connection_timeout_ms);
-    Config::SetDefault ("ns3::TcpSocket::ConnTimeout", TimeValue (MilliSeconds (connection_timeout_ms)));
+    int64_t connection_timeout_ns = 2 * worst_case_rtt_ns;  // 3s is default
+    printf("  > Connection timeout: %.3fms\n", connection_timeout_ns / 1e6);
+    Config::SetDefault ("ns3::TcpSocket::ConnTimeout", TimeValue (NanoSeconds (connection_timeout_ns)));
 
     // Delayed ACK timeout
-    double delayed_ack_timeout_ms = 0.2 * worst_case_rtt_ns / 1e6;  // 0.2s is default
-    printf("  > Delayed ACK timeout: %.3fms\n", delayed_ack_timeout_ms);
-    Config::SetDefault ("ns3::TcpSocket::DelAckTimeout", TimeValue (MilliSeconds (delayed_ack_timeout_ms)));
+    int64_t delayed_ack_timeout_ns = 0.2 * worst_case_rtt_ns;  // 0.2s is default
+    printf("  > Delayed ACK timeout: %.3fms\n", delayed_ack_timeout_ns / 1e6);
+    Config::SetDefault ("ns3::TcpSocket::DelAckTimeout", TimeValue (NanoSeconds (delayed_ack_timeout_ns)));
 
     // Persist timeout
-    double persist_timeout_ms = 4 * worst_case_rtt_ns / 1e6;  // 6s is default
-    printf("  > Persist timeout: %.3fms\n", persist_timeout_ms);
-    Config::SetDefault ("ns3::TcpSocket::PersistTimeout", TimeValue (MilliSeconds (persist_timeout_ms)));
+    int64_t persist_timeout_ns = 4 * worst_case_rtt_ns;  // 6s is default
+    printf("  > Persist timeout: %.3fms\n", persist_timeout_ns / 1e6);
+    Config::SetDefault ("ns3::TcpSocket::PersistTimeout", TimeValue (NanoSeconds (persist_timeout_ns)));
 
     printf("\n");
 
@@ -380,7 +384,7 @@ int basic_sim(std::string run_dir) {
     FILE* file_csv = fopen((run_dir + "/logs/flows.csv").c_str(), "w+");
     FILE* file_txt = fopen((run_dir + "/logs/flows.txt").c_str(), "w+");
     fprintf(
-            file_txt, "%-12s%-10s%-10s%-16s%-18s%-18s%-16s%-16s%-13s%-16s%-12s%s\n",
+            file_txt, "%-12s%-10s%-10s%-16s%-18s%-18s%-16s%-16s%-13s%-16s%-14s%s\n",
             "Flow ID", "Source", "Target", "Size", "Start time (ns)",
             "End time (ns)", "Duration", "Sent", "Progress", "Avg. rate", "Finished?", "Metadata"
     );
@@ -390,21 +394,32 @@ int basic_sim(std::string run_dir) {
         // Retrieve statistics
         ApplicationContainer app = *it;
         Ptr<FlowSendApplication> flowSendApp = ((it->Get(0))->GetObject<FlowSendApplication>());
-        bool is_finished = flowSendApp->IsFinished();
-        bool is_err = flowSendApp->IsClosedByError();
+        bool is_completed = flowSendApp->IsCompleted();
+        bool is_closed_err = flowSendApp->IsClosedByError();
+        bool is_closed_normal = flowSendApp->IsClosedNormally();
         int64_t sent_byte = flowSendApp->GetAckedBytes();
         int64_t fct_ns;
-        if (is_finished) {
+        if (is_completed) {
             fct_ns = flowSendApp->GetCompletionTimeNs() - entry.start_time_ns;
         } else {
             fct_ns = simulation_end_time_ns - entry.start_time_ns;
+        }
+        std::string finished_state;
+        if (is_completed) {
+            finished_state = "YES";
+        } else if (is_closed_normal) {
+            finished_state = "NO_BAD_CLOSE";
+        } else if (is_closed_err) {
+            finished_state = "NO_ERR_CLOSE";
+        } else {
+            finished_state = "NO_ONGOING";
         }
 
         // Write plain to the csv
         fprintf(
                 file_csv, "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s,%s\n",
                 entry.flow_id, entry.from_node_id, entry.to_node_id, entry.size_byte, entry.start_time_ns,
-                entry.start_time_ns + fct_ns, fct_ns, sent_byte, is_err ? "ERR" : (is_finished ? "YES" : "DNF"), entry.metadata.c_str()
+                entry.start_time_ns + fct_ns, fct_ns, sent_byte, finished_state.c_str(), entry.metadata.c_str()
         );
 
         // Write nicely formatted to the text
@@ -419,10 +434,10 @@ int basic_sim(std::string run_dir) {
         char str_avg_rate_megabit_per_s[100];
         sprintf(str_avg_rate_megabit_per_s, "%.1f Mbit/s", byte_to_megabit(sent_byte) / nanosec_to_sec(fct_ns));
         fprintf(
-                file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%-12s%s\n",
+                file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%-14s%s\n",
                 entry.flow_id, entry.from_node_id, entry.to_node_id, str_size_megabit, entry.start_time_ns,
                 entry.start_time_ns + fct_ns, str_duration_ms, str_sent_megabit, str_progress_perc, str_avg_rate_megabit_per_s,
-                is_err ? "ERR" : (is_finished ? "YES" : "DNF"), entry.metadata.c_str()
+                finished_state.c_str(), entry.metadata.c_str()
         );
 
         // Move on iterator

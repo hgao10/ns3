@@ -103,8 +103,9 @@ public:
 
   int64_t GetAckedBytes();
   int64_t GetCompletionTimeNs();
-  bool IsFinished();
+  bool IsCompleted();
   bool IsClosedByError();
+  bool IsClosedNormally();
 
 protected:
   virtual void DoDispose (void);
@@ -126,9 +127,10 @@ private:
   uint64_t        m_totBytes;     //!< Total bytes sent so far
   TypeId          m_tid;          //!< The type of protocol to use.
   int64_t         m_completionTimeNs; //!< Completion time in nanoseconds
-  bool            m_closedNormallyAfterFinish;   //!< Whether the flow is finished
-  bool            m_closedByError;    //!< Whether the flow closed by error
-  uint64_t        m_ackedBytes;
+  bool            m_closedNormally;   //!< Whether the connection closed normally
+  bool            m_closedByError;    //!< Whether the connection closed by error
+  uint64_t        m_ackedBytes;       //!< Amount of acknowledged bytes cached after close of the socket
+  bool            m_isCompleted;      //!< True iff the flow is completed fully AND closed normally
 
   /// Traced Callback: sent packets
   TracedCallback<Ptr<const Packet> > m_txTrace;

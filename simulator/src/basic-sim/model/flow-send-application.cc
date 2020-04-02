@@ -81,8 +81,10 @@ FlowSendApplication::FlowSendApplication ()
     m_connected (false),
     m_totBytes (0),
     m_completionTimeNs (-1),
-    m_closedNormallyAfterFinish (false),
-    m_closedByError (false)
+    m_closedNormally (false),
+    m_closedByError (false),
+    m_ackedBytes (0),
+    m_isCompleted (false)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -251,7 +253,7 @@ void FlowSendApplication::DataSend (Ptr<Socket>, uint32_t)
 }
 
 int64_t FlowSendApplication::GetAckedBytes() {
-    if (m_closedNormallyAfterFinish || m_closedByError) {
+    if (m_closedNormally || m_closedByError) {
         return m_ackedBytes;
     } else {
         return m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
@@ -262,8 +264,12 @@ int64_t FlowSendApplication::GetCompletionTimeNs() {
     return m_completionTimeNs;
 }
 
-bool FlowSendApplication::IsFinished() {
-    return m_closedNormallyAfterFinish;
+bool FlowSendApplication::IsCompleted() {
+    return m_isCompleted;
+}
+
+bool FlowSendApplication::IsClosedNormally() {
+    return m_closedNormally;
 }
 
 bool FlowSendApplication::IsClosedByError() {
@@ -273,18 +279,20 @@ bool FlowSendApplication::IsClosedByError() {
 void FlowSendApplication::SocketClosedNormal(Ptr<Socket> socket) {
     m_completionTimeNs = Simulator::Now().GetNanoSeconds();
     m_closedByError = false;
-    m_closedNormallyAfterFinish = true;
-    m_ackedBytes = m_totBytes;
+    m_closedNormally = true;
     if (m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() != 0) {
         throw std::runtime_error("Socket closed normally but send buffer is not empty");
     }
+    m_ackedBytes = m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+    m_isCompleted = m_ackedBytes == m_maxBytes;
     m_socket = 0;
 }
 
 void FlowSendApplication::SocketClosedError(Ptr<Socket> socket) {
     m_closedByError = true;
-    m_closedNormallyAfterFinish = false;
+    m_closedNormally = false;
     m_ackedBytes = m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+    m_isCompleted = false;
     m_socket = 0;
 }
 
