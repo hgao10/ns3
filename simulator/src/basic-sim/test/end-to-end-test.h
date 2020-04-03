@@ -94,7 +94,7 @@ public:
             ASSERT_EQUAL(parse_positive_int64(line_spl[6]), end_time_ns - write_schedule[i].start_time_ns);
             int64_t sent_byte = parse_positive_int64(line_spl[7]);
             ASSERT_TRUE(sent_byte >= 0 && sent_byte <= simulation_end_time_ns);
-            ASSERT_TRUE(line_spl[8] == "DNF" || line_spl[8] == "YES");
+            ASSERT_TRUE((line_spl[8] == "NO_ONGOING" || line_spl[8] == "YES"));
             ASSERT_EQUAL(line_spl[9], write_schedule[i].metadata);
             end_time_ns_list.push_back(end_time_ns);
             sent_byte_list.push_back(sent_byte);
@@ -109,7 +109,7 @@ public:
             if (i == 0) {
                 ASSERT_EQUAL(
                         line,
-                        "Flow ID     Source    Target    Size            Start time (ns)   End time (ns)     Duration        Sent            Progress     Avg. rate       Finished?   Metadata"
+                        "Flow ID     Source    Target    Size            Start time (ns)   End time (ns)     Duration        Sent            Progress     Avg. rate       Finished?     Metadata"
                         );
             } else {
                 int j = i - 1;
@@ -133,7 +133,7 @@ public:
                 ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[11].substr(0, line_spl.size() - 1)), sent_byte_list[j] * 100.0 / write_schedule[j].size_byte, 0.1);
                 ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[12]), byte_to_megabit(sent_byte_list[j]) / nanosec_to_sec(end_time_ns_list[j] - write_schedule[j].start_time_ns), 0.1);
                 ASSERT_EQUAL(line_spl[13], "Mbit/s");
-                ASSERT_TRUE(line_spl[14] == "DNF" || line_spl[14] == "YES");
+                ASSERT_TRUE(line_spl[14] == "NO_ONGOING" || line_spl[14] == "YES");
                 if (line_spl.size() == 16) {
                     ASSERT_EQUAL(line_spl[15], write_schedule[j].metadata);
                 }

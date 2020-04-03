@@ -20,8 +20,8 @@ public:
         // Normal
 
         std::ofstream schedule_file(temp_dir + "/schedule.csv.temp");
-        schedule_file << "0,0,1,100000,1356567,a=b,test" << std::endl;
-        schedule_file << "1,7,3,7488338,47327,a=b2," << std::endl;
+        schedule_file << "0,0,1,100000,47327,a=b,test" << std::endl;
+        schedule_file << "1,7,3,7488338,1356567,a=b2," << std::endl;
         schedule_file.close();
 
         std::vector<schedule_entry_t> schedule = read_schedule(temp_dir + "/schedule.csv.temp", 8, 10000000);
@@ -32,7 +32,7 @@ public:
         ASSERT_EQUAL(schedule[0].from_node_id, 0);
         ASSERT_EQUAL(schedule[0].to_node_id, 1);
         ASSERT_EQUAL(schedule[0].size_byte, 100000);
-        ASSERT_EQUAL(schedule[0].start_time_ns, 1356567);
+        ASSERT_EQUAL(schedule[0].start_time_ns, 47327);
         ASSERT_EQUAL(schedule[0].additional_parameters, "a=b");
         ASSERT_EQUAL(schedule[0].metadata, "test");
 
@@ -40,7 +40,7 @@ public:
         ASSERT_EQUAL(schedule[1].from_node_id, 7);
         ASSERT_EQUAL(schedule[1].to_node_id, 3);
         ASSERT_EQUAL(schedule[1].size_byte, 7488338);
-        ASSERT_EQUAL(schedule[1].start_time_ns, 47327);
+        ASSERT_EQUAL(schedule[1].start_time_ns, 1356567);
         ASSERT_EQUAL(schedule[1].additional_parameters, "a=b2");
         ASSERT_EQUAL(schedule[1].metadata, "");
 
@@ -109,7 +109,7 @@ public:
         }
         ASSERT_TRUE(caught);
 
-        // Not ascending
+        // Not ascending flow ID
         caught = false;
         try {
             schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
@@ -125,7 +125,7 @@ public:
         caught = false;
         try {
             schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "1,3,4,-6,1356567,a=b,test" << std::endl;
+            schedule_file << "0,3,4,-6,1356567,a=b,test" << std::endl;
             schedule_file.close();
             schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
         } catch (std::exception& e) {
@@ -137,7 +137,7 @@ public:
         caught = false;
         try {
             schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "1,3,4,7778,1356567,a=b" << std::endl;
+            schedule_file << "0,3,4,7778,1356567,a=b" << std::endl;
             schedule_file.close();
             schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
         } catch (std::exception& e) {
@@ -149,7 +149,27 @@ public:
         caught = false;
         try {
             schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "1,3,4,86959,-7,a=b,test" << std::endl;
+            schedule_file << "0,3,4,86959,-7,a=b,test" << std::endl;
+            schedule_file.close();
+            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
+        } catch (std::exception& e) {
+            caught = true;
+        }
+        ASSERT_TRUE(caught);
+
+        // Just normal ordered with equal start time
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,4,86959,9999,a=b,test" << std::endl;
+        schedule_file << "1,3,4,86959,9999,a=b,test" << std::endl;
+        schedule_file.close();
+        schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
+
+        // Not ordered time
+        caught = false;
+        try {
+            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+            schedule_file << "0,3,4,86959,10000,a=b,test" << std::endl;
+            schedule_file << "1,3,4,86959,9999,a=b,test" << std::endl;
             schedule_file.close();
             schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
         } catch (std::exception& e) {
@@ -161,7 +181,7 @@ public:
         caught = false;
         try {
             schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "1,3,4,86959,10000000,a=b,test" << std::endl;
+            schedule_file << "0,3,4,86959,10000000,a=b,test" << std::endl;
             schedule_file.close();
             schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
         } catch (std::exception& e) {
