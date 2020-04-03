@@ -52,13 +52,25 @@ uint32_t RoutingArbiter::resolve_node_id_from_ip(uint32_t ip) {
  */
 int32_t RoutingArbiter::decide_next_interface(int32_t current_node, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
 
-    // Ask the routing which node should be next
+    // Retrieve the source node id
     uint32_t source_ip = ipHeader.GetSource().Get();
-    uint32_t target_ip = ipHeader.GetDestination().Get();
+    uint32_t source_node_id;
+
+    // Ipv4Address default constructor has IP 0x66666666 = 102.102.102.102 = 1717986918,
+    // which is set by TcpSocketBase::SetupEndpoint to discover its actually source IP.
+    // In this case, the source node id is just the current node.
+    if (source_ip == 1717986918) {
+        source_node_id = current_node;
+    } else {
+        source_node_id = resolve_node_id_from_ip(source_ip);
+    }
+    uint32_t target_node_id = resolve_node_id_from_ip(ipHeader.GetDestination().Get());
+
+    // Ask the routing which node should be next
     int32_t selected_node_id = decide_next_node_id(
             current_node,
-            ip_to_node_id[source_ip],
-            ip_to_node_id[target_ip],
+            source_node_id,
+            target_node_id,
             topology->adjacency_list[current_node],
             pkt,
             ipHeader

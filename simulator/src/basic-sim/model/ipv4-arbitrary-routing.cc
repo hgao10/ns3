@@ -105,7 +105,7 @@ namespace ns3 {
      * Get an output route.
      *
      * RouteOutput gets called once by TCP (tcp-socket-base.cc) with an header of which only the destination
-     * IP address is set in order to determine the source IP address for the socket.
+     * IP address is set in order to determine the source IP address for the socket (function: SetupEndpoint).
      *
      * Subsequently, RouteOutput is called by TCP (tcp-l4-protocol.cc) on the sender node.
      *
