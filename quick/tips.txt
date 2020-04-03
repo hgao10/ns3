@@ -1,0 +1,14 @@
+If you want to debug the event queue, add:
+
+Simulator::GetImplementation()->GetObject<DefaultSimulatorImpl>()->PrintInfoEventQueue();
+
+void
+DefaultSimulatorImpl::PrintInfoEventQueue (void) {
+    m_events->GetObject<MapScheduler>()->DoSomething();
+}
+
+void
+MapScheduler::DoSomething (void) const
+{
+  std::cout << "Amount of events in there: " << m_list.size() << std::endl;
+}
