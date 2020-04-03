@@ -127,6 +127,10 @@ namespace ns3 {
         }
 
         // Perform lookup
+        // Info: If you want to decide that a packet should not be sent out (dropped), you can also return a null pointer (0) here
+        //       instead of a valid Ptr<IPv4Route> instance. If you do this for the header with source IP = 102.102.102.102,
+        //       the TCP socket will conclude there is no route and not even send out SYNs (any real packet).
+        //       If source IP is set already, it just gets dropped and the TCP socket sees it as a normal loss somewhere in the network.
         sockerr = Socket::ERROR_NOTERROR;
         return LookupStatic(destination, header, p, oif);
 
@@ -154,6 +158,8 @@ namespace ns3 {
             if (lcb.IsNull()) {
                 throw std::runtime_error("Local callback cannot be null");
             }
+            // Info: If you want to decide that a packet should not be delivered (dropped),
+            //       you can decide that here by not calling lcb(), but still returning true.
             lcb(p, ipHeader, iif);
             return true;
         }

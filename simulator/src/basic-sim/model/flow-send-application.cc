@@ -79,6 +79,7 @@ FlowSendApplication::FlowSendApplication()
           m_connected(false),
           m_totBytes(0),
           m_completionTimeNs(-1),
+          m_connFailed(false),
           m_closedNormally(false),
           m_closedByError(false),
           m_ackedBytes(0),
@@ -199,6 +200,12 @@ void FlowSendApplication::ConnectionSucceeded(Ptr <Socket> socket) {
 void FlowSendApplication::ConnectionFailed(Ptr <Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
     NS_LOG_LOGIC("FlowSendApplication, Connection Failed");
+    m_connFailed = true;
+    m_closedByError = false;
+    m_closedNormally = false;
+    m_ackedBytes = 0;
+    m_isCompleted = false;
+    m_socket = 0;
 }
 
 void FlowSendApplication::DataSend(Ptr <Socket>, uint32_t) {
@@ -224,6 +231,10 @@ bool FlowSendApplication::IsCompleted() {
     return m_isCompleted;
 }
 
+bool FlowSendApplication::IsConnFailed() {
+    return m_connFailed;
+}
+
 bool FlowSendApplication::IsClosedNormally() {
     return m_closedNormally;
 }
@@ -234,6 +245,7 @@ bool FlowSendApplication::IsClosedByError() {
 
 void FlowSendApplication::SocketClosedNormal(Ptr <Socket> socket) {
     m_completionTimeNs = Simulator::Now().GetNanoSeconds();
+    m_connFailed = false;
     m_closedByError = false;
     m_closedNormally = true;
     if (m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() != 0) {
@@ -245,6 +257,7 @@ void FlowSendApplication::SocketClosedNormal(Ptr <Socket> socket) {
 }
 
 void FlowSendApplication::SocketClosedError(Ptr <Socket> socket) {
+    m_connFailed = false;
     m_closedByError = true;
     m_closedNormally = false;
     m_ackedBytes = m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();

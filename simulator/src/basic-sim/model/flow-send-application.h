@@ -46,6 +46,7 @@ public:
   int64_t GetAckedBytes();
   int64_t GetCompletionTimeNs();
   bool IsCompleted();
+  bool IsConnFailed();
   bool IsClosedByError();
   bool IsClosedNormally();
 
@@ -68,6 +69,7 @@ private:
   uint64_t        m_totBytes;     //!< Total bytes sent so far
   TypeId          m_tid;          //!< The type of protocol to use.
   int64_t         m_completionTimeNs; //!< Completion time in nanoseconds
+  bool            m_connFailed;       //!< Whether the connection failed
   bool            m_closedNormally;   //!< Whether the connection closed normally
   bool            m_closedByError;    //!< Whether the connection closed by error
   uint64_t        m_ackedBytes;       //!< Amount of acknowledged bytes cached after close of the socket

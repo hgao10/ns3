@@ -104,10 +104,6 @@ void FlowSink::StartApplication() { // Called at time specified by Start
             MakeNullCallback<bool, Ptr<Socket>,const Address &>(),
             MakeCallback(&FlowSink::HandleAccept, this)
     );
-    m_socket->SetCloseCallbacks(
-            MakeCallback(&FlowSink::HandlePeerClose, this),
-            MakeCallback(&FlowSink::HandlePeerError, this)
-    );
 
 }
 
@@ -126,6 +122,10 @@ void FlowSink::StopApplication() {  // Called at time specified by Stop
 void FlowSink::HandleAccept(Ptr<Socket> socket, const Address &from) {
     NS_LOG_FUNCTION(this << socket << from);
     socket->SetRecvCallback (MakeCallback (&FlowSink::HandleRead, this));
+    socket->SetCloseCallbacks(
+            MakeCallback(&FlowSink::HandlePeerClose, this),
+            MakeCallback(&FlowSink::HandlePeerError, this)
+    );
     m_socketList.push_back(socket);
 }
 

@@ -426,6 +426,7 @@ int basic_sim(std::string run_dir) {
         ApplicationContainer app = *it;
         Ptr<FlowSendApplication> flowSendApp = ((it->Get(0))->GetObject<FlowSendApplication>());
         bool is_completed = flowSendApp->IsCompleted();
+        bool is_conn_failed = flowSendApp->IsConnFailed();
         bool is_closed_err = flowSendApp->IsClosedByError();
         bool is_closed_normal = flowSendApp->IsClosedNormally();
         int64_t sent_byte = flowSendApp->GetAckedBytes();
@@ -438,6 +439,8 @@ int basic_sim(std::string run_dir) {
         std::string finished_state;
         if (is_completed) {
             finished_state = "YES";
+        } else if (is_conn_failed) {
+            finished_state = "NO_CONN_FAIL";
         } else if (is_closed_normal) {
             finished_state = "NO_BAD_CLOSE";
         } else if (is_closed_err) {
