@@ -1,19 +1,10 @@
 cd ../simulator || exit 1
-rm -rf ../runs/example_single/logs
-mkdir ../runs/example_single/logs
-./waf --run="main --run_dir='../runs/example_single'" 2>&1 | tee ../runs/example_single/logs/console.txt
-rm -rf ../runs/example_ring/logs
-mkdir ../runs/example_ring/logs
-./waf --run="main --run_dir='../runs/example_ring'" 2>&1 | tee ../runs/example_ring/logs/console.txt
-rm -rf ../runs/example_leaf_spine/logs
-mkdir ../runs/example_leaf_spine/logs
-./waf --run="main --run_dir='../runs/example_leaf_spine'" 2>&1 | tee ../runs/example_leaf_spine/logs/console.txt
-rm -rf ../runs/example_leaf_spine_servers/logs
-mkdir ../runs/example_leaf_spine_servers/logs
-./waf --run="main --run_dir='../runs/example_leaf_spine_servers'" 2>&1 | tee ../runs/example_leaf_spine_servers/logs/console.txt
-rm -rf ../runs/example_fat_tree_k4_servers/logs
-mkdir ../runs/example_fat_tree_k4_servers/logs
-./waf --run="main --run_dir='../runs/example_fat_tree_k4_servers'" 2>&1 | tee ../runs/example_fat_tree_k4_servers/logs/console.txt
-rm -rf ../runs/example_big_grid/logs
-mkdir ../runs/example_big_grid/logs
-./waf --run="main --run_dir='../runs/example_big_grid'" 2>&1 | tee ../runs/example_big_grid/logs/console.txt
+
+for experiment in "example_single" "example_single_many_small_flows" "example_single_one_10g" "example_single_one_large_flow" \
+                  "example_ring" "example_leaf_spine" "example_leaf_spine_servers" "example_fat_tree_k4_servers" \
+                  "example_big_grid" "example_big_grid_one_flow"
+do
+  rm -rf ../runs/${experiment}/logs
+  mkdir ../runs/${experiment}/logs
+  ./waf --run="main --run_dir='../runs/${experiment}'" 2>&1 | tee ../runs/${experiment}/logs/console.txt
+done
