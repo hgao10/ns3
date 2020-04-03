@@ -66,6 +66,9 @@ public:
         std::ofstream schedule_file;
         std::vector<schedule_entry_t> schedule;
         bool caught;
+
+        // Non-existent file
+        ASSERT_EXCEPTION(read_schedule("does-not-exist-temp.file", 5, 10000000));
         
         // Normal
         schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");

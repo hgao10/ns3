@@ -210,8 +210,11 @@ public:
         ASSERT_EQUAL(get_param_or_fail("a", config), "b");
         ASSERT_EQUAL(get_param_or_fail("c", config), "");
         ASSERT_EQUAL(get_param_or_default("x", "abcd", config), "abcd");
+        ASSERT_EQUAL(get_param_or_default("c", "abcd", config), "");
         ASSERT_EQUAL(get_param_or_fail("7", config), "9");
+        ASSERT_EXCEPTION(get_param_or_fail("8", config));
         remove_file_if_exists("temp.file");
+
 
         // Empty
         config_file.open("temp.file");
@@ -220,6 +223,11 @@ public:
         config = read_config("temp.file");
         ASSERT_EQUAL(config.size(), 0);
         remove_file_if_exists("temp.file");
+
+        // Non-existent file
+        ASSERT_EXCEPTION(read_config("temp.file"));
+
+
 
     }
 };
@@ -257,6 +265,9 @@ public:
         ASSERT_TRUE(file_exists("temp.file"));
         remove_file_if_exists("temp.file");
         ASSERT_FALSE(file_exists("temp.file"));
+
+        // File does not exist
+        ASSERT_EXCEPTION(read_file_direct("temp.file"));
 
         // File system: dir
         mkdir_if_not_exists("temp.dir");
