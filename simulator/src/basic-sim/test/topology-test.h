@@ -377,6 +377,78 @@ public:
         ASSERT_EXCEPTION(Topology("topology.properties.temp"));
         remove_file_if_exists("topology.properties.temp");
 
+        // Server marked as ToR
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=3" << std::endl;
+        topology_file << "switches=set(1,2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(1,2,3)" << std::endl;
+        topology_file << "servers=set(0,3)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3)" << std::endl;
+        topology_file.close();
+        ASSERT_EXCEPTION(Topology("topology.properties.temp"));
+        remove_file_if_exists("topology.properties.temp");
+
+        // Servers and switches not distinct
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=3" << std::endl;
+        topology_file << "switches=set(1,2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(1,2)" << std::endl;
+        topology_file << "servers=set(0,3,1)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3)" << std::endl;
+        topology_file.close();
+        ASSERT_EXCEPTION(Topology("topology.properties.temp"));
+        remove_file_if_exists("topology.properties.temp");
+
+        // Edge to itself
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=3" << std::endl;
+        topology_file << "switches=set(1,2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(1,2)" << std::endl;
+        topology_file << "servers=set(0,3)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-2)" << std::endl;
+        topology_file.close();
+        ASSERT_EXCEPTION(Topology("topology.properties.temp"));
+        remove_file_if_exists("topology.properties.temp");
+
+        // Edge left out of bound
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=3" << std::endl;
+        topology_file << "switches=set(1,2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(1,2)" << std::endl;
+        topology_file << "servers=set(0,3)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-4)" << std::endl;
+        topology_file.close();
+        ASSERT_EXCEPTION(Topology("topology.properties.temp"));
+        remove_file_if_exists("topology.properties.temp");
+
+        // Edge right out of bound
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=3" << std::endl;
+        topology_file << "switches=set(1,2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(1,2)" << std::endl;
+        topology_file << "servers=set(0,3)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,4-3)" << std::endl;
+        topology_file.close();
+        ASSERT_EXCEPTION(Topology("topology.properties.temp"));
+        remove_file_if_exists("topology.properties.temp");
+
+        // Duplicate edges
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=4" << std::endl;
+        topology_file << "switches=set(1,2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(1,2)" << std::endl;
+        topology_file << "servers=set(0,3)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3,2 -3)" << std::endl;
+        topology_file.close();
+        ASSERT_EXCEPTION(Topology("topology.properties.temp"));
+        remove_file_if_exists("topology.properties.temp");
+
     }
 };
 
