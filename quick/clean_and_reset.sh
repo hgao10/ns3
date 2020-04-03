@@ -1,8 +1,6 @@
-rm test-results*.txt
+rm -r test-results
+rm -r coverage-report
 cd ..
-rm -rf runs/*/logs
-rm -rf runs/example_experiment/data
-rm -rf runs/example_experiment/pdf
-rm -rf runs/example_experiment/runs
+rm -rf runs
 rm -rf simulator
 git reset --hard
