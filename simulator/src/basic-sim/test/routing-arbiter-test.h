@@ -301,45 +301,6 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-// Currently disabled because it takes too long for a quick test
-class RoutingArbiterEcmpTooBigFailTestCase : public TestCase
-{
-public:
-    RoutingArbiterEcmpTooBigFailTestCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
-    void DoRun () {
-        std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
-        topology_file << "num_nodes=40001" << std::endl;
-        topology_file << "num_undirected_edges=0" << std::endl;
-        topology_file << "switches=set(";
-        for (int i = 0; i < 40001; i++) {
-            if (i == 0) {
-                topology_file << i;
-            } else {
-                topology_file << "," << i;
-            }
-        }
-        topology_file << ")" << std::endl;
-        topology_file << "switches_which_are_tors=set()" << std::endl;
-        topology_file << "servers=set()" << std::endl;
-        topology_file << "undirected_edges=set()" << std::endl;
-        topology_file.close();
-        Topology topology = Topology("topology.properties.temp");
-
-        // Create nodes, setup links and create arbiter
-        NodeContainer nodes = create_nodes(topology); // Only nodes to create
-        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ASSERT_EXCEPTION(RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges)); // > 40000 nodes is not allowed
-
-        remove_file_if_exists("topology.properties.temp");
-
-        Simulator::Destroy();
-
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////
-
 class RoutingArbiterBad: public RoutingArbiter
 {
 public:
@@ -417,6 +378,45 @@ public:
 
         // Clean up
         remove_file_if_exists("topology.properties.temp");
+        Simulator::Destroy();
+
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+// Currently disabled because it takes too long for a quick test
+class RoutingArbiterEcmpTooBigFailTestCase : public TestCase
+{
+public:
+    RoutingArbiterEcmpTooBigFailTestCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
+    void DoRun () {
+        std::ofstream topology_file;
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=40001" << std::endl;
+        topology_file << "num_undirected_edges=0" << std::endl;
+        topology_file << "switches=set(";
+        for (int i = 0; i < 40001; i++) {
+            if (i == 0) {
+                topology_file << i;
+            } else {
+                topology_file << "," << i;
+            }
+        }
+        topology_file << ")" << std::endl;
+        topology_file << "switches_which_are_tors=set()" << std::endl;
+        topology_file << "servers=set()" << std::endl;
+        topology_file << "undirected_edges=set()" << std::endl;
+        topology_file.close();
+        Topology topology = Topology("topology.properties.temp");
+
+        // Create nodes, setup links and create arbiter
+        NodeContainer nodes = create_nodes(topology); // Only nodes to create
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
+        ASSERT_EXCEPTION(RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges)); // > 40000 nodes is not allowed
+
+        remove_file_if_exists("topology.properties.temp");
+
         Simulator::Destroy();
 
     }
