@@ -53,8 +53,7 @@ def analyze():
                     # Read in column lists
                     fcts = []
                     num_completed = 0
-                    num_dnf = 0
-                    num_err = 0
+                    num_ongoing = 0
                     for row in reader:
                         if len(row) != 10:
                             raise ValueError("Invalid line: ", row)
@@ -75,20 +74,17 @@ def analyze():
                             if finished == "YES":
                                 fcts.append(duration_ns)
                                 num_completed += 1
-                            elif finished == "DNF":
-                                num_dnf += 1
-                            elif finished == "ERR":
-                                num_err += 1
+                            elif finished == "NO_ONGOING":
+                                num_ongoing += 1
                             else:
                                 raise ValueError("Invalid finished value: ", finished)
 
                     print("Calculating statistics...")
 
                     statistics = {
-                        'num_total': num_completed + num_dnf + num_err,
+                        'num_total': num_completed + num_ongoing,
                         'num_completed': num_completed,
-                        'num_dnf': num_dnf,
-                        'num_err': num_err,
+                        'num_ongoing': num_ongoing,
                         'fct_ns_mean': np.mean(fcts),
                         'fct_ns_median': np.median(fcts),
                         'fct_ns_99th': np.percentile(fcts, 99),
@@ -117,7 +113,7 @@ def analyze():
             os.makedirs(data_path)
 
         # Write the statistics to the plot-able data files
-        for stat in ['num_total', 'num_completed', 'num_dnf', 'num_err', 'fct_ns_mean', 'fct_ns_median',
+        for stat in ['num_total', 'num_completed', 'num_ongoing', 'fct_ns_mean', 'fct_ns_median',
                      'fct_ns_99th', 'fct_ns_99.9th', 'fct_ns_90th', 'fct_ns_1th', 'fct_ns_0.1th',
                      'fct_ns_10th', 'fct_ns_max', 'fct_ns_min']:
             with open(data_path + "/%s.txt" % stat, "w+") as f_out:
