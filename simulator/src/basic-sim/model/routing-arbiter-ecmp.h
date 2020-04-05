@@ -16,8 +16,8 @@ const uint8_t UDP_PROT_NUMBER = 17;
 class RoutingArbiterEcmp: public RoutingArbiter
 {
 public:
-    int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader);
     RoutingArbiterEcmp(Topology* topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
+    int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader);
     uint64_t ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id);
     int64_t get_ecmp_init_finish_ns_since_epoch();
 

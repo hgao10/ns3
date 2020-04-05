@@ -32,8 +32,9 @@ public:
         AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
         AddTestCase(new RoutingArbiterIpResolutionTestCase, TestCase::QUICK);
         AddTestCase(new RoutingArbiterEcmpHashTestCase, TestCase::QUICK);
+        AddTestCase(new RoutingArbiterBadImplTestCase, TestCase::QUICK);
         // Disabled because it takes too long for a quick test:
-        // AddTestCase(new RoutingArbiterEcmpTooBigFailCase, TestCase::QUICK);
+        // AddTestCase(new RoutingArbiterEcmpTooBigFailTestCase, TestCase::QUICK);
     }
 };
 static BasicSimTestSuite basicSimTestSuite;

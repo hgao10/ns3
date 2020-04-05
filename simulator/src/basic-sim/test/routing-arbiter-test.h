@@ -232,10 +232,10 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////
 
 // Currently disabled because it takes too long for a quick test
-class RoutingArbiterEcmpTooBigFailCase : public TestCase
+class RoutingArbiterEcmpTooBigFailTestCase : public TestCase
 {
 public:
-    RoutingArbiterEcmpTooBigFailCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
+    RoutingArbiterEcmpTooBigFailTestCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
     void DoRun () {
         std::ofstream topology_file;
         topology_file.open ("topology.properties.temp");
@@ -263,6 +263,86 @@ public:
 
         remove_file_if_exists("topology.properties.temp");
 
+        Simulator::Destroy();
+
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+class RoutingArbiterBad: public RoutingArbiter
+{
+public:
+
+    RoutingArbiterBad(Topology* topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) : RoutingArbiter(topology, nodes, interface_idxs_for_edges) {
+        // Left empty intentionally
+    }
+
+    void set_decision(int32_t val) {
+        this->next_decision = val;
+    }
+
+    int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
+        return this->next_decision;
+    }
+
+private:
+    int32_t next_decision = -1;
+
+};
+
+class RoutingArbiterBadImplTestCase : public TestCase
+{
+public:
+    RoutingArbiterBadImplTestCase () : TestCase ("routing-arbiter bad-impl") {};
+    void DoRun () {
+        std::ofstream topology_file;
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=4" << std::endl;
+        topology_file << "switches=set(0,1,2,3)" << std::endl;
+        topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
+        topology_file << "servers=set()" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
+        topology_file.close();
+        Topology topology = Topology("topology.properties.temp");
+
+        // Create nodes, setup links and create arbiter
+        NodeContainer nodes = create_nodes(topology); // Only nodes to create
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
+        RoutingArbiterBad arbiterBad = RoutingArbiterBad(&topology, nodes, interface_idxs_for_edges);
+
+        // This should be fine
+        arbiterBad.set_decision(2);
+        Ptr<Packet> p1 = Create<Packet>(555);
+        create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
+        Ipv4Header p1header;
+        p1->RemoveHeader(p1header);
+        ASSERT_EQUAL(2, arbiterBad.decide_next_interface(1, p1, p1header));
+
+        // Not a neighbor
+        arbiterBad.set_decision(3);
+        p1 = Create<Packet>(555);
+        create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
+        p1->RemoveHeader(p1header);
+        ASSERT_EXCEPTION(arbiterBad.decide_next_interface(1, p1, p1header));
+
+        // Out of range <
+        arbiterBad.set_decision(-1);
+        p1 = Create<Packet>(555);
+        create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
+        p1->RemoveHeader(p1header);
+        ASSERT_EXCEPTION(arbiterBad.decide_next_interface(1, p1, p1header));
+
+        // Out of range >
+        arbiterBad.set_decision(4);
+        p1 = Create<Packet>(555);
+        create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
+        p1->RemoveHeader(p1header);
+        ASSERT_EXCEPTION(arbiterBad.decide_next_interface(1, p1, p1header));
+
+        // Clean up
+        remove_file_if_exists("topology.properties.temp");
         Simulator::Destroy();
 
     }
