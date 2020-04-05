@@ -231,6 +231,76 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+class RoutingArbiterEcmpStringReprTestCase : public TestCase
+{
+public:
+    RoutingArbiterEcmpStringReprTestCase () : TestCase ("routing-arbiter-ecmp string-repr") {};
+    void DoRun () {
+        std::ofstream topology_file;
+        topology_file.open ("topology.properties.temp");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=4" << std::endl;
+        topology_file << "switches=set(0,1,2,3)" << std::endl;
+        topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
+        topology_file << "servers=set()" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
+        topology_file.close();
+        Topology topology = Topology("topology.properties.temp");
+
+        // Create nodes, setup links and create arbiter
+        NodeContainer nodes = create_nodes(topology);
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
+        RoutingArbiterEcmp routingArbiterEcmp = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+
+        for (int i = 0; i < topology.num_nodes; i++) {
+            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(&routingArbiterEcmp);
+            std::ostringstream res;
+            OutputStreamWrapper out_stream = OutputStreamWrapper(&res);
+            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->PrintRoutingTable(&out_stream);
+            std::ostringstream expected;
+            if (i == 0) {
+                expected << "ECMP state of node 0" << std::endl;
+                expected << "  -> 0: {}" << std::endl;
+                expected << "  -> 1: {1}" << std::endl;
+                expected << "  -> 2: {1,3}" << std::endl;
+                expected << "  -> 3: {3}" << std::endl;
+                ASSERT_EQUAL(res.str(), expected.str());
+            } else if (i == 1) {
+                expected << "ECMP state of node 1" << std::endl;
+                expected << "  -> 0: {0}" << std::endl;
+                expected << "  -> 1: {}" << std::endl;
+                expected << "  -> 2: {2}" << std::endl;
+                expected << "  -> 3: {0,2}" << std::endl;
+                ASSERT_EQUAL(res.str(), expected.str());
+            } else if (i == 2) {
+                expected << "ECMP state of node 2" << std::endl;
+                expected << "  -> 0: {1,3}" << std::endl;
+                expected << "  -> 1: {1}" << std::endl;
+                expected << "  -> 2: {}" << std::endl;
+                expected << "  -> 3: {3}" << std::endl;
+                ASSERT_EQUAL(res.str(), expected.str());
+            } else if (i == 3) {
+                expected << "ECMP state of node 3" << std::endl;
+                expected << "  -> 0: {0}" << std::endl;
+                expected << "  -> 1: {0,2}" << std::endl;
+                expected << "  -> 2: {2}" << std::endl;
+                expected << "  -> 3: {}" << std::endl;
+                ASSERT_EQUAL(res.str(), expected.str());
+            } else {
+                ASSERT_TRUE(false);
+            }
+        }
+
+        // Clean up topology file
+        remove_file_if_exists("topology.properties.temp");
+
+        Simulator::Destroy();
+
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////
+
 // Currently disabled because it takes too long for a quick test
 class RoutingArbiterEcmpTooBigFailTestCase : public TestCase
 {
@@ -284,6 +354,10 @@ public:
 
     int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
         return this->next_decision;
+    }
+
+    std::string string_repr_of_routing_table(int32_t node_id) {
+        return "";
     }
 
 private:

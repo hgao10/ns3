@@ -246,7 +246,8 @@ namespace ns3 {
 
     void 
     Ipv4ArbitraryRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const {
-        throw std::runtime_error("Not yet implemented");
+        std::ostream* os = stream->GetStream ();
+        *os << m_routingArbiter->string_repr_of_routing_table(m_nodeId);
     }
 
     void

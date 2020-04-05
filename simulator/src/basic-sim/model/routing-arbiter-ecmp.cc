@@ -154,3 +154,21 @@ int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t
 int64_t RoutingArbiterEcmp::get_ecmp_init_finish_ns_since_epoch() {
     return ecmp_init_finish_ns_since_epoch;
 }
+
+std::string RoutingArbiterEcmp::string_repr_of_routing_table(int32_t node_id) {
+    std::ostringstream res;
+    res << "ECMP state of node " << node_id << std::endl;
+    for (int i = 0; i < topology->num_nodes; i++) {
+        res << "  -> " << i << ": {";
+        bool first = true;
+        for (int j : candidate_list[node_id][i]) {
+            if (!first) {
+                res << ",";
+            }
+            res << j;
+            first = false;
+        }
+        res << "}" << std::endl;
+    }
+    return res.str();
+}

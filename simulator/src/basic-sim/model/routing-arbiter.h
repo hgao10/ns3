@@ -50,6 +50,16 @@ public:
             ns3::Ipv4Header const &ipHeader
     ) = 0;
 
+    /**
+     * Convert the routing table of a particular node to a string representation.
+     * This can have meaning (e.g., for ECMP the possible next hops), or none at all.
+     *
+     * @param node       Node of which a string representation of the routing table should be printed
+     *
+     * @return String representation
+     */
+    virtual std::string string_repr_of_routing_table(int32_t node_id) = 0;
+
 protected:
     Topology* topology;
     std::map<uint32_t, uint32_t> ip_to_node_id;
