@@ -2,7 +2,7 @@
 
 using namespace ns3;
 
-RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, std::vector<std::pair<int32_t, int32_t>> interface_idxs_for_edges) {
+RoutingArbiter::RoutingArbiter(Topology* topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) {
     this->topology = topology;
     this->nodes = nodes;
 

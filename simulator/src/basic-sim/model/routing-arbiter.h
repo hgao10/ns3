@@ -23,7 +23,7 @@ class RoutingArbiter
 {
 
 public:
-    RoutingArbiter(Topology* topology, ns3::NodeContainer nodes, std::vector<std::pair<int32_t, int32_t>> interface_idxs_for_edges);
+    RoutingArbiter(Topology* topology, ns3::NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
     ~RoutingArbiter();
     int32_t decide_next_interface(int32_t current_node, ns3::Ptr<const ns3::Packet> pkt, ns3::Ipv4Header const &ipHeader);
     uint32_t resolve_node_id_from_ip(uint32_t ip);

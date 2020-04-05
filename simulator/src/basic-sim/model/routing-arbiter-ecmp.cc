@@ -5,7 +5,7 @@ using namespace ns3;
 RoutingArbiterEcmp::RoutingArbiterEcmp(
         Topology* topology,
         NodeContainer nodes,
-        std::vector<std::pair<int32_t, int32_t>> interface_idxs_for_edges
+        const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
         )
         : RoutingArbiter(topology, nodes, interface_idxs_for_edges
         ) {

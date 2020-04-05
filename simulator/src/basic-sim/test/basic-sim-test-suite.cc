@@ -6,6 +6,7 @@
 #include "schedule-reader-test.h"
 #include "simon-util-test.h"
 #include "topology-test.h"
+#include "routing-arbiter-test.h"
 
 using namespace ns3;
 
@@ -29,6 +30,10 @@ public:
         AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneApartStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
+        AddTestCase(new RoutingArbiterIpResolutionTestCase, TestCase::QUICK);
+        AddTestCase(new RoutingArbiterEcmpHashTestCase, TestCase::QUICK);
+        // Disabled because it takes too long for a quick test:
+        // AddTestCase(new RoutingArbiterEcmpTooBigFailCase, TestCase::QUICK);
     }
 };
 static BasicSimTestSuite basicSimTestSuite;
