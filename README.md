@@ -50,7 +50,7 @@ This repository enables the convenient execution of packet-level experiments usi
 
 10. Check out the results:
     ```
-    xdg-open ../runs/example_single/logs/flows.txt
+    xdg-open ../runs/example_single/logs_ns3/flows.txt
     ```
  
  ## Running tests
@@ -75,9 +75,9 @@ If you want to speed-up the simulation (disables logging), configuring as follow
 
 The run folder must contain the input of a simulation.
 
-**config.properties**
+**config_ns3.properties**
 
-General properties of the simulation. The following are already defined:
+General properties of the simulation. The following are always defined:
 
 * `filename_topology` : Topology filename (relative to run folder)
 * `filename_schedule` : Schedule filename (relative to run folder)

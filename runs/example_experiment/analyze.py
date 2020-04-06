@@ -36,15 +36,15 @@ def analyze():
                     os.makedirs(analysis_folder_path)
 
                 # Check that the run is finished
-                if os.path.isfile(run_folder_path + '/logs/finished.txt'):
-                    with open(run_folder_path + '/logs/finished.txt', 'r') as f:
+                if os.path.isfile(run_folder_path + '/logs_ns3/finished.txt'):
+                    with open(run_folder_path + '/logs_ns3/finished.txt', 'r') as f:
                         if not f.readline().strip() == "Yes":
                             raise ValueError("Run %s not yet finished." % run_folder_path)
                 else:
                     raise ValueError("Run %s not even started." % run_folder_path)
 
                 # Read connection information
-                with open(run_folder_path + '/logs/flows.csv') as f:
+                with open(run_folder_path + '/logs_ns3/flows.csv') as f:
                     reader = csv.reader(f)
 
                     # Column lists

@@ -9,14 +9,14 @@ do
   folder_name="runs/run_perfect_schedule_${arrival_rate}"
   mkdir -p ${folder_name}
   python schedule_generator_perfect.py ${folder_name}/schedule.csv ${arrival_rate} ${flow_size_byte} ${runtime_s} ${num_nodes}
-  cp config.properties ${folder_name}
+  cp config_ns3.properties ${folder_name}
   cp topology_tor_with_4_servers.properties ${folder_name}
   for seed in 0 1 2 3 4
   do
     folder_name="runs/run_random_schedule_s${seed}_${arrival_rate}"
     mkdir -p ${folder_name}
     python schedule_generator_random.py ${folder_name}/schedule.csv ${arrival_rate} ${flow_size_byte} ${runtime_s} ${num_nodes} "${seeds[seed]}"
-    cp config.properties ${folder_name}
+    cp config_ns3.properties ${folder_name}
     cp topology_tor_with_4_servers.properties ${folder_name}
 	done
 done

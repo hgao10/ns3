@@ -96,7 +96,7 @@ void start_next_flow(int i) {
 /**
  * Read and print config.
  *
- * @param filename  config.properties filename
+ * @param filename  config_ns3.properties filename
  *
  * @return Config mapping
  */
@@ -120,7 +120,7 @@ std::map<std::string, std::string> read_and_print_config(const std::string& file
 /**
  * Read and print config.
  *
- * @param filename  config.properties filename
+ * @param filename  config_ns3.properties filename
  * @param config    Target map to put in config
  *
  * @return 0 iff success, else non-zero
@@ -193,7 +193,7 @@ int basic_sim(std::string run_dir) {
     }
 
     // Logs in run directory
-    std::string logs_dir = run_dir + "/logs";
+    std::string logs_dir = run_dir + "/logs_ns3";
     if (dir_exists(logs_dir)) {
         printf("  > Emptying existing logs directory\n");
         remove_file_if_exists(logs_dir + "/finished.txt");
@@ -208,7 +208,7 @@ int basic_sim(std::string run_dir) {
     timestamps.push_back(std::make_pair("Create logs directory", now_ns_since_epoch()));
 
     // Config
-    std::map<std::string, std::string> config = read_and_print_config(run_dir + "/" + "config.properties");
+    std::map<std::string, std::string> config = read_and_print_config(run_dir + "/" + "config_ns3.properties");
     timestamps.push_back(std::make_pair("Read config", now_ns_since_epoch()));
 
     // Topology
@@ -389,7 +389,7 @@ int basic_sim(std::string run_dir) {
     Simulator::Schedule(Seconds(simulation_event_interval_s), &show_simulation_progress);
 
     // Print not yet finished
-    std::ofstream fileFinished(run_dir + "/logs/finished.txt");
+    std::ofstream fileFinished(run_dir + "/logs_ns3/finished.txt");
     fileFinished << "No" << std::endl;
     fileFinished.close();
 
@@ -412,8 +412,8 @@ int basic_sim(std::string run_dir) {
 
     printf("POST PROCESSING\n");
 
-    FILE* file_csv = fopen((run_dir + "/logs/flows.csv").c_str(), "w+");
-    FILE* file_txt = fopen((run_dir + "/logs/flows.txt").c_str(), "w+");
+    FILE* file_csv = fopen((run_dir + "/logs_ns3/flows.csv").c_str(), "w+");
+    FILE* file_txt = fopen((run_dir + "/logs_ns3/flows.txt").c_str(), "w+");
     fprintf(
             file_txt, "%-12s%-10s%-10s%-16s%-18s%-18s%-16s%-16s%-13s%-16s%-14s%s\n",
             "Flow ID", "Source", "Target", "Size", "Start time (ns)",
@@ -502,7 +502,7 @@ int basic_sim(std::string run_dir) {
     // Timing results
     //
 
-    std::ofstream fileTimingResults(run_dir + "/logs/timing-results.txt");
+    std::ofstream fileTimingResults(run_dir + "/logs_ns3/timing-results.txt");
     printf("TIMING RESULTS\n");
     printf("------\n");
     int64_t t_prev = -1;
@@ -526,7 +526,7 @@ int basic_sim(std::string run_dir) {
     printf("\n");
 
     // Print final finished
-    std::ofstream fileFinishedEnd(run_dir + "/logs/finished.txt");
+    std::ofstream fileFinishedEnd(run_dir + "/logs_ns3/finished.txt");
     fileFinishedEnd << "Yes" << std::endl;
     fileFinishedEnd.close();
 

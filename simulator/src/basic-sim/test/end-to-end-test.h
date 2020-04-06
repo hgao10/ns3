@@ -17,14 +17,14 @@ public:
 
     void prepare_test_dir() {
         mkdir_if_not_exists(temp_dir);
-        remove_file_if_exists(temp_dir + "/config.properties");
+        remove_file_if_exists(temp_dir + "/config_ns3.properties");
         remove_file_if_exists(temp_dir + "/topology.properties");
         remove_file_if_exists(temp_dir + "/schedule.csv");
     }
 
     void write_basic_config(int64_t simulation_end_time_ns, int64_t simulation_seed, double link_data_rate_megabit_per_s, int64_t link_delay_ns) {
         std::ofstream config_file;
-        config_file.open (temp_dir + "/config.properties");
+        config_file.open (temp_dir + "/config_ns3.properties");
         config_file << "filename_topology=\"topology.properties\"" << std::endl;
         config_file << "filename_schedule=\"schedule.csv\"" << std::endl;
         config_file << "simulation_end_time_ns=" << simulation_end_time_ns << std::endl;
@@ -49,9 +49,9 @@ public:
     void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, std::vector<schedule_entry_t> write_schedule, std::vector<int64_t>& end_time_ns_list, std::vector<int64_t>& sent_byte_list) {
 
         // Make sure these are removed
-        remove_file_if_exists(temp_dir + "/logs/finished.txt");
-        remove_file_if_exists(temp_dir + "/logs/flows.txt");
-        remove_file_if_exists(temp_dir + "/logs/flows.csv");
+        remove_file_if_exists(temp_dir + "/logs_ns3/finished.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flows.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flows.csv");
 
         // Write schedule file
         std::ofstream schedule_file;
@@ -73,12 +73,12 @@ public:
         basic_sim(temp_dir);
 
         // Check finished.txt
-        std::vector<std::string> finished_lines = read_file_direct(temp_dir + "/logs/finished.txt");
+        std::vector<std::string> finished_lines = read_file_direct(temp_dir + "/logs_ns3/finished.txt");
         ASSERT_EQUAL(finished_lines.size(), 1);
         ASSERT_EQUAL(finished_lines[0], "Yes");
 
         // Check flows.csv
-        std::vector<std::string> lines_csv = read_file_direct(temp_dir + "/logs/flows.csv");
+        std::vector<std::string> lines_csv = read_file_direct(temp_dir + "/logs_ns3/flows.csv");
         ASSERT_EQUAL(lines_csv.size(), write_schedule.size());
         int i = 0;
         for (std::string line : lines_csv) {
@@ -102,7 +102,7 @@ public:
         }
 
         // Check flows.txt
-        std::vector<std::string> lines_txt = read_file_direct(temp_dir + "/logs/flows.txt");
+        std::vector<std::string> lines_txt = read_file_direct(temp_dir + "/logs_ns3/flows.txt");
         ASSERT_EQUAL(lines_txt.size(), write_schedule.size() + 1);
         i = 0;
         for (std::string line : lines_txt) {
@@ -142,7 +142,7 @@ public:
         }
 
         // Make sure these are removed
-        remove_file_if_exists(temp_dir + "/config.properties");
+        remove_file_if_exists(temp_dir + "/config_ns3.properties");
         remove_file_if_exists(temp_dir + "/topology.properties");
         remove_file_if_exists(temp_dir + "/schedule.csv");
 
