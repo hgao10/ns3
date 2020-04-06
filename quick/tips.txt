@@ -19,6 +19,7 @@ MapScheduler::DoSomething (void) const
 rm -rf ../runs/example_big_grid_one_flow/logs_ns3
 mkdir ../runs/example_big_grid_one_flow/logs_ns3
 ./waf --command-template="valgrind --time-unit=ms --max-snapshots=500 --tool=massif %s --run_dir='../runs/example_big_grid_one_flow'" --run "main" 2>&1 | tee ../runs/example_big_grid_one_flow/logs_ns3/console.txt
+massif-visualizer [massif file]
 
 # Memory leak check
 rm -rf ../runs/example_single/logs_ns3
