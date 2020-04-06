@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <chrono>
 #include <stdexcept>
-#include "ns3/basic-sim.h"
+#include "ns3/basic-simulation.h"
 
 using namespace ns3;
 
@@ -30,7 +30,10 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Start the flow simulation using this run directory
-    return basic_sim(run_dir);
+    // Start the simulation using this run directory
+    BasicSimulation simulation;
+    simulation.Run(run_dir);
+
+    return 0;
 
 }

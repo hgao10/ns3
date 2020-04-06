@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "ns3/basic-sim.h"
+#include "ns3/basic-simulation.h"
 #include "ns3/test.h"
 #include "end-to-end-test.h"
 #include "schedule-reader-test.h"

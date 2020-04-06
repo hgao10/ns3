@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "ns3/basic-sim.h"
+#include "ns3/basic-simulation.h"
 #include "ns3/test.h"
 #include "test-helpers.h"
 #include <iostream>
@@ -70,7 +70,8 @@ public:
         schedule_file.close();
 
         // Perform basic simulation
-        basic_sim(temp_dir);
+        BasicSimulation simulation;
+        simulation.Run(temp_dir);
 
         // Check finished.txt
         std::vector<std::string> finished_lines = read_file_direct(temp_dir + "/logs_ns3/finished.txt");

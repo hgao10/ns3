@@ -3,15 +3,3 @@
 def build(bld):
     obj = bld.create_ns3_program('single', ['basic-sim'])
     obj.source = 'single-example.cc'
-
-    obj = bld.create_ns3_program('ring', ['basic-sim'])
-    obj.source = 'ring-example.cc'
-
-    obj = bld.create_ns3_program('leaf-spine', ['basic-sim'])
-    obj.source = 'leaf-spine-example.cc'
-
-    obj = bld.create_ns3_program('leaf-spine-servers', ['basic-sim'])
-    obj.source = 'leaf-spine-servers-example.cc'
-
-    obj = bld.create_ns3_program('fat-tree-k4-servers', ['basic-sim'])
-    obj.source = 'fat-tree-k4-servers-example.cc'

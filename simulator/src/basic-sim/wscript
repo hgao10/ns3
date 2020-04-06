@@ -9,7 +9,7 @@
 def build(bld):
     module = bld.create_ns3_module('basic-sim', ['core', 'internet', 'applications', 'point-to-point'])
     module.source = [
-        'model/basic-sim.cc',
+        'model/basic-simulation.cc',
         'model/flow-send-application.cc',
         'model/flow-sink.cc',
         'model/schedule-reader.cc',
@@ -31,7 +31,7 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'basic-sim'
     headers.source = [
-        'model/basic-sim.h',
+        'model/basic-simulation.h',
         'model/flow-send-application.h',
         'model/flow-sink.h',
         'model/schedule-reader.h',
