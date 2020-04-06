@@ -363,7 +363,6 @@ int basic_sim(std::string run_dir) {
     }
     timestamps.push_back(std::make_pair("Setup traffic sinks", now_ns_since_epoch()));
 
-
     // Setup all source applications
     printf("  > Setting up traffic flow starter\n");
     std::vector<ApplicationContainer> apps;
