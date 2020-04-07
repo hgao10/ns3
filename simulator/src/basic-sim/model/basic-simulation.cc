@@ -255,6 +255,18 @@ void BasicSimulation::SetupTcpParameters() {
     printf("  > Receive buffer size: %.3f MB\n", rcv_buf_size_byte / 1e6);
     Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(rcv_buf_size_byte));
 
+    // Segment size
+    int64_t segment_size_byte = 1380;   // 536 byte is default, but we know the a point-to-point network device has an MTU of 1500.
+                                        // IP header size: min. 20 byte, max. 60 byte
+                                        // TCP header size: min. 20 byte, max. 60 byte
+                                        // So, 1500 - 60 - 60 = 1380 would be the safest bet (given we don't do tunneling)
+                                        // This could be increased higher, e.g. as discussed here:
+                                        // https://blog.cloudflare.com/increasing-ipv6-mtu/ (retrieved April 7th, 2020)
+                                        // In past ns-3 simulations, I've observed that the IP + TCP header is not larger than 60 bytes.
+                                        // This means I think it could be potentially set closer to 1440.
+    printf("  > Segment size: %" PRId64 " byte\n", segment_size_byte);
+    Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(segment_size_byte));
+
     std::cout << std::endl;
     m_timestamps.push_back(std::make_pair("Setup TCP parameters", now_ns_since_epoch()));
 }

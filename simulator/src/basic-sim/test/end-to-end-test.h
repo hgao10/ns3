@@ -209,12 +209,12 @@ public:
         int expected_end_time_ns = 0;
         expected_end_time_ns += 4 * 10000; // SYN, SYN+ACK, ACK+DATA, FIN (last ACK+FIN is not acknowledged, and all the data is already ACKed)
         // 1 byte / 100 Mbit/s = 80 ns to transmit 1 byte
-        expected_end_time_ns += 58 * 80;  // SYN = 2 (P2P) + 20 (IP) + 32 (TCP basic) + 4 (TCP option) = 58 bytes
-        expected_end_time_ns += 58 * 80;  // SYN+ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) + 4 (TCP option) = 58 bytes
-        expected_end_time_ns += 54 * 80;  // ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) = 54 bytes
-        expected_end_time_ns += 354 * 80; // ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) + Data (300) = 354 bytes
-        expected_end_time_ns += 54 * 80;  // ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) = 54 bytes
-        expected_end_time_ns += 54 * 80;  // FIN+ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) = 54 bytes
+        expected_end_time_ns += 58 * 80;  // SYN = 2 (P2P) + 20 (IP) + 20 (TCP basic) + 16 (TCP option) = 58 bytes
+        expected_end_time_ns += 58 * 80;  // SYN+ACK = 2 (P2P) + 20 (IP) + 20 (TCP basic) + 16 (TCP option) = 58 bytes
+        expected_end_time_ns += 54 * 80;  // ACK = 2 (P2P) + 20 (IP) + 20 (TCP basic) + 12 (TCP option) = 54 bytes
+        expected_end_time_ns += 354 * 80; // ACK = 2 (P2P) + 20 (IP) + 20 (TCP basic) + 12 (TCP option) + Data (300) = 354 bytes
+        expected_end_time_ns += 54 * 80;  // ACK = 2 (P2P) + 20 (IP) + 20 (TCP basic) + 12 (TCP option) = 54 bytes
+        expected_end_time_ns += 54 * 80;  // FIN+ACK = 2 (P2P) + 20 (IP) + 20 (TCP basic) + 12 (TCP option)  = 54 bytes
         ASSERT_EQUAL_APPROX(end_time_ns_list[0], expected_end_time_ns, 6); // 6 transmissions for which the rounding can be down
         ASSERT_EQUAL(300, sent_byte_list[0]);
 
