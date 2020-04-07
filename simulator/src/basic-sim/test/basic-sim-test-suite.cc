@@ -28,6 +28,7 @@ public:
         AddTestCase(new ScheduleReaderNormalTestCase, TestCase::QUICK);
         AddTestCase(new ScheduleReaderInvalidTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndOneToOneSimpleStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneApartStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndNonExistentRunDirTestCase, TestCase::QUICK);

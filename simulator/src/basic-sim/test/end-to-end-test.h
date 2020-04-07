@@ -123,13 +123,13 @@ public:
                 ASSERT_EQUAL(parse_positive_int64(line_spl[0]), j);
                 ASSERT_EQUAL(parse_positive_int64(line_spl[1]), write_schedule[j].from_node_id);
                 ASSERT_EQUAL(parse_positive_int64(line_spl[2]), write_schedule[j].to_node_id);
-                ASSERT_EQUAL(parse_positive_int64(line_spl[3]), byte_to_megabit(write_schedule[j].size_byte));
+                ASSERT_EQUAL_APPROX(parse_positive_int64(line_spl[3]), byte_to_megabit(write_schedule[j].size_byte), 0.01);
                 ASSERT_EQUAL(line_spl[4], "Mbit");
                 ASSERT_EQUAL(parse_positive_int64(line_spl[5]), write_schedule[j].start_time_ns);
                 ASSERT_EQUAL(parse_positive_int64(line_spl[6]), end_time_ns_list[j]);
                 ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[7]), nanosec_to_millisec(end_time_ns_list[j] - write_schedule[j].start_time_ns), 0.01);
                 ASSERT_EQUAL(line_spl[8], "ms");
-                ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[9]), byte_to_megabit(sent_byte_list[j]), 0.1);
+                ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[9]), byte_to_megabit(sent_byte_list[j]), 0.01);
                 ASSERT_EQUAL(line_spl[10], "Mbit");
                 ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[11].substr(0, line_spl.size() - 1)), sent_byte_list[j] * 100.0 / write_schedule[j].size_byte, 0.1);
                 ASSERT_EQUAL_APPROX(parse_positive_double(line_spl[12]), byte_to_megabit(sent_byte_list[j]) / nanosec_to_sec(end_time_ns_list[j] - write_schedule[j].start_time_ns), 0.1);
@@ -161,7 +161,7 @@ public:
 
         int64_t simulation_end_time_ns = 5000000000;
 
-        // One-to-one, 5s, 10.0 Mbit/s, 10 microseconds delay
+        // One-to-one, 5s, 10.0 Mbit/s, 100 microseconds delay
         write_basic_config(simulation_end_time_ns, 123456, 10.0, 100000);
         write_single_topology();
 
@@ -182,6 +182,45 @@ public:
     }
 };
 
+class EndToEndOneToOneSimpleStartTestCase : public EndToEndTestCase
+{
+public:
+    EndToEndOneToOneSimpleStartTestCase () : EndToEndTestCase ("end-to-end 1-to-1 simple") {};
+
+    void DoRun () {
+        prepare_test_dir();
+
+        int64_t simulation_end_time_ns = 5000000000;
+
+        // One-to-one, 5s, 100.0 Mbit/s, 10 microseconds delay
+        write_basic_config(simulation_end_time_ns, 123456, 100.0, 10000);
+        write_single_topology();
+
+        // One flow
+        std::vector<schedule_entry_t> schedule;
+        schedule.push_back({0, 0, 1, 300, 0, "", ""});
+
+        // Perform the run
+        std::vector<int64_t> end_time_ns_list;
+        std::vector<int64_t> sent_byte_list;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+
+        // As they are started at the same point and should have the same behavior, progress should be equal
+        int expected_end_time_ns = 0;
+        expected_end_time_ns += 4 * 10000; // SYN, SYN+ACK, ACK+DATA, FIN (last ACK+FIN is not acknowledged, and all the data is already ACKed)
+        // 1 byte / 100 Mbit/s = 80 ns to transmit 1 byte
+        expected_end_time_ns += 58 * 80;  // SYN = 2 (P2P) + 20 (IP) + 32 (TCP basic) + 4 (TCP option) = 58 bytes
+        expected_end_time_ns += 58 * 80;  // SYN+ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) + 4 (TCP option) = 58 bytes
+        expected_end_time_ns += 54 * 80;  // ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) = 54 bytes
+        expected_end_time_ns += 354 * 80; // ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) + Data (300) = 354 bytes
+        expected_end_time_ns += 54 * 80;  // ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) = 54 bytes
+        expected_end_time_ns += 54 * 80;  // FIN+ACK = 2 (P2P) + 20 (IP) + 32 (TCP basic) = 54 bytes
+        ASSERT_EQUAL_APPROX(end_time_ns_list[0], expected_end_time_ns, 6); // 6 transmissions for which the rounding can be down
+        ASSERT_EQUAL(300, sent_byte_list[0]);
+
+    }
+};
+
 class EndToEndOneToOneApartStartTestCase : public EndToEndTestCase
 {
 public:
@@ -192,7 +231,7 @@ public:
 
         int64_t simulation_end_time_ns = 10000000000;
 
-        // One-to-one, 10s, 10.0 Mbit/s, 10 microseconds delay
+        // One-to-one, 10s, 10.0 Mbit/s, 100 microseconds delay
         write_basic_config(simulation_end_time_ns, 654321, 10.0, 100000);
         write_single_topology();
 
