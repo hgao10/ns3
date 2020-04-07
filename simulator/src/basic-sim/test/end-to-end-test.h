@@ -296,6 +296,45 @@ public:
     }
 };
 
+class EndToEndEcmpRemainTestCase : public EndToEndTestCase
+{
+public:
+    EndToEndEcmpRemainTestCase () : EndToEndTestCase ("end-to-end ecmp-remain") {};
+
+    void DoRun () {
+        prepare_test_dir();
+
+        int64_t simulation_end_time_ns = 100000000;
+
+        // One-to-one, 5s, 30.0 Mbit/s, 200 microsec delay
+        write_basic_config(simulation_end_time_ns, 123456, 30.0, 200000);
+        std::ofstream topology_file;
+        topology_file.open (temp_dir + "/topology.properties");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=4" << std::endl;
+        topology_file << "switches=set(0,1,2,3)" << std::endl;
+        topology_file << "switches_which_are_tors=set(0,3)" << std::endl;
+        topology_file << "servers=set()" << std::endl;
+        topology_file << "undirected_edges=set(0-1,0-2,1-3,3-2)" << std::endl;
+        topology_file.close();
+
+        // A flow each way
+        std::vector<schedule_entry_t> schedule;
+        schedule.push_back({0, 0, 3, 1000000000, 0, "", ""});
+
+        // Perform the run
+        std::vector<int64_t> end_time_ns_list;
+        std::vector<int64_t> sent_byte_list;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+
+        // Can only consume the bandwidth of one path, the one it is hashed to
+        ASSERT_EQUAL(end_time_ns_list[0], simulation_end_time_ns);
+        double rate_Mbps = byte_to_megabit(sent_byte_list[0]) / nanosec_to_sec(end_time_ns_list[0]);
+        ASSERT_TRUE(rate_Mbps >= 25.0 && rate_Mbps <= 30.0); // Somewhere between 25 and 30
+
+    }
+};
+
 class EndToEndNonExistentRunDirTestCase : public TestCase
 {
 public:
