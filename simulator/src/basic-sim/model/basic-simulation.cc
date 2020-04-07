@@ -262,8 +262,8 @@ void BasicSimulation::SetupTcpParameters() {
                                         // So, 1500 - 60 - 60 = 1380 would be the safest bet (given we don't do tunneling)
                                         // This could be increased higher, e.g. as discussed here:
                                         // https://blog.cloudflare.com/increasing-ipv6-mtu/ (retrieved April 7th, 2020)
-                                        // In past ns-3 simulations, I've observed that the IP + TCP header is not larger than 60 bytes.
-                                        // This means I think it could be potentially set closer to 1440.
+                                        // In past ns-3 simulations, I've observed that the IP + TCP header is generally not larger than 80 bytes.
+                                        // This means it could be potentially set closer to 1400-1420.
     printf("  > Segment size: %" PRId64 " byte\n", segment_size_byte);
     Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(segment_size_byte));
 
