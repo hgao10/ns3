@@ -245,6 +245,16 @@ void BasicSimulation::SetupTcpParameters() {
     printf("  > Persist timeout: %.3f ms\n", persist_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::PersistTimeout", TimeValue(NanoSeconds(persist_timeout_ns)));
 
+    // Send buffer size
+    int64_t snd_buf_size_byte = 131072 * 256;  // 131072 bytes = 128 KiB is default, we set to 32 MiB
+    printf("  > Send buffer size: %.3f MB\n", snd_buf_size_byte / 1e6);
+    Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(snd_buf_size_byte));
+
+    // Receive buffer size
+    int64_t rcv_buf_size_byte = 131072 * 256;  // 131072 bytes = 128 KiB is default, we set to 32 MiB
+    printf("  > Receive buffer size: %.3f MB\n", rcv_buf_size_byte / 1e6);
+    Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(rcv_buf_size_byte));
+
     std::cout << std::endl;
     m_timestamps.push_back(std::make_pair("Setup TCP parameters", now_ns_since_epoch()));
 }
