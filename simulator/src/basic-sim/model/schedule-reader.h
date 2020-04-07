@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <regex>
 #include "simon-util.h"
+#include "topology.h"
 
 namespace ns3 {
 
@@ -24,7 +25,7 @@ struct schedule_entry_t {
     std::string metadata;
 };
 
-std::vector<schedule_entry_t> read_schedule(const std::string& filename, const int64_t num_nodes, const int64_t simulation_end_time_ns);
+std::vector<schedule_entry_t> read_schedule(const std::string& filename, Topology& topology, const int64_t simulation_end_time_ns);
 
 }
 

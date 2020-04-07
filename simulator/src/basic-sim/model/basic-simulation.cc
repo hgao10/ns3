@@ -94,7 +94,7 @@ void BasicSimulation::ReadConfig() {
 
     // Read topology
     m_topology = new Topology(m_run_dir + "/" + get_param_or_fail("filename_topology", config));
-    printf("TOPOLOGY\n-----\nATTRIBUTE                  VALUE\n");
+    printf("TOPOLOGY\n-----\n");
     printf("%-25s  %" PRIu64 "\n", "# Nodes", m_topology->num_nodes);
     printf("%-25s  %" PRIu64 "\n", "# Undirected edges", m_topology->num_undirected_edges);
     printf("%-25s  %" PRIu64 "\n", "# Switches", m_topology->switches.size());
@@ -104,15 +104,7 @@ void BasicSimulation::ReadConfig() {
     m_timestamps.push_back(std::make_pair("Read topology", now_ns_since_epoch()));
 
     // Read schedule
-    m_schedule = read_schedule(m_run_dir + "/" + get_param_or_fail("filename_schedule", config), m_topology->num_nodes, m_simulation_end_time_ns);
-    for (schedule_entry_t& entry : m_schedule) {
-        if (!m_topology->is_valid_flow_endpoint(entry.from_node_id)) {
-            throw std::invalid_argument(format_string("Invalid endpoint for a scheduled flow based on topology: %d", entry.from_node_id));
-        }
-        if (!m_topology->is_valid_flow_endpoint(entry.to_node_id)) {
-            throw std::invalid_argument(format_string("Invalid endpoint for a schedule flow based on topology: %d", entry.to_node_id));
-        }
-    }
+    m_schedule = read_schedule(m_run_dir + "/" + get_param_or_fail("filename_schedule", config), *m_topology, m_simulation_end_time_ns);
     printf("SCHEDULE\n");
     printf("  > Read schedule (total flow start events: %lu)\n", m_schedule.size());
     m_timestamps.push_back(std::make_pair("Read schedule", now_ns_since_epoch()));
@@ -129,7 +121,7 @@ void BasicSimulation::ConfigureSimulation() {
 
     // Set end time
     Simulator::Stop(NanoSeconds(m_simulation_end_time_ns));
-    std::cout << "  > Duration: " << m_simulation_end_time_ns << " ns" << std::endl;
+    printf("  > Duration: %.2f s (%" PRId64 " ns)\n", m_simulation_end_time_ns / 1e9, m_simulation_end_time_ns);
 
     std::cout << std::endl;
     m_timestamps.push_back(std::make_pair("Configure simulator", now_ns_since_epoch()));
@@ -194,14 +186,14 @@ void BasicSimulation::SetupRouting() {
     }
 
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Setup routing arbiter", now_ns_since_epoch()));
+    m_timestamps.push_back(std::make_pair("Setup routing arbiter on each node", now_ns_since_epoch()));
 }
 
 void BasicSimulation::SetupTcpParameters() {
     std::cout << "TCP PARAMETERS" << std::endl;
 
     // Clock granularity
-    printf("  > Clock granularity: 1ns\n");
+    printf("  > Clock granularity: 1 ns\n");
     Config::SetDefault("ns3::TcpSocketBase::ClockGranularity", TimeValue(NanoSeconds(1)));
 
     // Initial congestion window
@@ -221,35 +213,36 @@ void BasicSimulation::SetupTcpParameters() {
     int num_hops = std::min((int64_t) 16, m_topology->num_undirected_edges * 2);
     double worst_case_rtt_ns =
             num_hops * ((101 * 1500) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
+    printf("  > Estimated worst-case RTT: %.3f ms\n", worst_case_rtt_ns / 1e6);
 
     // Maximum segment lifetime
     int64_t max_seg_lifetime_ns = 5 * worst_case_rtt_ns; // 120s is default
-    printf("  > Maximum segment lifetime: %.3fms\n", max_seg_lifetime_ns / 1e6);
+    printf("  > Maximum segment lifetime: %.3f ms\n", max_seg_lifetime_ns / 1e6);
     Config::SetDefault("ns3::TcpSocketBase::MaxSegLifetime", DoubleValue(max_seg_lifetime_ns / 1e9));
 
     // Minimum retransmission timeout
     int64_t min_rto_ns = (int64_t)(1.5 * worst_case_rtt_ns);  // 1s is default, Linux uses 200ms
-    printf("  > Minimum RTO: %.3fms\n", min_rto_ns / 1e6);
+    printf("  > Minimum RTO: %.3f ms\n", min_rto_ns / 1e6);
     Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(NanoSeconds(min_rto_ns)));
 
     // Initial RTT estimate
     int64_t initial_rtt_estimate_ns = 2 * worst_case_rtt_ns;  // 1s is default
-    printf("  > Initial RTT measurement: %.3fms\n", initial_rtt_estimate_ns / 1e6);
+    printf("  > Initial RTT measurement: %.3f ms\n", initial_rtt_estimate_ns / 1e6);
     Config::SetDefault("ns3::RttEstimator::InitialEstimation", TimeValue(NanoSeconds(initial_rtt_estimate_ns)));
 
     // Connection timeout
     int64_t connection_timeout_ns = 2 * worst_case_rtt_ns;  // 3s is default
-    printf("  > Connection timeout: %.3fms\n", connection_timeout_ns / 1e6);
+    printf("  > Connection timeout: %.3f ms\n", connection_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::ConnTimeout", TimeValue(NanoSeconds(connection_timeout_ns)));
 
     // Delayed ACK timeout
     int64_t delayed_ack_timeout_ns = 0.2 * worst_case_rtt_ns;  // 0.2s is default
-    printf("  > Delayed ACK timeout: %.3fms\n", delayed_ack_timeout_ns / 1e6);
+    printf("  > Delayed ACK timeout: %.3f ms\n", delayed_ack_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(NanoSeconds(delayed_ack_timeout_ns)));
 
     // Persist timeout
     int64_t persist_timeout_ns = 4 * worst_case_rtt_ns;  // 6s is default
-    printf("  > Persist timeout: %.3fms\n", persist_timeout_ns / 1e6);
+    printf("  > Persist timeout: %.3f ms\n", persist_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::PersistTimeout", TimeValue(NanoSeconds(persist_timeout_ns)));
 
     std::cout << std::endl;
@@ -311,7 +304,7 @@ void BasicSimulation::ShowSimulationProgress() {
     int64_t now = now_ns_since_epoch();
     if (now - m_last_log_time_ns_since_epoch > m_progress_interval_ns) {
         printf(
-                "%5.2f%% - Simulation Time = %.2fs ::: Wallclock Time = %.2fs\n",
+                "%5.2f%% - Simulation Time = %.2f s ::: Wallclock Time = %.2f s\n",
                 (Simulator::Now().GetSeconds() / (m_simulation_end_time_ns / 1e9)) * 100.0,
                 Simulator::Now().GetSeconds(),
                 (now - m_sim_start_time_ns_since_epoch) / 1e9
@@ -467,7 +460,7 @@ void BasicSimulation::StoreTimingResults() {
             t_prev = ts.second;
         } else {
             std::string line = format_string(
-                    "[%7.1f - %7.1f] (%.1fs) :: %s",
+                    "[%7.1f - %7.1f] (%.1f s) :: %s",
                     (t_prev - m_timestamps[0].second) / 1e9,
                     (ts.second - m_timestamps[0].second) / 1e9,
                     (ts.second - t_prev) / 1e9,

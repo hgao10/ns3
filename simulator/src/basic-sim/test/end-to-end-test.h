@@ -257,4 +257,16 @@ public:
     }
 };
 
+class EndToEndNonExistentRunDirTestCase : public TestCase
+{
+public:
+    EndToEndNonExistentRunDirTestCase () : TestCase ("end-to-end non-existent-run-dir") {};
+
+    void DoRun () {
+        BasicSimulation simulation;
+        ASSERT_EXCEPTION(simulation.Run("path/to/non/existent/run/dir"));
+    }
+
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////

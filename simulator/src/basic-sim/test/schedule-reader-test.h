@@ -24,7 +24,18 @@ public:
         schedule_file << "1,7,3,7488338,1356567,a=b2," << std::endl;
         schedule_file.close();
 
-        std::vector<schedule_entry_t> schedule = read_schedule(temp_dir + "/schedule.csv.temp", 8, 10000000);
+        std::ofstream topology_file;
+        topology_file.open (temp_dir + "/topology.properties.temp");
+        topology_file << "num_nodes=8" << std::endl;
+        topology_file << "num_undirected_edges=7" << std::endl;
+        topology_file << "switches=set(0,1,2,3,4,5,6,7)" << std::endl;
+        topology_file << "switches_which_are_tors=set(0,1,2,3,4,5,6,7)" << std::endl;
+        topology_file << "servers=set()" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3,3-4,4-5,5-6,6-7)" << std::endl;
+        topology_file.close();
+
+        Topology topology = Topology(temp_dir + "/topology.properties.temp");
+        std::vector<schedule_entry_t> schedule = read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000);
 
         ASSERT_EQUAL(schedule.size(), 2);
 
@@ -48,7 +59,7 @@ public:
 
         std::ofstream schedule_file_empty(temp_dir + "/schedule.csv.temp");
         schedule_file_empty.close();
-        std::vector<schedule_entry_t> schedule_empty = read_schedule(temp_dir + "/schedule.csv.temp", 0, 10000000);
+        std::vector<schedule_entry_t> schedule_empty = read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000);
         ASSERT_EQUAL(schedule_empty.size(), 0);
 
     }
@@ -65,132 +76,101 @@ public:
 
         std::ofstream schedule_file;
         std::vector<schedule_entry_t> schedule;
-        bool caught;
+
+        std::ofstream topology_file;
+        topology_file.open (temp_dir + "/topology.properties.temp");
+        topology_file << "num_nodes=5" << std::endl;
+        topology_file << "num_undirected_edges=4" << std::endl;
+        topology_file << "switches=set(0,1,2,3,4)" << std::endl;
+        topology_file << "switches_which_are_tors=set(0,1,3,4)" << std::endl; // Only 2 cannot be endpoint
+        topology_file << "servers=set()" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,2-3,3-4)" << std::endl;
+        topology_file.close();
+
+        Topology topology = Topology(temp_dir + "/topology.properties.temp");
 
         // Non-existent file
-        ASSERT_EXCEPTION(read_schedule("does-not-exist-temp.file", 5, 10000000));
+        ASSERT_EXCEPTION(read_schedule("does-not-exist-temp.file", topology, 10000000));
         
         // Normal
         schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
         schedule_file << "0,0,4,100000,1356567,a=b,test" << std::endl;
         schedule_file.close();
-        schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
+        schedule = read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000);
 
         // Source = Destination
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,3,100000,1356567,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,3,100000,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
-        // Invalid source
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,9,0,100000,1356567,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        // Invalid source (out of range)
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,9,0,100000,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
-        // Invalid destination
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,6,100000,1356567,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        // Invalid destination (out of range)
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,6,100000,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
+
+        // Invalid source (not a ToR)
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,2,4,100000,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
+
+        // Invalid destination (not a ToR)
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,4,2,100000,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
         // Not ascending flow ID
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "1,3,4,100000,1356567,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "1,3,4,100000,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
         // Negative flow size
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,4,-6,1356567,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,4,-6,1356567,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
         // Not enough values
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,4,7778,1356567,a=b" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,4,7778,1356567,a=b" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
         // Negative time
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,4,86959,-7,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,4,86959,-7,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(schedule = read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
         // Just normal ordered with equal start time
         schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
         schedule_file << "0,3,4,86959,9999,a=b,test" << std::endl;
         schedule_file << "1,3,4,86959,9999,a=b,test" << std::endl;
         schedule_file.close();
-        schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
+        schedule = read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000);
 
         // Not ordered time
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,4,86959,10000,a=b,test" << std::endl;
-            schedule_file << "1,3,4,86959,9999,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,4,86959,10000,a=b,test" << std::endl;
+        schedule_file << "1,3,4,86959,9999,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
         // Exceeding time
-        caught = false;
-        try {
-            schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
-            schedule_file << "0,3,4,86959,10000000,a=b,test" << std::endl;
-            schedule_file.close();
-            schedule = read_schedule(temp_dir + "/schedule.csv.temp", 5, 10000000);
-        } catch (std::exception& e) {
-            caught = true;
-        }
-        ASSERT_TRUE(caught);
+        schedule_file = std::ofstream(temp_dir + "/schedule.csv.temp");
+        schedule_file << "0,3,4,86959,10000000,a=b,test" << std::endl;
+        schedule_file.close();
+        ASSERT_EXCEPTION(read_schedule(temp_dir + "/schedule.csv.temp", topology, 10000000));
 
     }
 };

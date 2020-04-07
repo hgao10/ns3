@@ -1,3 +1,11 @@
+////////////////////////////////////////////////////////
+/// SIMPLE RUN
+
+./waf --run="main --run_dir='../runs/example_single'"
+
+////////////////////////////////////////////////////////
+/// DEBUG EVENT QUEUE
+
 If you want to debug the event queue, add:
 
 Simulator::GetImplementation()->GetObject<DefaultSimulatorImpl>()->PrintInfoEventQueue();
@@ -13,18 +21,22 @@ MapScheduler::DoSomething (void) const
   std::cout << "Amount of events in there: " << m_list.size() << std::endl;
 }
 
-// Using valgrind for checks
+////////////////////////////////////////////////////////
+/// MEMORY CHECK USING VALGRIND
 
 # Heap usage analysis
 rm -rf ../runs/example_big_grid_one_flow/logs_ns3
 mkdir ../runs/example_big_grid_one_flow/logs_ns3
-./waf --command-template="valgrind --time-unit=ms --max-snapshots=500 --tool=massif %s --run_dir='../runs/example_big_grid_one_flow'" --run "main" 2>&1 | tee ../runs/example_big_grid_one_flow/logs_ns3/console.txt
+./waf --command-template="valgrind --time-unit=ms --max-snapshots=500 --tool=massif %s --run_dir='../runs/example_single_many_small_flows'" --run "main" 2>&1 | tee ../runs/example_single_many_small_flows/logs_ns3/console.txt
 massif-visualizer [massif file]
 
 # Memory leak check
 rm -rf ../runs/example_single/logs_ns3
 mkdir ../runs/example_single/logs_ns3
 ./waf --command-template="valgrind %s --run_dir='../runs/example_single'" --run "main" 2>&1 | tee ../runs/example_single/logs_ns3/console.txt
+
+////////////////////////////////////////////////////////
+/// SAVE NS-3 OUTPUT
 
 # To show all NS-3 logs:
 NS_LOG="*=*|all" ./waf --run="main --run_dir='../runs/example_single'" &> a.txt

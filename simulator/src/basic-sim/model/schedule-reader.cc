@@ -6,10 +6,10 @@ namespace ns3 {
  * Read the schedule.csv into a schedule.
  *
  * @param filename                  File name of the schedule.csv
- * @param num_nodes                 Total number of nodes present (to check identifiers)
+ * @param topology                  Topology
  * @param simulation_end_time_ns    Simulation end time (ns) : all flows must start less than this value
 */
-std::vector<schedule_entry_t> read_schedule(const std::string& filename, const int64_t num_nodes, const int64_t simulation_end_time_ns) {
+std::vector<schedule_entry_t> read_schedule(const std::string& filename, Topology& topology, const int64_t simulation_end_time_ns) {
 
     // Schedule to put in the data
     std::vector<schedule_entry_t> schedule;
@@ -52,14 +52,22 @@ std::vector<schedule_entry_t> read_schedule(const std::string& filename, const i
             prev_start_time_ns = entry.start_time_ns;
 
             // Check node IDs
-            if (entry.from_node_id >= num_nodes) {
+            if (entry.from_node_id >= topology.num_nodes) {
                 throw std::invalid_argument(format_string("Invalid from node ID: %" PRId64 ".", entry.from_node_id));
             }
-            if (entry.to_node_id >= num_nodes) {
+            if (entry.to_node_id >= topology.num_nodes) {
                 throw std::invalid_argument(format_string("Invalid to node ID: %" PRId64 ".", entry.to_node_id));
             }
             if (entry.from_node_id == entry.to_node_id) {
                 throw std::invalid_argument(format_string("Flow to itself at node ID: %" PRId64 ".", entry.to_node_id));
+            }
+
+            // Check endpoint validity
+            if (!topology.is_valid_flow_endpoint(entry.from_node_id)) {
+                throw std::invalid_argument(format_string("Invalid from-endpoint for a schedule entry based on topology: %d", entry.from_node_id));
+            }
+            if (!topology.is_valid_flow_endpoint(entry.to_node_id)) {
+                throw std::invalid_argument(format_string("Invalid to-endpoint for a schedule entry based on topology: %d", entry.to_node_id));
             }
 
             // Check start time

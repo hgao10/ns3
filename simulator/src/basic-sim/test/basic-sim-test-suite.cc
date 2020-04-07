@@ -30,6 +30,7 @@ public:
         AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndOneToOneApartStartTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndNonExistentRunDirTestCase, TestCase::QUICK);
         AddTestCase(new RoutingArbiterIpResolutionTestCase, TestCase::QUICK);
         AddTestCase(new RoutingArbiterEcmpHashTestCase, TestCase::QUICK);
         AddTestCase(new RoutingArbiterEcmpStringReprTestCase, TestCase::QUICK);
