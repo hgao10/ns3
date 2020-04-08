@@ -275,6 +275,7 @@ void BasicSimulation::SetupTcpParameters() {
     int num_hops = std::min((int64_t) 20, m_topology->num_undirected_edges * 2);
     double worst_case_rtt_ns =
             num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
+    // TODO: Add accounting for qdisc queues here
     printf("  > Estimated worst-case RTT: %.3f ms\n", worst_case_rtt_ns / 1e6);
 
     // Maximum segment lifetime

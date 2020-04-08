@@ -44,9 +44,10 @@ NS_LOG="*=*|all" ./waf --run="main --run_dir='../runs/example_single'" &> a.txt
 ////////////////////////////////////////////////////////
 /// TRACK NETWORK DEVICE QUEUE SIZE
 
+#include <fstream>
 
 std::ofstream ofs;
-ofs.open ("queueA.txt");
+ofs.open ("queue.txt");
 ofs.close();
 
 container.Get(0)->GetObject<PointToPointNetDevice>()->GetQueue()->TraceConnectWithoutContext(
@@ -55,13 +56,15 @@ container.Get(0)->GetObject<PointToPointNetDevice>()->GetQueue()->TraceConnectWi
 static void
 QueueChangeA (uint32_t oldNumPackets, uint32_t newNumPackets) {
     std::ofstream ofs;
-    ofs.open("queueA.txt", std::ofstream::out | std::ofstream::app);
+    ofs.open("queue.txt", std::ofstream::out | std::ofstream::app);
     ofs << Simulator::Now().GetSeconds() << "\t" << newNumPackets << std::endl;
     ofs.close();
 }
 
 ////////////////////////////////////////////////////////
 /// TRACK CONGESTION WINDOW SIZE
+
+#include <fstream>
 
 std::ofstream ofs;
 ofs.open ("cwnd.txt");
