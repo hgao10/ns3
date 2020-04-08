@@ -40,3 +40,41 @@ mkdir ../runs/example_single/logs_ns3
 
 # To show all NS-3 logs:
 NS_LOG="*=*|all" ./waf --run="main --run_dir='../runs/example_single'" &> a.txt
+
+////////////////////////////////////////////////////////
+/// TRACK NETWORK DEVICE QUEUE SIZE
+
+
+std::ofstream ofs;
+ofs.open ("queueA.txt");
+ofs.close();
+
+container.Get(0)->GetObject<PointToPointNetDevice>()->GetQueue()->TraceConnectWithoutContext(
+        "PacketsInQueue", MakeCallback(&QueueChangeA));
+
+static void
+QueueChangeA (uint32_t oldNumPackets, uint32_t newNumPackets) {
+    std::ofstream ofs;
+    ofs.open("queueA.txt", std::ofstream::out | std::ofstream::app);
+    ofs << Simulator::Now().GetSeconds() << "\t" << newNumPackets << std::endl;
+    ofs.close();
+}
+
+////////////////////////////////////////////////////////
+/// TRACK CONGESTION WINDOW SIZE
+
+std::ofstream ofs;
+ofs.open ("cwnd.txt");
+ofs.close();
+
+m_socket->TraceConnectWithoutContext ("CongestionWindow",
+        MakeCallback (&CwndChange));
+
+static void
+CwndChange (uint32_t oldCwnd, uint32_t newCwnd)
+{
+    std::ofstream ofs;
+    ofs.open ("cwnd.txt", std::ofstream::out | std::ofstream::app);
+    ofs << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
+    ofs.close();
+}

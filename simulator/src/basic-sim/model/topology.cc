@@ -92,3 +92,7 @@ bool Topology::is_valid_flow_endpoint(int64_t node_id) {
         return this->servers.find(node_id) != this->servers.end();
     }
 }
+
+bool Topology::are_tors_endpoints() {
+    return has_zero_servers;
+}

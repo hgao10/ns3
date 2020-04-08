@@ -149,23 +149,72 @@ void BasicSimulation::SetupLinks() {
     Ipv4AddressHelper address;
     address.SetBase("10.0.0.0", "255.255.255.0");
 
-    // Point-to-point helper
+    // Direct network device attributes
+    std::cout << "  > Point-to-point network device attributes:" << std::endl;
+
+    // Point-to-point network device helper
     PointToPointHelper p2p;
     p2p.SetDeviceAttribute("DataRate", StringValue(std::to_string(m_link_data_rate_megabit_per_s) + "Mbps"));
     p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(m_link_delay_ns)));
-    std::cout << "  > Data rate: " << m_link_data_rate_megabit_per_s << " Mbit/s" << std::endl;
-    std::cout << "  > Delay: " << m_link_delay_ns << " ns" << std::endl;
+    std::cout << "      >> Data rate......... " << m_link_data_rate_megabit_per_s << " Mbit/s" << std::endl;
+    std::cout << "      >> Delay............. " << m_link_delay_ns << " ns" << std::endl;
+    int64_t p2p_net_device_max_queue_size_pkts = 20; // 100 packets is default
+    std::cout << "      >> Max. queue size... " << p2p_net_device_max_queue_size_pkts << " packets" << std::endl;
+    std::string p2p_net_device_max_queue_size_pkts_str = format_string("%" PRId64 "p", p2p_net_device_max_queue_size_pkts);
 
-    // Create edges
-    std::cout << "  > Installing links and their interfaces" << std::endl;
+    // Notify about topology state
+    if (m_topology->are_tors_endpoints()) {
+        std::cout << "  > Because there are no servers, ToRs are considered valid flow-endpoints" << std::endl;
+    } else {
+        std::cout << "  > Only servers are considered valid flow-endpoints" << std::endl;
+    }
+
+    // Queueing disciplines
+    std::cout << "  > Queueing disciplines:" << std::endl;
+
+    // Qdisc for endpoints (i.e., servers if they are defined, else the ToRs)
+    TrafficControlHelper tch_endpoints;
+    // tch_endpoints.SetRootQueueDisc ("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("20p")));
+    // std::cout << "      >> Flow-endpoints....... FIFO with max 20 packets max size" << std::endl;
+    tch_endpoints.SetRootQueueDisc ("ns3::FqCoDelQueueDisc"); // This is default
+    std::cout << "      >> Flow-endpoints....... default fq-co-del" << std::endl;
+
+    // Qdisc for non-endpoints (i.e., if servers are defined, all switches, else the switches which are not ToRs)
+    TrafficControlHelper tch_not_endpoints;
+    tch_not_endpoints.SetRootQueueDisc ("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("0p"))); // No queueing discipline basically
+    std::cout << "      >> Non-flow-endpoints... none (FIFO with 0 max. queue size)" << std::endl;
+
+    // Create Links
+    std::cout << "  > Installing links" << std::endl;
     m_interface_idxs_for_edges.clear();
     for (std::pair <int64_t, int64_t> link : m_topology->undirected_edges) {
+
+        // Install link
         NetDeviceContainer container = p2p.Install(m_nodes.Get(link.first), m_nodes.Get(link.second));
+        container.Get(0)->GetObject<PointToPointNetDevice>()->GetQueue()->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
+        container.Get(1)->GetObject<PointToPointNetDevice>()->GetQueue()->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
+
+        // Install traffic control
+        if (m_topology->is_valid_flow_endpoint(link.first)) {
+            tch_endpoints.Install(container.Get(0));
+        } else {
+            tch_not_endpoints.Install(container.Get(0));
+        }
+        if (m_topology->is_valid_flow_endpoint(link.second)) {
+            tch_endpoints.Install(container.Get(1));
+        } else {
+            tch_not_endpoints.Install(container.Get(1));
+        }
+
+        // Assign IP addresses
         address.Assign(container);
         address.NewNetwork();
+
+        // Save to mapping
         uint32_t a = container.Get(0)->GetIfIndex();
         uint32_t b = container.Get(1)->GetIfIndex();
         m_interface_idxs_for_edges.push_back(std::make_pair(a, b));
+
     }
 
     std::cout << std::endl;

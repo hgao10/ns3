@@ -18,6 +18,7 @@ public:
 
     Topology(const std::string& filename);
     bool is_valid_flow_endpoint(int64_t node_id);
+    bool are_tors_endpoints();
 
 private:
     bool has_zero_servers;

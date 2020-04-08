@@ -34,6 +34,7 @@
 #include "ns3/routing-arbiter-ecmp.h"
 #include "ns3/ipv4-arbitrary-routing.h"
 #include "ns3/ipv4-arbitrary-routing-helper.h"
+#include "ns3/traffic-control-helper.h"
 
 namespace ns3 {
 
