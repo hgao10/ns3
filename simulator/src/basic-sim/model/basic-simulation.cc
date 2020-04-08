@@ -91,6 +91,11 @@ void BasicSimulation::ReadConfig() {
     // Link properties
     m_link_data_rate_megabit_per_s = parse_positive_double(get_param_or_fail("link_data_rate_megabit_per_s", config));
     m_link_delay_ns = parse_positive_int64(get_param_or_fail("link_delay_ns", config));
+    m_link_max_queue_size_pkts = parse_positive_int64(get_param_or_fail("link_max_queue_size_pkts", config));
+
+    // Qdisc properties
+    m_disable_qdisc_endpoint_tors_xor_servers = parse_boolean(get_param_or_fail("disable_qdisc_endpoint_tors_xor_servers", config));
+    m_disable_qdisc_non_endpoint_switches = parse_boolean(get_param_or_fail("disable_qdisc_non_endpoint_switches", config));
 
     // Read topology
     m_topology = new Topology(m_run_dir + "/" + get_param_or_fail("filename_topology", config));
@@ -158,9 +163,8 @@ void BasicSimulation::SetupLinks() {
     p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(m_link_delay_ns)));
     std::cout << "      >> Data rate......... " << m_link_data_rate_megabit_per_s << " Mbit/s" << std::endl;
     std::cout << "      >> Delay............. " << m_link_delay_ns << " ns" << std::endl;
-    int64_t p2p_net_device_max_queue_size_pkts = 20; // 100 packets is default
-    std::cout << "      >> Max. queue size... " << p2p_net_device_max_queue_size_pkts << " packets" << std::endl;
-    std::string p2p_net_device_max_queue_size_pkts_str = format_string("%" PRId64 "p", p2p_net_device_max_queue_size_pkts);
+    std::cout << "      >> Max. queue size... " << m_link_max_queue_size_pkts << " packets" << std::endl;
+    std::string p2p_net_device_max_queue_size_pkts_str = format_string("%" PRId64 "p", m_link_max_queue_size_pkts);
 
     // Notify about topology state
     if (m_topology->are_tors_endpoints()) {
@@ -170,19 +174,28 @@ void BasicSimulation::SetupLinks() {
     }
 
     // Queueing disciplines
-    std::cout << "  > Queueing disciplines:" << std::endl;
+    std::cout << "  > Traffic control queueing disciplines:" << std::endl;
 
     // Qdisc for endpoints (i.e., servers if they are defined, else the ToRs)
     TrafficControlHelper tch_endpoints;
-    // tch_endpoints.SetRootQueueDisc ("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("20p")));
-    // std::cout << "      >> Flow-endpoints....... FIFO with max 20 packets max size" << std::endl;
-    tch_endpoints.SetRootQueueDisc ("ns3::FqCoDelQueueDisc"); // This is default
-    std::cout << "      >> Flow-endpoints....... default fq-co-del" << std::endl;
+    if (m_disable_qdisc_endpoint_tors_xor_servers) {
+        tch_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
+        std::cout << "      >> Flow-endpoints....... none (FIFO with 1 max. queue size)" << std::endl;
+    } else {
+        tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc"); // This is default
+        //tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue("20ms"), "Target", StringValue("1ms")); // TODO: Figure out what are reasonable settings here
+        std::cout << "      >> Flow-endpoints....... default fq-co-del" << std::endl;
+    }
 
     // Qdisc for non-endpoints (i.e., if servers are defined, all switches, else the switches which are not ToRs)
     TrafficControlHelper tch_not_endpoints;
-    tch_not_endpoints.SetRootQueueDisc ("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("0p"))); // No queueing discipline basically
-    std::cout << "      >> Non-flow-endpoints... none (FIFO with 0 max. queue size)" << std::endl;
+    if (m_disable_qdisc_non_endpoint_switches) {
+        tch_not_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
+        std::cout << "      >> Non-flow-endpoints... none (FIFO with 1 max. queue size)" << std::endl;
+    } else {
+        tch_endpoints.SetRootQueueDisc ("ns3::FqCoDelQueueDisc"); // This is default
+        std::cout << "      >> Non-flow-endpoints... default fq-co-del" << std::endl;
+    }
 
     // Create Links
     std::cout << "  > Installing links" << std::endl;
@@ -250,18 +263,18 @@ void BasicSimulation::SetupTcpParameters() {
     printf("  > Initial CWND: %u packets\n", init_cwnd_pkts);
     Config::SetDefault("ns3::TcpSocket::InitialCwnd", UintegerValue(init_cwnd_pkts));
 
-    // MTU = 1500 byte, so lets say each packet is that size
-    // 100 packets is default queue size, so at most 101 packets of queue + transmit
-    // Queueing + transmission delay/hop = 101 * 1500 byte / link data rate
+    // MTU = 1500 byte, +2 with the p2p header.
+    // There are n_q packets in the queue at most, e.g. n_q + 2 (incl. transmit and within mandatory 1-packet qdisc)
+    // Queueing + transmission delay/hop = (n_q + 2) * 1502 byte / link data rate
     // Propagation delay/hop = link delay
     //
-    // If the topology is big, lets assume 8 hops either direction worst case, so 16 hops total
-    // If the topology is not big, < 8 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
+    // If the topology is big, lets assume 10 hops either direction worst case, so 20 hops total
+    // If the topology is not big, < 10 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
     //
-    // num_hops * ((101 * 1500 bytes) / link data rate) + link delay)
-    int num_hops = std::min((int64_t) 16, m_topology->num_undirected_edges * 2);
+    // num_hops * (((n_q + 2) * 1502 byte) / link data rate) + link delay)
+    int num_hops = std::min((int64_t) 20, m_topology->num_undirected_edges * 2);
     double worst_case_rtt_ns =
-            num_hops * ((101 * 1500) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
+            num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
     printf("  > Estimated worst-case RTT: %.3f ms\n", worst_case_rtt_ns / 1e6);
 
     // Maximum segment lifetime

@@ -78,6 +78,9 @@ protected:
     int64_t m_simulation_end_time_ns;
     double m_link_data_rate_megabit_per_s;
     int64_t m_link_delay_ns;
+    int64_t m_link_max_queue_size_pkts;
+    bool m_disable_qdisc_endpoint_tors_xor_servers;
+    bool m_disable_qdisc_non_endpoint_switches;
 
     // Generated based on NS-3 variables
     NodeContainer m_nodes;

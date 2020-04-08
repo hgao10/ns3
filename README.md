@@ -85,6 +85,9 @@ General properties of the simulation. The following are always defined:
 * `simulation_seed` : If there is randomness present in the simulation, this guarantees reproducibility (exactly the same outcome) if the seed is the same
 * `link_data_rate_megabit_per_s` : Data rate set for all links (Mbit/s)
 * `link_delay_ns` : Propagation delay set for all links (ns)
+* `link_max_queue_size_pkts` : Maximum queue size for all links (no. of packets)
+* `disable_qdisc_endpoint_tors_xor_servers` : Whether to disable the traffic control queueing discipline at the endpoint nodes (if there are servers, servers, else those are the ToRs) (boolean: true/false)
+* `disable_qdisc_non_endpoint_switches` : Whether to disable the traffic control queueing discipline at non-endpoint nodes (if there are servers, all switches incl. ToRs, else all switches excl. ToRs) (boolean: true/false)
 
 **schedule.csv**
 

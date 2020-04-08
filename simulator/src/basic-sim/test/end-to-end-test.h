@@ -31,6 +31,9 @@ public:
         config_file << "simulation_seed=" << simulation_seed << std::endl;
         config_file << "link_data_rate_megabit_per_s=" << link_data_rate_megabit_per_s << std::endl;
         config_file << "link_delay_ns=" << link_delay_ns << std::endl;
+        config_file << "link_max_queue_size_pkts=100" << std::endl;
+        config_file << "disable_qdisc_endpoint_tors_xor_servers=false" << std::endl;
+        config_file << "disable_qdisc_non_endpoint_switches=true" << std::endl;
         config_file.close();
     }
 
