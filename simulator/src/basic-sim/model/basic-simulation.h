@@ -73,7 +73,7 @@ protected:
 
     // Config variables
     std::vector<schedule_entry_t> m_schedule;
-    Topology* m_topology;
+    Topology* m_topology = nullptr;
     int64_t m_simulation_seed;
     int64_t m_simulation_end_time_ns;
     double m_link_data_rate_megabit_per_s;
@@ -82,11 +82,14 @@ protected:
     bool m_disable_qdisc_endpoint_tors_xor_servers;
     bool m_disable_qdisc_non_endpoint_switches;
 
+    // Directly derived from config variables
+    int64_t m_worst_case_rtt_ns;
+
     // Generated based on NS-3 variables
     NodeContainer m_nodes;
     std::vector<std::pair<uint32_t, uint32_t>> m_interface_idxs_for_edges;
     std::vector<ApplicationContainer> m_apps;
-    RoutingArbiterEcmp* m_routingArbiterEcmp;
+    RoutingArbiterEcmp* m_routingArbiterEcmp = nullptr;
 
     // Progress show variables
     int64_t m_sim_start_time_ns_since_epoch;

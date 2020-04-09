@@ -9,16 +9,20 @@ BasicSimulation::BasicSimulation() {
 }
 
 BasicSimulation::~BasicSimulation() {
-    delete m_topology;
-    delete m_routingArbiterEcmp;
+    if (m_topology != nullptr) {
+        delete m_topology;
+    }
+    if (m_routingArbiterEcmp != nullptr) {
+        delete m_routingArbiterEcmp;
+    }
 }
 
 int64_t BasicSimulation::now_ns_since_epoch() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-void BasicSimulation::Run(std::string m_run_dir) {
-    this->m_run_dir = m_run_dir;
+void BasicSimulation::Run(std::string run_dir) {
+    m_run_dir = run_dir;
     m_timestamps.push_back(std::make_pair("Start", now_ns_since_epoch()));
     ConfigureRunDirectory();
     WriteFinished(false);
@@ -47,7 +51,7 @@ void BasicSimulation::ConfigureRunDirectory() {
     }
 
     // Logs in run directory
-    this->m_logs_dir = m_run_dir + "/logs_ns3";
+    m_logs_dir = m_run_dir + "/logs_ns3";
     if (dir_exists(m_logs_dir)) {
         printf("  > Emptying existing logs directory\n");
         remove_file_if_exists(m_logs_dir + "/finished.txt");
@@ -115,6 +119,20 @@ void BasicSimulation::ReadConfig() {
     m_timestamps.push_back(std::make_pair("Read schedule", now_ns_since_epoch()));
 
     std::cout << std::endl;
+
+    // MTU = 1500 byte, +2 with the p2p header.
+    // There are n_q packets in the queue at most, e.g. n_q + 2 (incl. transmit and within mandatory 1-packet qdisc)
+    // Queueing + transmission delay/hop = (n_q + 2) * 1502 byte / link data rate
+    // Propagation delay/hop = link delay
+    //
+    // If the topology is big, lets assume 10 hops either direction worst case, so 20 hops total
+    // If the topology is not big, < 10 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
+    //
+    // num_hops * (((n_q + 2) * 1502 byte) / link data rate) + link delay)
+    int num_hops = std::min((int64_t) 20, m_topology->num_undirected_edges * 2);
+    m_worst_case_rtt_ns = num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
+    printf("Estimated worst-case RTT: %.3f ms\n\n", m_worst_case_rtt_ns / 1e6);
+    
 }
 
 void BasicSimulation::ConfigureSimulation() {
@@ -182,9 +200,10 @@ void BasicSimulation::SetupLinks() {
         tch_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
         std::cout << "      >> Flow-endpoints....... none (FIFO with 1 max. queue size)" << std::endl;
     } else {
-        tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc"); // This is default
-        //tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue("20ms"), "Target", StringValue("1ms")); // TODO: Figure out what are reasonable settings here
-        std::cout << "      >> Flow-endpoints....... default fq-co-del" << std::endl;
+        std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
+        std::string target = format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
+        tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue(interval), "Target", StringValue(target));
+        printf("      >> Flow-endpoints....... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
     }
 
     // Qdisc for non-endpoints (i.e., if servers are defined, all switches, else the switches which are not ToRs)
@@ -193,8 +212,10 @@ void BasicSimulation::SetupLinks() {
         tch_not_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
         std::cout << "      >> Non-flow-endpoints... none (FIFO with 1 max. queue size)" << std::endl;
     } else {
-        tch_endpoints.SetRootQueueDisc ("ns3::FqCoDelQueueDisc"); // This is default
-        std::cout << "      >> Non-flow-endpoints... default fq-co-del" << std::endl;
+        std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
+        std::string target = format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
+        tch_not_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue(interval), "Target", StringValue(target));
+        printf("      >> Non-flow-endpoints... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
     }
 
     // Create Links
@@ -263,48 +284,33 @@ void BasicSimulation::SetupTcpParameters() {
     printf("  > Initial CWND: %u packets\n", init_cwnd_pkts);
     Config::SetDefault("ns3::TcpSocket::InitialCwnd", UintegerValue(init_cwnd_pkts));
 
-    // MTU = 1500 byte, +2 with the p2p header.
-    // There are n_q packets in the queue at most, e.g. n_q + 2 (incl. transmit and within mandatory 1-packet qdisc)
-    // Queueing + transmission delay/hop = (n_q + 2) * 1502 byte / link data rate
-    // Propagation delay/hop = link delay
-    //
-    // If the topology is big, lets assume 10 hops either direction worst case, so 20 hops total
-    // If the topology is not big, < 10 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
-    //
-    // num_hops * (((n_q + 2) * 1502 byte) / link data rate) + link delay)
-    int num_hops = std::min((int64_t) 20, m_topology->num_undirected_edges * 2);
-    double worst_case_rtt_ns =
-            num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
-    // TODO: Add accounting for qdisc queues here
-    printf("  > Estimated worst-case RTT: %.3f ms\n", worst_case_rtt_ns / 1e6);
-
     // Maximum segment lifetime
-    int64_t max_seg_lifetime_ns = 5 * worst_case_rtt_ns; // 120s is default
+    int64_t max_seg_lifetime_ns = 5 * m_worst_case_rtt_ns; // 120s is default
     printf("  > Maximum segment lifetime: %.3f ms\n", max_seg_lifetime_ns / 1e6);
     Config::SetDefault("ns3::TcpSocketBase::MaxSegLifetime", DoubleValue(max_seg_lifetime_ns / 1e9));
 
     // Minimum retransmission timeout
-    int64_t min_rto_ns = (int64_t)(1.5 * worst_case_rtt_ns);  // 1s is default, Linux uses 200ms
+    int64_t min_rto_ns = (int64_t)(1.5 * m_worst_case_rtt_ns);  // 1s is default, Linux uses 200ms
     printf("  > Minimum RTO: %.3f ms\n", min_rto_ns / 1e6);
     Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(NanoSeconds(min_rto_ns)));
 
     // Initial RTT estimate
-    int64_t initial_rtt_estimate_ns = 2 * worst_case_rtt_ns;  // 1s is default
+    int64_t initial_rtt_estimate_ns = 2 * m_worst_case_rtt_ns;  // 1s is default
     printf("  > Initial RTT measurement: %.3f ms\n", initial_rtt_estimate_ns / 1e6);
     Config::SetDefault("ns3::RttEstimator::InitialEstimation", TimeValue(NanoSeconds(initial_rtt_estimate_ns)));
 
     // Connection timeout
-    int64_t connection_timeout_ns = 2 * worst_case_rtt_ns;  // 3s is default
+    int64_t connection_timeout_ns = 2 * m_worst_case_rtt_ns;  // 3s is default
     printf("  > Connection timeout: %.3f ms\n", connection_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::ConnTimeout", TimeValue(NanoSeconds(connection_timeout_ns)));
 
     // Delayed ACK timeout
-    int64_t delayed_ack_timeout_ns = 0.2 * worst_case_rtt_ns;  // 0.2s is default
+    int64_t delayed_ack_timeout_ns = 0.2 * m_worst_case_rtt_ns;  // 0.2s is default
     printf("  > Delayed ACK timeout: %.3f ms\n", delayed_ack_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(NanoSeconds(delayed_ack_timeout_ns)));
 
     // Persist timeout
-    int64_t persist_timeout_ns = 4 * worst_case_rtt_ns;  // 6s is default
+    int64_t persist_timeout_ns = 4 * m_worst_case_rtt_ns;  // 6s is default
     printf("  > Persist timeout: %.3f ms\n", persist_timeout_ns / 1e6);
     Config::SetDefault("ns3::TcpSocket::PersistTimeout", TimeValue(NanoSeconds(persist_timeout_ns)));
 
