@@ -81,3 +81,25 @@ CwndChange (uint32_t oldCwnd, uint32_t newCwnd)
     ofs << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
     ofs.close();
 }
+
+////////////////////////////////////////////////////////
+/// TRACK RTT
+
+#include <fstream>
+
+std::ofstream ofs;
+ofs.open ("rtt.txt");
+ofs.close();
+
+void RttChange (Time oldT, Time newT);
+
+m_socket->TraceConnectWithoutContext ("RTT", MakeCallback (&FlowSendApplication::RttChange, this));
+
+void
+FlowSendApplication::RttChange (Time oldT, Time newT)
+{
+    std::ofstream ofs;
+    ofs.open ("rtt.txt", std::ofstream::out | std::ofstream::app);
+    ofs << m_flowId << "\t" << Simulator::Now ().GetSeconds () << "\t" << newT.GetSeconds() << std::endl;
+    ofs.close();
+}
