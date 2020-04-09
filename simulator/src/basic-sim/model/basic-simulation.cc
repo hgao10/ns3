@@ -132,7 +132,7 @@ void BasicSimulation::ReadConfig() {
     int num_hops = std::min((int64_t) 20, m_topology->num_undirected_edges * 2);
     m_worst_case_rtt_ns = num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
     printf("Estimated worst-case RTT: %.3f ms\n\n", m_worst_case_rtt_ns / 1e6);
-    
+
 }
 
 void BasicSimulation::ConfigureSimulation() {
@@ -353,7 +353,8 @@ void BasicSimulation::StartNextFlow(int i) {
     FlowSendHelper source(
             "ns3::TcpSocketFactory",
             InetSocketAddress(m_nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
-            entry.size_byte
+            entry.size_byte,
+            entry.flow_id
     );
 
     // Install it on the node and start it right now

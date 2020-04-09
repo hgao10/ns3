@@ -55,8 +55,9 @@ public:
    * \param address the address of the remote node to send traffic
    *        to.
    * \param maxBytes Amount of bytes to send
+   * \param flowId Flow identifier
    */
-  FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes);
+  FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes, int64_t flowId);
 
   /**
    * Install an ns3::FlowSendApplication on each node of the input container

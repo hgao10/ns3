@@ -63,6 +63,11 @@ FlowSendApplication::GetTypeId(void) {
                           UintegerValue(0),
                           MakeUintegerAccessor(&FlowSendApplication::m_maxBytes),
                           MakeUintegerChecker<uint64_t>())
+            .AddAttribute("FlowId",
+                          "Flow identifier",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&FlowSendApplication::m_flowId),
+                          MakeUintegerChecker<uint64_t>())
             .AddAttribute("Protocol", "The type of protocol to use.",
                           TypeIdValue(TcpSocketFactory::GetTypeId()),
                           MakeTypeIdAccessor(&FlowSendApplication::m_tid),
