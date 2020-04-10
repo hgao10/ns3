@@ -34,6 +34,7 @@
 #include "ns3/tcp-socket-base.h"
 #include "ns3/tcp-tx-buffer.h"
 #include "flow-send-application.h"
+#include <fstream>
 
 namespace ns3 {
 
