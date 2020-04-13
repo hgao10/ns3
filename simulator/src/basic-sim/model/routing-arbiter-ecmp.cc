@@ -112,7 +112,7 @@ RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pac
     // Protocol
     uint8_t protocol = header.GetProtocol();
     std::memcpy(&hash_input_buff[12], &protocol, 1);
-    
+
     // If there are ports, add them to the input
     switch (protocol) {
         case UDP_PROT_NUMBER: {

@@ -2,6 +2,7 @@
 /// SIMPLE RUN
 
 ./waf --run="main --run_dir='../runs/example_single'"
+NS_LOG="SomeClass=all" ./waf --run="main --run_dir='../runs/example_single'"
 
 ////////////////////////////////////////////////////////
 /// DEBUG EVENT QUEUE

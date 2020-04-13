@@ -219,12 +219,12 @@ void BasicSimulation::SetupLinks() {
         container.Get(1)->GetObject<PointToPointNetDevice>()->GetQueue()->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
 
         // Install traffic control
-        if (m_topology->is_valid_flow_endpoint(link.first)) {
+        if (m_topology->is_valid_endpoint(link.first)) {
             tch_endpoints.Install(container.Get(0));
         } else {
             tch_not_endpoints.Install(container.Get(0));
         }
-        if (m_topology->is_valid_flow_endpoint(link.second)) {
+        if (m_topology->is_valid_endpoint(link.second)) {
             tch_endpoints.Install(container.Get(1));
         } else {
             tch_not_endpoints.Install(container.Get(1));

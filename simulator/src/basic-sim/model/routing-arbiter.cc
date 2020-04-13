@@ -58,23 +58,40 @@ int32_t RoutingArbiter::decide_next_interface(int32_t current_node, Ptr<const Pa
 
     // Ipv4Address default constructor has IP 0x66666666 = 102.102.102.102 = 1717986918,
     // which is set by TcpSocketBase::SetupEndpoint to discover its actually source IP.
-    // In this case, the source node id is just the current node.
-    if (source_ip == 1717986918) {
+    bool is_request_for_source_ip = source_ip == 1717986918;
+
+    // If it is a request for source IP, the source node id is just the current node.
+    if (is_request_for_source_ip) {
         source_node_id = current_node;
     } else {
         source_node_id = resolve_node_id_from_ip(source_ip);
     }
     uint32_t target_node_id = resolve_node_id_from_ip(ipHeader.GetDestination().Get());
 
-    // Ask the routing which node should be next
-    int32_t selected_node_id = decide_next_node_id(
-            current_node,
-            source_node_id,
-            target_node_id,
-            topology->adjacency_list[current_node],
-            pkt,
-            ipHeader
-    );
+    // Decide the next node
+    int32_t selected_node_id;
+    if (is_request_for_source_ip) {
+
+        // We just select the first one in the adjacency set
+        auto first = topology->adjacency_list[current_node].begin();
+        if (first == topology->adjacency_list[current_node].end()) {
+            throw std::runtime_error("A node must have at least one interface as source IP.");
+        }
+        selected_node_id = *first;
+
+    } else {
+
+        // Now we do the real routing (if there is no route, this must throw an exception)
+        selected_node_id = decide_next_node_id(
+                current_node,
+                source_node_id,
+                target_node_id,
+                topology->adjacency_list[current_node],
+                pkt,
+                ipHeader
+        );
+
+    }
 
     // Invalid selected node id
     if (selected_node_id < 0 || selected_node_id >= topology->num_nodes) {

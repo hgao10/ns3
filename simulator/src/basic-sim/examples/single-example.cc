@@ -1,6 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "ns3/basic-simulation.h"
+#include "ns3/flow-scheduler.h"
 #include <iostream>
 #include <fstream>
 
@@ -44,8 +45,12 @@ int main(int argc, char *argv[]) {
     schedule_file.close();
 
     // Run the basic simulation
-    BasicSimulation simulation;
-    simulation.Run(example_dir);
+    BasicSimulation simulation(example_dir);
+    FlowScheduler flowScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+    flowScheduler.Schedule();
+    simulation.Run();
+    flowScheduler.WriteResults();
+    simulation.Finalize();
 
     return 0;
 }

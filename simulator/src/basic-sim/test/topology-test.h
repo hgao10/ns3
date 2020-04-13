@@ -66,8 +66,8 @@ public:
         ASSERT_EQUAL(topology.adjacency_list[1].size(), 1);
 
         // Check contents
-        ASSERT_TRUE(topology.is_valid_flow_endpoint(0));
-        ASSERT_TRUE(topology.is_valid_flow_endpoint(1));
+        ASSERT_TRUE(topology.is_valid_endpoint(0));
+        ASSERT_TRUE(topology.is_valid_endpoint(1));
         ASSERT_TRUE(set_int64_contains(topology.switches, 0));
         ASSERT_TRUE(set_int64_contains(topology.switches, 1));
         ASSERT_TRUE(set_int64_contains(topology.switches_which_are_tors, 0));
@@ -113,7 +113,7 @@ public:
         for (int i = 0; i < 8; i++) {
             if (i == 4) {
                 ASSERT_EQUAL(topology.adjacency_list[i].size(), 7);
-                ASSERT_FALSE(topology.is_valid_flow_endpoint(i));
+                ASSERT_FALSE(topology.is_valid_endpoint(i));
                 ASSERT_TRUE(set_int64_contains(topology.switches, i));
                 ASSERT_TRUE(set_int64_contains(topology.switches_which_are_tors, i));
                 ASSERT_FALSE(set_int64_contains(topology.servers, i));
@@ -124,7 +124,7 @@ public:
                 }
             } else {
                 ASSERT_EQUAL(topology.adjacency_list[i].size(), 1);
-                ASSERT_TRUE(topology.is_valid_flow_endpoint(i));
+                ASSERT_TRUE(topology.is_valid_endpoint(i));
                 ASSERT_FALSE(set_int64_contains(topology.switches, i));
                 ASSERT_FALSE(set_int64_contains(topology.switches_which_are_tors, i));
                 ASSERT_TRUE(set_int64_contains(topology.servers, i));
@@ -174,7 +174,7 @@ public:
         // Spines
         for (int i = 0; i < 4; i++) {
             ASSERT_EQUAL(topology.adjacency_list[i].size(), 9);
-            ASSERT_FALSE(topology.is_valid_flow_endpoint(i));
+            ASSERT_FALSE(topology.is_valid_endpoint(i));
             ASSERT_TRUE(set_int64_contains(topology.switches, i));
             ASSERT_FALSE(set_int64_contains(topology.switches_which_are_tors, i));
             ASSERT_FALSE(set_int64_contains(topology.servers, i));
@@ -183,7 +183,7 @@ public:
         // Leafs
         for (int i = 4; i < 13; i++) {
             ASSERT_EQUAL(topology.adjacency_list[i].size(), 8);
-            ASSERT_FALSE(topology.is_valid_flow_endpoint(i));
+            ASSERT_FALSE(topology.is_valid_endpoint(i));
             ASSERT_TRUE(set_int64_contains(topology.switches, i));
             ASSERT_TRUE(set_int64_contains(topology.switches_which_are_tors, i));
             ASSERT_FALSE(set_int64_contains(topology.servers, i));
@@ -198,7 +198,7 @@ public:
         // Servers
         for (int i = 13; i < 49; i++) {
             ASSERT_EQUAL(topology.adjacency_list[i].size(), 1);
-            ASSERT_TRUE(topology.is_valid_flow_endpoint(i));
+            ASSERT_TRUE(topology.is_valid_endpoint(i));
             ASSERT_FALSE(set_int64_contains(topology.switches, i));
             ASSERT_FALSE(set_int64_contains(topology.switches_which_are_tors, i));
             ASSERT_TRUE(set_int64_contains(topology.servers, i));
@@ -243,10 +243,10 @@ public:
         ASSERT_EQUAL(topology.adjacency_list[3].size(), 2);
 
         // Check contents
-        ASSERT_TRUE(topology.is_valid_flow_endpoint(0));
-        ASSERT_FALSE(topology.is_valid_flow_endpoint(1));
-        ASSERT_FALSE(topology.is_valid_flow_endpoint(2));
-        ASSERT_TRUE(topology.is_valid_flow_endpoint(3));
+        ASSERT_TRUE(topology.is_valid_endpoint(0));
+        ASSERT_FALSE(topology.is_valid_endpoint(1));
+        ASSERT_FALSE(topology.is_valid_endpoint(2));
+        ASSERT_TRUE(topology.is_valid_endpoint(3));
         for (int i = 0; i < 4; i++) {
             ASSERT_EQUAL(topology.adjacency_list[i].size(), 2);
             ASSERT_TRUE(set_int64_contains(topology.switches, i));

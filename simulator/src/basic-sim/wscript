@@ -22,6 +22,7 @@ def build(bld):
         'model/routing-arbiter.cc',
         'model/routing-arbiter-ecmp.cc',
         'model/flow-scheduler.cc',
+        'model/pingmesh-scheduler.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-sim')
@@ -45,6 +46,7 @@ def build(bld):
         'model/routing-arbiter.h',
         'model/routing-arbiter-ecmp.h',
         'model/flow-scheduler.h',
+        'model/pingmesh-scheduler.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:

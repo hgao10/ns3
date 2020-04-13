@@ -85,7 +85,7 @@ Topology::Topology(const std::string& filename) {
 
 }
 
-bool Topology::is_valid_flow_endpoint(int64_t node_id) {
+bool Topology::is_valid_endpoint(int64_t node_id) {
     if (has_zero_servers) {
         return this->switches_which_are_tors.find(node_id) != this->switches_which_are_tors.end();
     } else {

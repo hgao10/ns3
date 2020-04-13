@@ -75,7 +75,7 @@ void FlowScheduler::Schedule() {
 }
 
 void FlowScheduler::WriteResults() {
-    std::cout << "STORE TRAFFIC RESULTS" << std::endl;
+    std::cout << "STORE FLOW RESULTS" << std::endl;
 
     FILE* file_csv = fopen((m_basicSimulation->GetLogsDir() + "/flows.csv").c_str(), "w+");
     FILE* file_txt = fopen((m_basicSimulation->GetLogsDir() + "/flows.txt").c_str(), "w+");

@@ -17,7 +17,7 @@ public:
     std::vector<std::set<int64_t>> adjacency_list;
 
     Topology(const std::string& filename);
-    bool is_valid_flow_endpoint(int64_t node_id);
+    bool is_valid_endpoint(int64_t node_id);
     bool are_tors_endpoints();
 
 private:
