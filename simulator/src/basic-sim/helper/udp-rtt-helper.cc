@@ -94,24 +94,6 @@ UdpRttClientHelper::SetAttribute (
   m_factory.Set (name, value);
 }
 
-void
-UdpRttClientHelper::SetFill (Ptr<Application> app, std::string fill)
-{
-  app->GetObject<UdpRttClient>()->SetFill (fill);
-}
-
-void
-UdpRttClientHelper::SetFill (Ptr<Application> app, uint8_t fill, uint32_t dataLength)
-{
-  app->GetObject<UdpRttClient>()->SetFill (fill, dataLength);
-}
-
-void
-UdpRttClientHelper::SetFill (Ptr<Application> app, uint8_t *fill, uint32_t fillLength, uint32_t dataLength)
-{
-  app->GetObject<UdpRttClient>()->SetFill (fill, fillLength, dataLength);
-}
-
 ApplicationContainer
 UdpRttClientHelper::Install (Ptr<Node> node) const
 {

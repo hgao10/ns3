@@ -7,13 +7,6 @@ PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation) {
     m_topology = m_basicSimulation->GetTopology();
 }
 
-PingmeshScheduler::~PingmeshScheduler() {
-    for (RttPingTracer* tracer : m_rttPingTracers) {
-        delete tracer;
-    }
-    m_rttPingTracers.clear();
-}
-
 void PingmeshScheduler::Schedule() {
     std::cout << "SCHEDULING PINGMESH" << std::endl;
 
@@ -37,14 +30,9 @@ void PingmeshScheduler::Schedule() {
                         m_nodes->Get(j)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
                         1025
                 );
-                source.SetAttribute("MaxPackets", UintegerValue(1));
-                source.SetAttribute("PacketSize", UintegerValue(0));
 
                 // Install it on the node and start it right now
                 ApplicationContainer app = source.Install(m_nodes->Get(i));
-                RttPingTracer* tracer = new RttPingTracer(i, j);
-                m_rttPingTracers.push_back(tracer);
-                app.Get(0)->GetObject<UdpRttClient>()->TraceConnectWithoutContext("Rx", MakeCallback(&RttPingTracer::ReceivePacket, tracer));
                 app.Start(NanoSeconds(0));
                 m_apps.push_back(app);
 
@@ -63,7 +51,7 @@ void PingmeshScheduler::WriteResults() {
     FILE* file_csv = fopen((m_basicSimulation->GetLogsDir() + "/pingmesh.csv").c_str(), "w+");
     FILE* file_txt = fopen((m_basicSimulation->GetLogsDir() + "/pingmesh.txt").c_str(), "w+");
     fprintf(file_txt, "%-10s%-10s%s\n", "Source", "Target", "RTT");
-    for (RttPingTracer* tracer : m_rttPingTracers) {
+    /*for (RttPingTracer* tracer : m_rttPingTracers) {
 
         // Check that exactly one ping has been completed
         if (tracer->GetRtts().size() != 1) {
@@ -90,7 +78,7 @@ void PingmeshScheduler::WriteResults() {
                 from_node_id, to_node_id, str_rtt_ms
         );
 
-    }
+    }*/
     fclose(file_csv);
     fclose(file_txt);
 

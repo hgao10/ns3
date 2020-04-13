@@ -42,43 +42,11 @@
 
 namespace ns3 {
 
-class RttPingTracer {
-public:
-
-    RttPingTracer(int64_t from, int64_t to) {
-        m_from_node_id = from;
-        m_to_node_id = to;
-    }
-
-    void ReceivePacket(Ptr<const Packet>) {
-        m_rtts.push_back(Simulator::Now().GetNanoSeconds());
-    }
-
-    int64_t GetFrom() {
-        return m_from_node_id;
-    }
-
-    int64_t GetTo() {
-        return m_to_node_id;
-    }
-
-    std::vector<int64_t> GetRtts() {
-        return m_rtts;
-    }
-
-private:
-    int64_t m_from_node_id;
-    int64_t m_to_node_id;
-    std::vector<int64_t> m_rtts;
-
-};
-
 class PingmeshScheduler
 {
 
 public:
     PingmeshScheduler(BasicSimulation* basicSimulation);
-    ~PingmeshScheduler();
     void Schedule();
     void WriteResults();
 
@@ -89,7 +57,6 @@ protected:
     std::vector<schedule_entry_t> m_schedule;
     NodeContainer* m_nodes;
     std::vector<ApplicationContainer> m_apps;
-    std::vector<RttPingTracer*> m_rttPingTracers;
 
 };
 
