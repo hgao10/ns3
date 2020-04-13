@@ -159,10 +159,10 @@ UdpRttClient::Send(void) {
     m_receiveReplyTimestamps.push_back(-1);
     m_sent++;
 
-    Address localAddress;
-    m_socket->GetSockName(localAddress);
+    // Send out
     m_socket->Send(p);
 
+    // Schedule next transmit
     ScheduleTransmit(m_interval);
 
 }
