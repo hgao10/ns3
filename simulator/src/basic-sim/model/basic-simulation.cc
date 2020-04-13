@@ -85,22 +85,22 @@ void BasicSimulation::ReadConfig() {
     printf("\n");
 
     // End time
-    m_simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", m_config));
+    m_simulation_end_time_ns = parse_positive_int64(GetConfigParamOrFail("simulation_end_time_ns"));
 
     // Seed
-    m_simulation_seed = parse_positive_int64(get_param_or_fail("simulation_seed", m_config));
+    m_simulation_seed = parse_positive_int64(GetConfigParamOrFail("simulation_seed"));
 
     // Link properties
-    m_link_data_rate_megabit_per_s = parse_positive_double(get_param_or_fail("link_data_rate_megabit_per_s", m_config));
-    m_link_delay_ns = parse_positive_int64(get_param_or_fail("link_delay_ns", m_config));
-    m_link_max_queue_size_pkts = parse_positive_int64(get_param_or_fail("link_max_queue_size_pkts", m_config));
+    m_link_data_rate_megabit_per_s = parse_positive_double(GetConfigParamOrFail("link_data_rate_megabit_per_s"));
+    m_link_delay_ns = parse_positive_int64(GetConfigParamOrFail("link_delay_ns"));
+    m_link_max_queue_size_pkts = parse_positive_int64(GetConfigParamOrFail("link_max_queue_size_pkts"));
 
     // Qdisc properties
-    m_disable_qdisc_endpoint_tors_xor_servers = parse_boolean(get_param_or_fail("disable_qdisc_endpoint_tors_xor_servers", m_config));
-    m_disable_qdisc_non_endpoint_switches = parse_boolean(get_param_or_fail("disable_qdisc_non_endpoint_switches", m_config));
+    m_disable_qdisc_endpoint_tors_xor_servers = parse_boolean(GetConfigParamOrFail("disable_qdisc_endpoint_tors_xor_servers"));
+    m_disable_qdisc_non_endpoint_switches = parse_boolean(GetConfigParamOrFail("disable_qdisc_non_endpoint_switches"));
 
     // Read topology
-    m_topology = new Topology(m_run_dir + "/" + get_param_or_fail("filename_topology", m_config));
+    m_topology = new Topology(m_run_dir + "/" + GetConfigParamOrFail("filename_topology"));
     printf("TOPOLOGY\n-----\n");
     printf("%-25s  %" PRIu64 "\n", "# Nodes", m_topology->num_nodes);
     printf("%-25s  %" PRIu64 "\n", "# Undirected edges", m_topology->num_undirected_edges);
@@ -400,6 +400,14 @@ void BasicSimulation::CleanUpSimulation() {
     RegisterTimestamp("Destroy simulator");
 }
 
+void BasicSimulation::ConfirmAllConfigParamKeysRequested() {
+    for (const std::pair<std::string, std::string>& key_val : m_config) {
+        if (m_configRequestedKeys.find(key_val.first) == m_configRequestedKeys.end()) {
+            throw std::runtime_error(format_string("Config key \'%s\' has not been requested (unused config keys are not allowed)", key_val.first.c_str()));
+        }
+    }
+}
+
 void BasicSimulation::StoreTimingResults() {
     std::cout << "TIMING RESULTS" << std::endl;
     std::cout << "------" << std::endl;
@@ -430,6 +438,7 @@ void BasicSimulation::StoreTimingResults() {
 
 void BasicSimulation::Finalize() {
     CleanUpSimulation();
+    ConfirmAllConfigParamKeysRequested();
     StoreTimingResults();
     WriteFinished(true);
 }
@@ -447,6 +456,7 @@ int64_t BasicSimulation::GetSimulationEndTimeNs() {
 }
 
 std::string BasicSimulation::GetConfigParamOrFail(std::string key) {
+    m_configRequestedKeys.insert(key);
     return get_param_or_fail(key, m_config);
 }
 

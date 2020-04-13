@@ -76,6 +76,7 @@ protected:
     void ShowSimulationProgress();
     void RunSimulation();
     void CleanUpSimulation();
+    void ConfirmAllConfigParamKeysRequested();
     void StoreTimingResults();
 
     // List of all important events happening in the pipeline
@@ -87,6 +88,7 @@ protected:
 
     // Config variables
     std::map<std::string, std::string> m_config;
+    std::set<std::string> m_configRequestedKeys;
     Topology* m_topology = nullptr;
     int64_t m_simulation_seed;
     int64_t m_simulation_end_time_ns;
