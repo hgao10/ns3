@@ -28,8 +28,11 @@ void PingmeshScheduler::Schedule() {
                 // Helper to install the source application
                 UdpRttClientHelper source(
                         m_nodes->Get(j)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
-                        1025
+                        1025,
+                        i,
+                        j
                 );
+                source.SetAttribute("Interval", TimeValue(Seconds(1.0)));
 
                 // Install it on the node and start it right now
                 ApplicationContainer app = source.Install(m_nodes->Get(i));
@@ -50,35 +53,84 @@ void PingmeshScheduler::WriteResults() {
     // Write to CSV and TXT
     FILE* file_csv = fopen((m_basicSimulation->GetLogsDir() + "/pingmesh.csv").c_str(), "w+");
     FILE* file_txt = fopen((m_basicSimulation->GetLogsDir() + "/pingmesh.txt").c_str(), "w+");
-    fprintf(file_txt, "%-10s%-10s%s\n", "Source", "Target", "RTT");
-    /*for (RttPingTracer* tracer : m_rttPingTracers) {
+    fprintf(file_txt, "%-10s%-10s%-22s%-22s%-16s%-16s%-16s%-16s%s\n",
+            "Source", "Target", "Mean latency there", "Mean latency back",
+            "Min. RTT", "Mean RTT", "Max. RTT", "Smp.std. RTT", "Reply arrival");
+    for (uint32_t i = 0; i < m_apps.size(); i++) {
+        Ptr<UdpRttClient> client = m_apps[i].Get(0)->GetObject<UdpRttClient>();
 
-        // Check that exactly one ping has been completed
-        if (tracer->GetRtts().size() != 1) {
-            throw std::runtime_error("One of the pings has been lost.");
+        // Data about this pair
+        int64_t from_node_id = client->GetFromNodeId();
+        int64_t to_node_id = client->GetToNodeId();
+        uint32_t sent = client->GetSent();
+        std::vector<int64_t> sendRequestTimestamps = client->GetSendRequestTimestamps();
+        std::vector<int64_t> replyTimestamps = client->GetReplyTimestamps();
+        std::vector<int64_t> receiveReplyTimestamps = client->GetReceiveReplyTimestamps();
+
+        int total = 0;
+        double sum_latency_to_there = 0.0;
+        double sum_latency_from_there = 0.0;
+        int64_t min_rtt = 100000000000; // 100s
+        int64_t max_rtt = -1;
+        std::vector<int64_t> rtts;
+        for (uint32_t j = 0; j < sent; j++) {
+
+            // Outcome
+            bool reply_arrived = replyTimestamps[j] != -1;
+            std::string reply_arrived_str = reply_arrived ? "YES" : "LOST";
+
+            // Latencies
+            int64_t latency_to_there = reply_arrived ? replyTimestamps[j] - sendRequestTimestamps[j] : -100000000000;
+            int64_t latency_from_there = reply_arrived ? receiveReplyTimestamps[j] - replyTimestamps[j] : -100000000000;
+            int64_t rtt = reply_arrived ? latency_to_there + latency_from_there : -100000000000;
+
+            // Write plain to the csv
+            fprintf(
+                    file_csv,
+                    "%" PRId64 ",%" PRId64 ",%u,%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s\n",
+                    from_node_id, to_node_id, j, sendRequestTimestamps[j], replyTimestamps[j], receiveReplyTimestamps[j],
+                    latency_to_there, latency_from_there, rtt, reply_arrived_str.c_str()
+            );
+
+            // Add to statistics
+            if (reply_arrived) {
+                total++;
+                sum_latency_to_there += latency_to_there;
+                sum_latency_from_there += latency_from_there;
+                min_rtt = std::min(min_rtt, rtt);
+                max_rtt = std::max(max_rtt, rtt);
+                rtts.push_back(rtt);
+            }
+
         }
 
-        // Retrieve statistics
-        int64_t from_node_id = tracer->GetFrom();
-        int64_t to_node_id = tracer->GetTo();
-        int64_t rtt_ns = tracer->GetRtts()[0];
-
-        // Write plain to the csv
-        fprintf(
-                file_csv,
-                "%" PRId64 ",%" PRId64 ",%" PRId64 "\n",
-                from_node_id, to_node_id, rtt_ns
-        );
+        // Calculate the sample standard deviation
+        double mean_rtt = (sum_latency_to_there + sum_latency_from_there) / total;
+        double sum_sq = 0.0;
+        for (uint32_t j = 0; j < rtts.size(); j++) {
+            sum_sq += std::pow(rtts[j] - mean_rtt, 2);
+        }
+        double sample_std_rtt = rtts.size() > 1 ? std::sqrt((1.0 / (rtts.size() - 1)) *  sum_sq) : 0.0;
 
         // Write nicely formatted to the text
-        char str_rtt_ms[100];
-        sprintf(str_rtt_ms, "%.2f ms", nanosec_to_millisec(rtt_ns));
+        char str_latency_to_there_ms[100];
+        sprintf(str_latency_to_there_ms, "%.2f ms", nanosec_to_millisec(sum_latency_to_there / total));
+        char str_latency_from_there_ms[100];
+        sprintf(str_latency_from_there_ms, "%.2f ms", nanosec_to_millisec(sum_latency_from_there / total));
+        char str_min_rtt_ms[100];
+        sprintf(str_min_rtt_ms, "%.2f ms", nanosec_to_millisec(min_rtt));
+        char str_mean_rtt_ms[100];
+        sprintf(str_mean_rtt_ms, "%.2f ms", nanosec_to_millisec(mean_rtt));
+        char str_max_rtt_ms[100];
+        sprintf(str_max_rtt_ms, "%.2f ms", nanosec_to_millisec(max_rtt));
+        char str_sample_std_rtt[100];
+        sprintf(str_sample_std_rtt, "%.2f ms", nanosec_to_millisec(sample_std_rtt));
         fprintf(
-                file_txt, "%-10" PRId64 "%-10" PRId64 "%s\n",
-                from_node_id, to_node_id, str_rtt_ms
+                file_txt, "%-10" PRId64 "%-10" PRId64 "%-22s%-22s%-16s%-16s%-16s%-16s%d/%d (%.0f%%)\n",
+                from_node_id, to_node_id, str_latency_to_there_ms, str_latency_from_there_ms, str_min_rtt_ms, str_mean_rtt_ms, str_max_rtt_ms, str_sample_std_rtt, total, sent, ((double) total / (double) sent) * 100.0
         );
 
-    }*/
+    }
     fclose(file_csv);
     fclose(file_txt);
 

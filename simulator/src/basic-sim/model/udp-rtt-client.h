@@ -39,6 +39,10 @@ public:
   virtual ~UdpRttClient ();
   void SetRemote (Address ip, uint16_t port);
   void SetRemote (Address addr);
+
+  uint32_t GetFromNodeId();
+  uint32_t GetToNodeId();
+  uint32_t GetSent();
   std::vector<int64_t> GetSendRequestTimestamps();
   std::vector<int64_t> GetReplyTimestamps();
   std::vector<int64_t> GetReceiveReplyTimestamps();
@@ -60,6 +64,8 @@ private:
   uint16_t m_peerPort; //!< Remote peer port
   EventId m_sendEvent; //!< Event to send the next packet
 
+  uint32_t m_fromNodeId;
+  uint32_t m_toNodeId;
   uint32_t m_sent; //!< Counter for sent packets
   std::vector<int64_t> m_sendRequestTimestamps;
   std::vector<int64_t> m_replyTimestamps;

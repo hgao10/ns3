@@ -55,7 +55,17 @@ UdpRttClient::GetTypeId(void) {
                           "The destination port of the outbound packets",
                           UintegerValue(0),
                           MakeUintegerAccessor(&UdpRttClient::m_peerPort),
-                          MakeUintegerChecker<uint16_t>());
+                          MakeUintegerChecker<uint16_t>())
+            .AddAttribute("FromNodeId",
+                          "From node identifier",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&UdpRttClient::m_fromNodeId),
+                          MakeUintegerChecker<uint64_t>())
+            .AddAttribute("ToNodeId",
+                          "To node identifier",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&UdpRttClient::m_toNodeId),
+                          MakeUintegerChecker<uint64_t>());
     return tid;
 }
 
@@ -143,7 +153,7 @@ UdpRttClient::Send(void) {
     seqTs.SetSeq(m_sent);
     p->AddHeader(seqTs);
 
-    // Statistics
+    // Timestamps
     m_sendRequestTimestamps.push_back(Simulator::Now().GetNanoSeconds());
     m_replyTimestamps.push_back(-1);
     m_receiveReplyTimestamps.push_back(-1);
@@ -172,9 +182,21 @@ UdpRttClient::HandleRead(Ptr <Socket> socket) {
 
         // Update the local timestamps
         m_replyTimestamps[seqNo] = incomingSeqTs.GetTs().GetNanoSeconds();
-        m_receiveReplyTimestamps.push_back(Simulator::Now().GetNanoSeconds());
+        m_receiveReplyTimestamps[seqNo] = Simulator::Now().GetNanoSeconds();
 
     }
+}
+
+uint32_t UdpRttClient::GetFromNodeId() {
+    return m_fromNodeId;
+}
+
+uint32_t UdpRttClient::GetToNodeId() {
+    return m_toNodeId;
+}
+
+uint32_t UdpRttClient::GetSent() {
+    return m_sent;
 }
 
 std::vector<int64_t> UdpRttClient::GetSendRequestTimestamps() {

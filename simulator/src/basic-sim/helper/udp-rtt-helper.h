@@ -114,7 +114,7 @@ public:
    * \param ip The IP address of the remote udp rtt server
    * \param port The port number of the remote udp rtt server
    */
-  UdpRttClientHelper (Address ip, uint16_t port);
+  UdpRttClientHelper (Address ip, uint16_t port, uint32_t from_node_id, uint32_t to_node_id);
   /**
    * Create UdpRttClientHelper which will make life easier for people trying
    * to set up simulations with rtts. Use this variant with addresses that do
