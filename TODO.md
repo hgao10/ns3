@@ -1,2 +1,2 @@
-Add flowlet switching
-Possibly separate Run() into Setup(), Run() and Finalize()
+* Add flowlet switching
+* Add different qdiscs

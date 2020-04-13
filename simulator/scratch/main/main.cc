@@ -11,6 +11,7 @@
 #include <chrono>
 #include <stdexcept>
 #include "ns3/basic-simulation.h"
+#include "ns3/flow-scheduler.h"
 
 using namespace ns3;
 
@@ -31,8 +32,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Start the simulation using this run directory
-    BasicSimulation simulation;
-    simulation.Run(run_dir);
+    BasicSimulation simulation(run_dir);
+    FlowScheduler flowScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+    flowScheduler.Schedule();
+    simulation.Run();
+    flowScheduler.WriteResults();
+    simulation.Finalize();
 
     return 0;
 

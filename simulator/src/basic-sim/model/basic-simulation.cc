@@ -4,8 +4,17 @@
 
 namespace ns3 {
 
-BasicSimulation::BasicSimulation() {
-    // Left intentionally empty
+BasicSimulation::BasicSimulation(std::string run_dir) {
+    m_run_dir = run_dir;
+    m_timestamps.push_back(std::make_pair("Start", now_ns_since_epoch()));
+    ConfigureRunDirectory();
+    WriteFinished(false);
+    ReadConfig();
+    ConfigureSimulation();
+    SetupNodes();
+    SetupLinks();
+    SetupRouting();
+    SetupTcpParameters();
 }
 
 BasicSimulation::~BasicSimulation() {
@@ -21,23 +30,12 @@ int64_t BasicSimulation::now_ns_since_epoch() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-void BasicSimulation::Run(std::string run_dir) {
-    m_run_dir = run_dir;
-    m_timestamps.push_back(std::make_pair("Start", now_ns_since_epoch()));
-    ConfigureRunDirectory();
-    WriteFinished(false);
-    ReadConfig();
-    ConfigureSimulation();
-    SetupNodes();
-    SetupLinks();
-    SetupRouting();
-    SetupTcpParameters();
-    ScheduleApplications();
-    RunSimulation();
-    StoreApplicationResults();
-    CleanUpSimulation();
-    StoreTimingResults();
-    WriteFinished(true);
+void BasicSimulation::RegisterTimestamp(std::string label) {
+    m_timestamps.push_back(std::make_pair(label, now_ns_since_epoch()));
+}
+
+void BasicSimulation::RegisterTimestamp(std::string label, int64_t t) {
+    m_timestamps.push_back(std::make_pair(label, t));
 }
 
 void BasicSimulation::ConfigureRunDirectory() {
@@ -64,7 +62,7 @@ void BasicSimulation::ConfigureRunDirectory() {
     printf("  > Logs directory: %s\n", m_logs_dir.c_str());
     printf("\n");
 
-    m_timestamps.push_back(std::make_pair("Configure run directory", now_ns_since_epoch()));
+    RegisterTimestamp("Configure run directory");
 }
 
 void BasicSimulation::WriteFinished(bool finished) {
@@ -76,33 +74,33 @@ void BasicSimulation::WriteFinished(bool finished) {
 void BasicSimulation::ReadConfig() {
 
     // Read the config
-    std::map<std::string, std::string> config = read_config(m_run_dir + "/config_ns3.properties");
+    m_config = read_config(m_run_dir + "/config_ns3.properties");
 
     // Print full config
-    printf("CONFIGURATION\n-----\nKEY                             VALUE\n");
+    printf("CONFIGURATION\n-----\nKEY                                       VALUE\n");
     std::map<std::string, std::string>::iterator it;
-    for ( it = config.begin(); it != config.end(); it++ ) {
-        printf("%-30s  %s\n", it->first.c_str(), it->second.c_str());
+    for ( it = m_config.begin(); it != m_config.end(); it++ ) {
+        printf("%-40s  %s\n", it->first.c_str(), it->second.c_str());
     }
     printf("\n");
 
     // End time
-    m_simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", config));
+    m_simulation_end_time_ns = parse_positive_int64(get_param_or_fail("simulation_end_time_ns", m_config));
 
     // Seed
-    m_simulation_seed = parse_positive_int64(get_param_or_fail("simulation_seed", config));
+    m_simulation_seed = parse_positive_int64(get_param_or_fail("simulation_seed", m_config));
 
     // Link properties
-    m_link_data_rate_megabit_per_s = parse_positive_double(get_param_or_fail("link_data_rate_megabit_per_s", config));
-    m_link_delay_ns = parse_positive_int64(get_param_or_fail("link_delay_ns", config));
-    m_link_max_queue_size_pkts = parse_positive_int64(get_param_or_fail("link_max_queue_size_pkts", config));
+    m_link_data_rate_megabit_per_s = parse_positive_double(get_param_or_fail("link_data_rate_megabit_per_s", m_config));
+    m_link_delay_ns = parse_positive_int64(get_param_or_fail("link_delay_ns", m_config));
+    m_link_max_queue_size_pkts = parse_positive_int64(get_param_or_fail("link_max_queue_size_pkts", m_config));
 
     // Qdisc properties
-    m_disable_qdisc_endpoint_tors_xor_servers = parse_boolean(get_param_or_fail("disable_qdisc_endpoint_tors_xor_servers", config));
-    m_disable_qdisc_non_endpoint_switches = parse_boolean(get_param_or_fail("disable_qdisc_non_endpoint_switches", config));
+    m_disable_qdisc_endpoint_tors_xor_servers = parse_boolean(get_param_or_fail("disable_qdisc_endpoint_tors_xor_servers", m_config));
+    m_disable_qdisc_non_endpoint_switches = parse_boolean(get_param_or_fail("disable_qdisc_non_endpoint_switches", m_config));
 
     // Read topology
-    m_topology = new Topology(m_run_dir + "/" + get_param_or_fail("filename_topology", config));
+    m_topology = new Topology(m_run_dir + "/" + get_param_or_fail("filename_topology", m_config));
     printf("TOPOLOGY\n-----\n");
     printf("%-25s  %" PRIu64 "\n", "# Nodes", m_topology->num_nodes);
     printf("%-25s  %" PRIu64 "\n", "# Undirected edges", m_topology->num_undirected_edges);
@@ -110,15 +108,7 @@ void BasicSimulation::ReadConfig() {
     printf("%-25s  %" PRIu64 "\n", "# ... of which ToRs", m_topology->switches_which_are_tors.size());
     printf("%-25s  %" PRIu64 "\n", "# Servers", m_topology->servers.size());
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Read topology", now_ns_since_epoch()));
-
-    // Read schedule
-    m_schedule = read_schedule(m_run_dir + "/" + get_param_or_fail("filename_schedule", config), *m_topology, m_simulation_end_time_ns);
-    printf("SCHEDULE\n");
-    printf("  > Read schedule (total flow start events: %lu)\n", m_schedule.size());
-    m_timestamps.push_back(std::make_pair("Read schedule", now_ns_since_epoch()));
-
-    std::cout << std::endl;
+    RegisterTimestamp("Read topology");
 
     // MTU = 1500 byte, +2 with the p2p header.
     // There are n_q packets in the queue at most, e.g. n_q + 2 (incl. transmit and within mandatory 1-packet qdisc)
@@ -147,7 +137,7 @@ void BasicSimulation::ConfigureSimulation() {
     printf("  > Duration: %.2f s (%" PRId64 " ns)\n", m_simulation_end_time_ns / 1e9, m_simulation_end_time_ns);
 
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Configure simulator", now_ns_since_epoch()));
+    RegisterTimestamp("Configure simulator");
 }
 
 void BasicSimulation::SetupNodes() {
@@ -162,7 +152,7 @@ void BasicSimulation::SetupNodes() {
     internet.Install(m_nodes);
 
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Create and install nodes", now_ns_since_epoch()));
+    RegisterTimestamp("Create and install nodes", now_ns_since_epoch());
 }
 
 void BasicSimulation::SetupLinks() {
@@ -252,7 +242,7 @@ void BasicSimulation::SetupLinks() {
     }
 
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Create links and edge-to-interface-index mapping", now_ns_since_epoch()));
+    RegisterTimestamp("Create links and edge-to-interface-index mapping");
 }
 
 void BasicSimulation::SetupRouting() {
@@ -261,15 +251,15 @@ void BasicSimulation::SetupRouting() {
     // Calculate and instantiate the routing
     std::cout << "  > Calculating ECMP routing" << std::endl;
     m_routingArbiterEcmp = new RoutingArbiterEcmp(m_topology, m_nodes, m_interface_idxs_for_edges); // Remains alive for the entire simulation
-    m_timestamps.push_back(std::make_pair("Routing arbiter base", m_routingArbiterEcmp->get_base_init_finish_ns_since_epoch()));
-    m_timestamps.push_back(std::make_pair("Routing arbiter ECMP", m_routingArbiterEcmp->get_ecmp_init_finish_ns_since_epoch()));
+    RegisterTimestamp("Routing arbiter base", m_routingArbiterEcmp->get_base_init_finish_ns_since_epoch());
+    RegisterTimestamp("Routing arbiter ECMP", m_routingArbiterEcmp->get_ecmp_init_finish_ns_since_epoch());
     std::cout << "  > Setting the routing protocol on each node" << std::endl;
     for (int i = 0; i < m_topology->num_nodes; i++) {
         m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(m_routingArbiterEcmp);
     }
 
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Setup routing arbiter on each node", now_ns_since_epoch()));
+    RegisterTimestamp("Setup routing arbiter on each node");
 }
 
 void BasicSimulation::SetupTcpParameters() {
@@ -337,59 +327,7 @@ void BasicSimulation::SetupTcpParameters() {
     Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(segment_size_byte));
 
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Setup TCP parameters", now_ns_since_epoch()));
-}
-
-void BasicSimulation::StartNextFlow(int i) {
-
-    // Fetch the flow to start
-    schedule_entry_t& entry = m_schedule[i];
-    int64_t now_ns = Simulator::Now().GetNanoSeconds();
-    if (now_ns != entry.start_time_ns) {
-        throw std::runtime_error("Scheduling start of a flow went horribly wrong");
-    }
-
-    // Helper to install the source application
-    FlowSendHelper source(
-            "ns3::TcpSocketFactory",
-            InetSocketAddress(m_nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
-            entry.size_byte,
-            entry.flow_id
-    );
-
-    // Install it on the node and start it right now
-    ApplicationContainer app = source.Install(m_nodes.Get(entry.from_node_id));
-    app.Start(NanoSeconds(0));
-    m_apps.push_back(app);
-
-    // If there is a next flow to start, schedule its start
-    if (i + 1 != (int) m_schedule.size()) {
-        int64_t next_flow_ns = m_schedule[i + 1].start_time_ns;
-        Simulator::Schedule(NanoSeconds(next_flow_ns - now_ns), &BasicSimulation::StartNextFlow, this, i + 1);
-    }
-
-}
-
-void BasicSimulation::ScheduleApplications() {
-    std::cout << "SCHEDULING APPLICATIONS" << std::endl;
-
-    // Install sink on each node
-    std::cout << "  > Setting up sinks" << std::endl;
-    for (int i = 0; i < m_topology->num_nodes; i++) {
-        FlowSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), 1024));
-        ApplicationContainer app = sink.Install(m_nodes.Get(i));
-        app.Start(Seconds(0.0));
-    }
-    m_timestamps.push_back(std::make_pair("Setup traffic sinks", now_ns_since_epoch()));
-
-    // Setup all source applications
-    std::cout << "  > Setting up traffic flow starter" << std::endl;
-    if (m_schedule.size() > 0) {
-        Simulator::Schedule(NanoSeconds(m_schedule[0].start_time_ns), &BasicSimulation::StartNextFlow, this, 0);
-    }
-
-    std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Setup traffic flow starter", now_ns_since_epoch()));
+    RegisterTimestamp("Setup TCP parameters");
 }
 
 void BasicSimulation::ShowSimulationProgress() {
@@ -431,7 +369,7 @@ void BasicSimulation::ShowSimulationProgress() {
     Simulator::Schedule(Seconds(m_simulation_event_interval_s), &BasicSimulation::ShowSimulationProgress, this);
 }
 
-void BasicSimulation::RunSimulation() {
+void BasicSimulation::Run() {
     std::cout << "SIMULATION" << std::endl;
 
     // Schedule progress printing
@@ -451,85 +389,7 @@ void BasicSimulation::RunSimulation() {
             (now_ns_since_epoch() - m_sim_start_time_ns_since_epoch) / 1e9
     );
 
-    m_timestamps.push_back(std::make_pair("Run simulation", now_ns_since_epoch()));
-}
-
-void BasicSimulation::StoreApplicationResults() {
-    std::cout << "STORE TRAFFIC RESULTS" << std::endl;
-
-    FILE* file_csv = fopen((m_logs_dir + "/flows.csv").c_str(), "w+");
-    FILE* file_txt = fopen((m_logs_dir + "/flows.txt").c_str(), "w+");
-    fprintf(
-            file_txt, "%-12s%-10s%-10s%-16s%-18s%-18s%-16s%-16s%-13s%-16s%-14s%s\n",
-            "Flow ID", "Source", "Target", "Size", "Start time (ns)",
-            "End time (ns)", "Duration", "Sent", "Progress", "Avg. rate", "Finished?", "Metadata"
-    );
-    std::vector<ApplicationContainer>::iterator it = m_apps.begin();
-    for (schedule_entry_t& entry : m_schedule) {
-
-        // Retrieve statistics
-        ApplicationContainer app = *it;
-        Ptr<FlowSendApplication> flowSendApp = ((it->Get(0))->GetObject<FlowSendApplication>());
-        bool is_completed = flowSendApp->IsCompleted();
-        bool is_conn_failed = flowSendApp->IsConnFailed();
-        bool is_closed_err = flowSendApp->IsClosedByError();
-        bool is_closed_normal = flowSendApp->IsClosedNormally();
-        int64_t sent_byte = flowSendApp->GetAckedBytes();
-        int64_t fct_ns;
-        if (is_completed) {
-            fct_ns = flowSendApp->GetCompletionTimeNs() - entry.start_time_ns;
-        } else {
-            fct_ns = m_simulation_end_time_ns - entry.start_time_ns;
-        }
-        std::string finished_state;
-        if (is_completed) {
-            finished_state = "YES";
-        } else if (is_conn_failed) {
-            finished_state = "NO_CONN_FAIL";
-        } else if (is_closed_normal) {
-            finished_state = "NO_BAD_CLOSE";
-        } else if (is_closed_err) {
-            finished_state = "NO_ERR_CLOSE";
-        } else {
-            finished_state = "NO_ONGOING";
-        }
-
-        // Write plain to the csv
-        fprintf(
-                file_csv, "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 ",%s,%s\n",
-                entry.flow_id, entry.from_node_id, entry.to_node_id, entry.size_byte, entry.start_time_ns,
-                entry.start_time_ns + fct_ns, fct_ns, sent_byte, finished_state.c_str(), entry.metadata.c_str()
-        );
-
-        // Write nicely formatted to the text
-        char str_size_megabit[100];
-        sprintf(str_size_megabit, "%.2f Mbit", byte_to_megabit(entry.size_byte));
-        char str_duration_ms[100];
-        sprintf(str_duration_ms, "%.2f ms", nanosec_to_millisec(fct_ns));
-        char str_sent_megabit[100];
-        sprintf(str_sent_megabit, "%.2f Mbit", byte_to_megabit(sent_byte));
-        char str_progress_perc[100];
-        sprintf(str_progress_perc, "%.1f%%", ((double) sent_byte) / ((double) entry.size_byte) * 100.0);
-        char str_avg_rate_megabit_per_s[100];
-        sprintf(str_avg_rate_megabit_per_s, "%.1f Mbit/s", byte_to_megabit(sent_byte) / nanosec_to_sec(fct_ns));
-        fprintf(
-                file_txt, "%-12" PRId64 "%-10" PRId64 "%-10" PRId64 "%-16s%-18" PRId64 "%-18" PRId64 "%-16s%-16s%-13s%-16s%-14s%s\n",
-                entry.flow_id, entry.from_node_id, entry.to_node_id, str_size_megabit, entry.start_time_ns,
-                entry.start_time_ns + fct_ns, str_duration_ms, str_sent_megabit, str_progress_perc, str_avg_rate_megabit_per_s,
-                finished_state.c_str(), entry.metadata.c_str()
-        );
-
-        // Move on iterator
-        it++;
-
-    }
-    fclose(file_csv);
-    fclose(file_txt);
-
-    std::cout << "  > Flow log files have been written" << std::endl;
-
-    std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Write flow log files", now_ns_since_epoch()));
+    RegisterTimestamp("Run simulation");
 }
 
 void BasicSimulation::CleanUpSimulation() {
@@ -537,7 +397,7 @@ void BasicSimulation::CleanUpSimulation() {
     Simulator::Destroy();
     std::cout << "  > Simulator is destroyed" << std::endl;
     std::cout << std::endl;
-    m_timestamps.push_back(std::make_pair("Destroy simulator", now_ns_since_epoch()));
+    RegisterTimestamp("Destroy simulator");
 }
 
 void BasicSimulation::StoreTimingResults() {
@@ -566,6 +426,36 @@ void BasicSimulation::StoreTimingResults() {
     fileTimingResults.close();
 
     std::cout << std::endl;
+}
+
+void BasicSimulation::Finalize() {
+    CleanUpSimulation();
+    StoreTimingResults();
+    WriteFinished(true);
+}
+
+NodeContainer* BasicSimulation::GetNodes() {
+    return &m_nodes;
+}
+
+Topology* BasicSimulation::GetTopology() {
+    return m_topology;
+}
+
+int64_t BasicSimulation::GetSimulationEndTimeNs() {
+    return m_simulation_end_time_ns;
+}
+
+std::string BasicSimulation::GetConfigParamOrFail(std::string key) {
+    return get_param_or_fail(key, m_config);
+}
+
+std::string BasicSimulation::GetLogsDir() {
+    return m_logs_dir;
+}
+
+std::string BasicSimulation::GetRunDir() {
+    return m_run_dir;
 }
 
 }

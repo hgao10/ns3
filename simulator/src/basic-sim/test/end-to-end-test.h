@@ -1,6 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "ns3/basic-simulation.h"
+#include "ns3/flow-scheduler.h"
 #include "ns3/test.h"
 #include "test-helpers.h"
 #include <iostream>
@@ -73,8 +74,12 @@ public:
         schedule_file.close();
 
         // Perform basic simulation
-        BasicSimulation simulation;
-        simulation.Run(temp_dir);
+        BasicSimulation simulation(temp_dir);
+        FlowScheduler flowScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+        flowScheduler.Schedule();
+        simulation.Run();
+        flowScheduler.WriteResults();
+        simulation.Finalize();
 
         // Check finished.txt
         std::vector<std::string> finished_lines = read_file_direct(temp_dir + "/logs_ns3/finished.txt");
@@ -344,8 +349,7 @@ public:
     EndToEndNonExistentRunDirTestCase () : TestCase ("end-to-end non-existent-run-dir") {};
 
     void DoRun () {
-        BasicSimulation simulation;
-        ASSERT_EXCEPTION(simulation.Run("path/to/non/existent/run/dir"));
+        ASSERT_EXCEPTION(BasicSimulation simulation("path/to/non/existent/run/dir"));
     }
 
 };

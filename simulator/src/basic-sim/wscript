@@ -21,6 +21,7 @@ def build(bld):
         'helper/ipv4-arbitrary-routing-helper.cc',
         'model/routing-arbiter.cc',
         'model/routing-arbiter-ecmp.cc',
+        'model/flow-scheduler.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-sim')
@@ -43,6 +44,7 @@ def build(bld):
         'helper/ipv4-arbitrary-routing-helper.h',
         'model/routing-arbiter.h',
         'model/routing-arbiter-ecmp.h',
+        'model/flow-scheduler.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:

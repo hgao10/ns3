@@ -42,12 +42,29 @@ class BasicSimulation
 {
 
 public:
-    BasicSimulation();
+
+    // Primary
+    BasicSimulation(std::string run_dir);
     ~BasicSimulation();
-    void Run(std::string run_dir);
+    void Run();
+    void Finalize();
+
+    // Timestamps to track performance
+    int64_t now_ns_since_epoch();
+    void RegisterTimestamp(std::string label);
+    void RegisterTimestamp(std::string label, int64_t t);
+
+    // Getters
+    NodeContainer* GetNodes();
+    Topology* GetTopology();
+    int64_t GetSimulationEndTimeNs();
+    std::string GetConfigParamOrFail(std::string key);
+    std::string GetLogsDir();
+    std::string GetRunDir();
 
 protected:
-    int64_t now_ns_since_epoch();
+
+    // Internal setup
     void ConfigureRunDirectory();
     void WriteFinished(bool finished);
     void ReadConfig();
@@ -56,11 +73,8 @@ protected:
     void SetupLinks();
     void SetupRouting();
     void SetupTcpParameters();
-    void StartNextFlow(int i);
-    void ScheduleApplications();
     void ShowSimulationProgress();
     void RunSimulation();
-    void StoreApplicationResults();
     void CleanUpSimulation();
     void StoreTimingResults();
 
@@ -72,7 +86,7 @@ protected:
     std::string m_logs_dir;
 
     // Config variables
-    std::vector<schedule_entry_t> m_schedule;
+    std::map<std::string, std::string> m_config;
     Topology* m_topology = nullptr;
     int64_t m_simulation_seed;
     int64_t m_simulation_end_time_ns;
@@ -88,7 +102,6 @@ protected:
     // Generated based on NS-3 variables
     NodeContainer m_nodes;
     std::vector<std::pair<uint32_t, uint32_t>> m_interface_idxs_for_edges;
-    std::vector<ApplicationContainer> m_apps;
     RoutingArbiterEcmp* m_routingArbiterEcmp = nullptr;
 
     // Progress show variables
