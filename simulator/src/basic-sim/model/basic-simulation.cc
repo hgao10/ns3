@@ -369,8 +369,19 @@ void BasicSimulation::ShowSimulationProgress() {
     Simulator::Schedule(Seconds(m_simulation_event_interval_s), &BasicSimulation::ShowSimulationProgress, this);
 }
 
+void BasicSimulation::ConfirmAllConfigParamKeysRequested() {
+    for (const std::pair<std::string, std::string>& key_val : m_config) {
+        if (m_configRequestedKeys.find(key_val.first) == m_configRequestedKeys.end()) {
+            throw std::runtime_error(format_string("Config key \'%s\' has not been requested (unused config keys are not allowed)", key_val.first.c_str()));
+        }
+    }
+}
+
 void BasicSimulation::Run() {
     std::cout << "SIMULATION" << std::endl;
+
+    // Before it starts to run, we need to have processed all the config
+    ConfirmAllConfigParamKeysRequested();
 
     // Schedule progress printing
     m_sim_start_time_ns_since_epoch = now_ns_since_epoch();
@@ -398,14 +409,6 @@ void BasicSimulation::CleanUpSimulation() {
     std::cout << "  > Simulator is destroyed" << std::endl;
     std::cout << std::endl;
     RegisterTimestamp("Destroy simulator");
-}
-
-void BasicSimulation::ConfirmAllConfigParamKeysRequested() {
-    for (const std::pair<std::string, std::string>& key_val : m_config) {
-        if (m_configRequestedKeys.find(key_val.first) == m_configRequestedKeys.end()) {
-            throw std::runtime_error(format_string("Config key \'%s\' has not been requested (unused config keys are not allowed)", key_val.first.c_str()));
-        }
-    }
 }
 
 void BasicSimulation::StoreTimingResults() {
@@ -438,7 +441,6 @@ void BasicSimulation::StoreTimingResults() {
 
 void BasicSimulation::Finalize() {
     CleanUpSimulation();
-    ConfirmAllConfigParamKeysRequested();
     StoreTimingResults();
     WriteFinished(true);
 }

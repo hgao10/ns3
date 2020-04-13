@@ -57,6 +57,7 @@ protected:
     std::vector<schedule_entry_t> m_schedule;
     NodeContainer* m_nodes;
     std::vector<ApplicationContainer> m_apps;
+    int64_t m_interval_ns;
 
 };
 
