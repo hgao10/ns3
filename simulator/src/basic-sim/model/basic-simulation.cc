@@ -6,7 +6,7 @@ namespace ns3 {
 
 BasicSimulation::BasicSimulation(std::string run_dir) {
     m_run_dir = run_dir;
-    m_timestamps.push_back(std::make_pair("Start", now_ns_since_epoch()));
+    RegisterTimestamp("Start");
     ConfigureRunDirectory();
     WriteFinished(false);
     ReadConfig();
@@ -152,7 +152,7 @@ void BasicSimulation::SetupNodes() {
     internet.Install(m_nodes);
 
     std::cout << std::endl;
-    RegisterTimestamp("Create and install nodes", now_ns_since_epoch());
+    RegisterTimestamp("Create and install nodes");
 }
 
 void BasicSimulation::SetupLinks() {
