@@ -20,7 +20,7 @@ void PingmeshScheduler::Schedule() {
     // Install echo server on each node
     std::cout << "  > Setting up echo servers" << std::endl;
     for (int i = 0; i < m_topology->num_nodes; i++) {
-        UdpEchoServerHelper echoServerHelper(1025);
+        UdpRttServerHelper echoServerHelper(1025);
         ApplicationContainer app = echoServerHelper.Install(m_nodes->Get(i));
         app.Start(Seconds(0.0));
     }
@@ -33,7 +33,7 @@ void PingmeshScheduler::Schedule() {
             if (m_topology->is_valid_endpoint(i) && m_topology->is_valid_endpoint(j) && i != j) {
 
                 // Helper to install the source application
-                UdpEchoClientHelper source(
+                UdpRttClientHelper source(
                         m_nodes->Get(j)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
                         1025
                 );
@@ -44,7 +44,7 @@ void PingmeshScheduler::Schedule() {
                 ApplicationContainer app = source.Install(m_nodes->Get(i));
                 RttPingTracer* tracer = new RttPingTracer(i, j);
                 m_rttPingTracers.push_back(tracer);
-                app.Get(0)->GetObject<UdpEchoClient>()->TraceConnectWithoutContext("Rx", MakeCallback(&RttPingTracer::ReceivePacket, tracer));
+                app.Get(0)->GetObject<UdpRttClient>()->TraceConnectWithoutContext("Rx", MakeCallback(&RttPingTracer::ReceivePacket, tracer));
                 app.Start(NanoSeconds(0));
                 m_apps.push_back(app);
 

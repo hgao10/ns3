@@ -36,6 +36,9 @@
 #include "ns3/ipv4-arbitrary-routing-helper.h"
 #include "ns3/traffic-control-helper.h"
 #include "ns3/basic-simulation.h"
+#include "ns3/udp-rtt-helper.h"
+#include "ns3/udp-rtt-client.h"
+#include "ns3/udp-rtt-server.h"
 
 namespace ns3 {
 
