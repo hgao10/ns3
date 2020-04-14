@@ -7,6 +7,7 @@
 #include "simon-util-test.h"
 #include "topology-test.h"
 #include "routing-arbiter-test.h"
+#include "pingmesh-test.h"
 
 using namespace ns3;
 
@@ -39,6 +40,7 @@ public:
         AddTestCase(new RoutingArbiterBadImplTestCase, TestCase::QUICK);
         // Disabled because it takes too long for a quick test:
         // AddTestCase(new RoutingArbiterEcmpTooBigFailTestCase, TestCase::QUICK);
+        AddTestCase(new PingmeshOneToOneTestCase, TestCase::QUICK);
     }
 };
 static BasicSimTestSuite basicSimTestSuite;

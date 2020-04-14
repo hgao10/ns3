@@ -82,19 +82,6 @@ UdpRttClient::~UdpRttClient() {
 }
 
 void
-UdpRttClient::SetRemote(Address ip, uint16_t port) {
-    NS_LOG_FUNCTION(this << ip << port);
-    m_peerAddress = ip;
-    m_peerPort = port;
-}
-
-void
-UdpRttClient::SetRemote(Address addr) {
-    NS_LOG_FUNCTION(this << addr);
-    m_peerAddress = addr;
-}
-
-void
 UdpRttClient::DoDispose(void) {
     NS_LOG_FUNCTION(this);
     Application::DoDispose();
