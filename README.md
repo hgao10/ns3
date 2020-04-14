@@ -174,6 +174,8 @@ Now we can get started:
 
 4. Now you have to make your own application etc. etc. -- you can look at `src/applications/model` for some other example applications.
 
+5. You could even consider splitting your work into your own ns-3 module (e.g., use `python create-module.py yourown` within `simulator/src` -- be sure to set `basic-sim` (and `basic-apps` if you use any of it) as your dependency)
+
 
 ## Some recommendations and notes
 
