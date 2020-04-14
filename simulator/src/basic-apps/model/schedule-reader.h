@@ -10,8 +10,8 @@
 #include <cinttypes>
 #include <algorithm>
 #include <regex>
-#include "simon-util.h"
-#include "topology.h"
+#include "ns3/simon-util.h"
+#include "ns3/topology.h"
 
 namespace ns3 {
 

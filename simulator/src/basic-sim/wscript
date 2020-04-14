@@ -10,22 +10,12 @@ def build(bld):
     module = bld.create_ns3_module('basic-sim', ['core', 'internet', 'applications', 'point-to-point', 'traffic-control'])
     module.source = [
         'model/basic-simulation.cc',
-        'model/flow-send-application.cc',
-        'model/flow-sink.cc',
-        'model/schedule-reader.cc',
         'model/simon-util.cc',
         'model/topology.cc',
-        'helper/flow-send-helper.cc',
-        'helper/flow-sink-helper.cc',
         'model/ipv4-arbitrary-routing.cc',
         'helper/ipv4-arbitrary-routing-helper.cc',
         'model/routing-arbiter.cc',
         'model/routing-arbiter-ecmp.cc',
-        'model/flow-scheduler.cc',
-        'model/pingmesh-scheduler.cc',
-        'model/udp-rtt-client.cc',
-        'model/udp-rtt-server.cc',
-        'helper/udp-rtt-helper.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-sim')
@@ -37,22 +27,12 @@ def build(bld):
     headers.module = 'basic-sim'
     headers.source = [
         'model/basic-simulation.h',
-        'model/flow-send-application.h',
-        'model/flow-sink.h',
-        'model/schedule-reader.h',
         'model/simon-util.h',
         'model/topology.h',
-        'helper/flow-send-helper.h',
-        'helper/flow-sink-helper.h',
         'model/ipv4-arbitrary-routing.h',
         'helper/ipv4-arbitrary-routing-helper.h',
         'model/routing-arbiter.h',
         'model/routing-arbiter-ecmp.h',
-        'model/flow-scheduler.h',
-        'model/pingmesh-scheduler.h',
-        'model/udp-rtt-client.h',
-        'model/udp-rtt-server.h',
-        'helper/udp-rtt-helper.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:

@@ -24,7 +24,10 @@ int main(int argc, char *argv[]) {
     config_file << "simulation_end_time_ns=1000000000" << std::endl;
     config_file << "simulation_seed=123456789" << std::endl;
     config_file << "link_data_rate_megabit_per_s=100" << std::endl;
-    config_file << "link_delay_ns=10000"<< std::endl;
+    config_file << "link_delay_ns=10000" << std::endl;
+    config_file << "link_max_queue_size_pkts=100" << std::endl;
+    config_file << "disable_qdisc_endpoint_tors_xor_servers=false" << std::endl;
+    config_file << "disable_qdisc_non_endpoint_switches=false" << std::endl;
     config_file.close();
 
     // Write topology file (0 - 1)
