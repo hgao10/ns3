@@ -11,18 +11,23 @@ PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation) {
 void PingmeshScheduler::Schedule() {
     std::cout << "SCHEDULING PINGMESH" << std::endl;
 
+    // Info
+    std::cout << "  > Ping interval: " << m_interval_ns << " ns" << std::endl;
+
+    // Retrieve endpoints
+    std::set<int64_t> endpoints = m_topology->get_endpoints();
+
     // Install echo server on each node
-    std::cout << "  > Setting up echo servers" << std::endl;
-    for (int i = 0; i < m_topology->num_nodes; i++) {
+    std::cout << "  > Setting up " << endpoints.size() << " pingmesh servers" << std::endl;
+    for (int64_t i : endpoints) {
         UdpRttServerHelper echoServerHelper(1025);
         ApplicationContainer app = echoServerHelper.Install(m_nodes->Get(i));
         app.Start(Seconds(0.0));
     }
-    m_basicSimulation->RegisterTimestamp("Setup pingmesh echo servers");
+    m_basicSimulation->RegisterTimestamp("Setup pingmesh servers");
 
     // Install echo client from each node to each other node
-    std::cout << "  > Setting up echo clients" << std::endl;
-    std::set<int64_t> endpoints = m_topology->get_endpoints();
+    std::cout << "  > Setting up " << (endpoints.size() * (endpoints.size() - 1)) << " pingmesh clients" << std::endl;
     int64_t in_between_ns = m_interval_ns / (endpoints.size() - 1);
     for (int64_t i : endpoints) {
         int counter = 0;
@@ -49,7 +54,7 @@ void PingmeshScheduler::Schedule() {
     }
 
     std::cout << std::endl;
-    m_basicSimulation->RegisterTimestamp("Setup pingmesh echo clients");
+    m_basicSimulation->RegisterTimestamp("Setup pingmesh clients");
 }
 
 void PingmeshScheduler::WriteResults() {
