@@ -19,6 +19,7 @@ public:
     Topology(const std::string& filename);
     bool is_valid_endpoint(int64_t node_id);
     bool are_tors_endpoints();
+    std::set<int64_t> get_endpoints();
 
 private:
     bool has_zero_servers;

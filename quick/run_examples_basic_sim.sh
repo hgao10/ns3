@@ -8,3 +8,10 @@ do
   mkdir ../runs/${experiment}/logs_ns3
   ./waf --run="main --run_dir='../runs/${experiment}'" 2>&1 | tee ../runs/${experiment}/logs_ns3/console.txt
 done
+
+for experiment in "example_grid_pingmesh"
+do
+  rm -rf ../runs/${experiment}/logs_ns3
+  mkdir ../runs/${experiment}/logs_ns3
+  ./waf --run="main_pingmesh --run_dir='../runs/${experiment}'" 2>&1 | tee ../runs/${experiment}/logs_ns3/console.txt
+done

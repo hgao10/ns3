@@ -31,6 +31,7 @@ public:
         ASSERT_EQUAL(topology.undirected_edges.size(), 0);
         ASSERT_EQUAL(topology.undirected_edges_set.size(), 0);
         ASSERT_EQUAL(topology.adjacency_list.size(), 0);
+        ASSERT_EQUAL(topology.get_endpoints().size(), 0);
         remove_file_if_exists("topology.properties.temp");
     }
 };
@@ -64,6 +65,7 @@ public:
         ASSERT_EQUAL(topology.adjacency_list.size(), 2);
         ASSERT_EQUAL(topology.adjacency_list[0].size(), 1);
         ASSERT_EQUAL(topology.adjacency_list[1].size(), 1);
+        ASSERT_EQUAL(topology.get_endpoints().size(), 2);
 
         // Check contents
         ASSERT_TRUE(topology.is_valid_endpoint(0));
@@ -77,6 +79,9 @@ public:
         ASSERT_TRUE(set_pair_int64_contains(topology.undirected_edges_set, std::make_pair<int64_t, int64_t>(0, 1)));
         ASSERT_TRUE(set_int64_contains(topology.adjacency_list[0], 1));
         ASSERT_TRUE(set_int64_contains(topology.adjacency_list[1], 0));
+        std::set<int64_t> endpoints = topology.get_endpoints();
+        ASSERT_TRUE(set_int64_contains(endpoints, 0));
+        ASSERT_TRUE(set_int64_contains(endpoints, 1));
 
     }
 };
@@ -108,6 +113,8 @@ public:
         ASSERT_EQUAL(topology.undirected_edges.size(), 7);
         ASSERT_EQUAL(topology.undirected_edges_set.size(), 7);
         ASSERT_EQUAL(topology.adjacency_list.size(), 8);
+        std::set<int64_t> endpoints = topology.get_endpoints();
+        ASSERT_EQUAL(endpoints.size(), 7);
 
         // Check contents
         for (int i = 0; i < 8; i++) {
@@ -117,6 +124,7 @@ public:
                 ASSERT_TRUE(set_int64_contains(topology.switches, i));
                 ASSERT_TRUE(set_int64_contains(topology.switches_which_are_tors, i));
                 ASSERT_FALSE(set_int64_contains(topology.servers, i));
+                ASSERT_FALSE(set_int64_contains(endpoints, i));
                 for (int j = 0; j < 8; j++) {
                     if (j != 4) {
                         ASSERT_TRUE(set_int64_contains(topology.adjacency_list[i], j));
@@ -128,6 +136,7 @@ public:
                 ASSERT_FALSE(set_int64_contains(topology.switches, i));
                 ASSERT_FALSE(set_int64_contains(topology.switches_which_are_tors, i));
                 ASSERT_TRUE(set_int64_contains(topology.servers, i));
+                ASSERT_TRUE(set_int64_contains(endpoints, i));
                 ASSERT_TRUE(set_int64_contains(topology.adjacency_list[i], 4));
                 int a = i > 4 ? 4 : i;
                 int b = i > 4 ? i : 4;

@@ -22,9 +22,12 @@ void PingmeshScheduler::Schedule() {
 
     // Install echo client from each node to each other node
     std::cout << "  > Setting up echo clients" << std::endl;
-    for (int i = 0; i < m_topology->num_nodes; i++) {
-        for (int j = 0; j < m_topology->num_nodes; j++) {
-            if (m_topology->is_valid_endpoint(i) && m_topology->is_valid_endpoint(j) && i != j) {
+    std::set<int64_t> endpoints = m_topology->get_endpoints();
+    int64_t in_between_ns = m_interval_ns / (endpoints.size() - 1);
+    for (int64_t i : endpoints) {
+        int counter = 0;
+        for (int64_t j : endpoints) {
+            if (i != j) {
 
                 // Helper to install the source application
                 UdpRttClientHelper source(
@@ -37,9 +40,10 @@ void PingmeshScheduler::Schedule() {
 
                 // Install it on the node and start it right now
                 ApplicationContainer app = source.Install(m_nodes->Get(i));
-                app.Start(NanoSeconds(0));
+                app.Start(NanoSeconds(counter * in_between_ns));
                 m_apps.push_back(app);
 
+                counter++;
             }
         }
     }

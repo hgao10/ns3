@@ -93,6 +93,14 @@ bool Topology::is_valid_endpoint(int64_t node_id) {
     }
 }
 
+std::set<int64_t> Topology::get_endpoints() {
+    if (has_zero_servers) {
+        return this->switches_which_are_tors;
+    } else {
+        return this->servers;
+    }
+}
+
 bool Topology::are_tors_endpoints() {
     return has_zero_servers;
 }
