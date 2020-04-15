@@ -79,7 +79,7 @@ xdg-open test-results-basic-apps.txt
  
  ## Speed-up the simulation
  
-If you want to speed-up the simulation (disables logging), configuring as follows helps:
+If you want to speed-up the simulation, configuring as follows helps (this effectively removes all ns-3 logging statements in the code at compile-time):
  ```
  ./waf configure --build-profile=optimized --out=build/optimized
  ```
@@ -90,7 +90,7 @@ The run folder must contain the input of a simulation. It is the basis of every 
 
 **config_ns3.properties**
 
-General properties of the simulation. The following are always defined:
+General properties of the simulation. The following MUST always be defined:
 
 * `filename_topology` : Topology filename (relative to run folder)
 * `simulation_end_time_ns` : How long to run the simulation in simulation time (ns)
