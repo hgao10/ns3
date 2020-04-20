@@ -26,17 +26,20 @@
 #include "ns3/inet-socket-address.h"
 #include "ns3/packet-socket-address.h"
 #include "ns3/string.h"
+#include "ns3/boolean.h"
 #include "ns3/names.h"
 
 namespace ns3 {
 
-FlowSendHelper::FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes, int64_t flowId)
+FlowSendHelper::FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes, int64_t flowId, bool enableFlowLoggingToFile, std::string baseLogsDir)
 {
   m_factory.SetTypeId ("ns3::FlowSendApplication");
   m_factory.Set ("Protocol", StringValue (protocol));
   m_factory.Set ("Remote", AddressValue (address));
   m_factory.Set ("MaxBytes", UintegerValue (maxBytes));
   m_factory.Set ("FlowId", UintegerValue (flowId));
+  m_factory.Set ("EnableFlowLoggingToFile", BooleanValue (enableFlowLoggingToFile));
+  m_factory.Set ("BaseLogsDir", StringValue (baseLogsDir));
 }
 
 ApplicationContainer

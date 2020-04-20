@@ -35,6 +35,7 @@ public:
         config_file << "link_max_queue_size_pkts=100" << std::endl;
         config_file << "disable_qdisc_endpoint_tors_xor_servers=false" << std::endl;
         config_file << "disable_qdisc_non_endpoint_switches=false" << std::endl;
+        config_file << "enable_flow_logging_to_file_for_flow_ids=set(0)" << std::endl;
         config_file.close();
     }
 

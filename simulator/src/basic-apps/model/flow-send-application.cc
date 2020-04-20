@@ -25,6 +25,7 @@
 #include "ns3/node.h"
 #include "ns3/nstime.h"
 #include "ns3/socket.h"
+#include "ns3/string.h"
 #include "ns3/simulator.h"
 #include "ns3/socket-factory.h"
 #include "ns3/packet.h"
@@ -33,6 +34,7 @@
 #include "ns3/tcp-socket-factory.h"
 #include "ns3/tcp-socket-base.h"
 #include "ns3/tcp-tx-buffer.h"
+#include "ns3/simon-util.h"
 #include "flow-send-application.h"
 #include <fstream>
 
@@ -49,7 +51,7 @@ FlowSendApplication::GetTypeId(void) {
             .SetGroupName("Applications")
             .AddConstructor<FlowSendApplication>()
             .AddAttribute("SendSize", "The amount of data to send each time.",
-                          UintegerValue(10000),
+                          UintegerValue(100000),
                           MakeUintegerAccessor(&FlowSendApplication::m_sendSize),
                           MakeUintegerChecker<uint32_t>(1))
             .AddAttribute("Remote", "The address of the destination",
@@ -73,6 +75,16 @@ FlowSendApplication::GetTypeId(void) {
                           TypeIdValue(TcpSocketFactory::GetTypeId()),
                           MakeTypeIdAccessor(&FlowSendApplication::m_tid),
                           MakeTypeIdChecker())
+            .AddAttribute("EnableFlowLoggingToFile",
+                          "True iff you want to track some aspects (progress, CWND, RTT) of the flow over time.",
+                          BooleanValue(true),
+                          MakeBooleanAccessor(&FlowSendApplication::m_enableFlowLoggingToFile),
+                          MakeBooleanChecker())
+            .AddAttribute ("BaseLogsDir",
+                           "Base logging directory (flow logging will be placed here, i.e. logs_dir/flow-[flow id]-{progress, cwnd, rtt}.txt",
+                           StringValue (""),
+                           MakeStringAccessor (&FlowSendApplication::m_baseLogsDir),
+                           MakeStringChecker ())
             .AddTraceSource("Tx", "A new packet is created and is sent",
                             MakeTraceSourceAccessor(&FlowSendApplication::m_txTrace),
                             "ns3::Packet::TracedCallback");
@@ -146,6 +158,18 @@ void FlowSendApplication::StartApplication(void) { // Called at time specified b
                 MakeCallback(&FlowSendApplication::SocketClosedNormal, this),
                 MakeCallback(&FlowSendApplication::SocketClosedError, this)
         );
+        if (m_enableFlowLoggingToFile) {
+            std::ofstream ofs;
+            ofs.open(m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-progress.txt", m_flowId));
+            ofs.close();
+            m_socket->TraceConnectWithoutContext ("HighestRxAck", MakeCallback (&FlowSendApplication::HighestRxAckChange, this));
+            ofs.open(m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-cwnd.txt", m_flowId));
+            ofs.close();
+            m_socket->TraceConnectWithoutContext ("CongestionWindow", MakeCallback (&FlowSendApplication::CwndChange, this));
+            ofs.open(m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-rtt.txt", m_flowId));
+            ofs.close();
+            m_socket->TraceConnectWithoutContext ("RTT", MakeCallback (&FlowSendApplication::RttChange, this));
+        }
     }
     if (m_connected) {
         SendData();
@@ -269,6 +293,33 @@ void FlowSendApplication::SocketClosedError(Ptr <Socket> socket) {
     m_ackedBytes = m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
     m_isCompleted = false;
     m_socket = 0;
+}
+
+void
+FlowSendApplication::HighestRxAckChange(SequenceNumber<unsigned int, int> oldHighestRxAck, SequenceNumber<unsigned int, int> newHighestRxAck)
+{
+    std::ofstream ofs;
+    ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-progress.txt", m_flowId), std::ofstream::out | std::ofstream::app);
+    ofs << m_flowId << "\t" << Simulator::Now ().GetNanoSeconds () << "\t" << (m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()) << std::endl;
+    ofs.close();
+}
+
+void
+FlowSendApplication::CwndChange(uint32_t oldCwnd, uint32_t newCwnd)
+{
+    std::ofstream ofs;
+    ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-cwnd.txt", m_flowId), std::ofstream::out | std::ofstream::app);
+    ofs << m_flowId << "\t" << Simulator::Now ().GetNanoSeconds () << "\t" << newCwnd << std::endl;
+    ofs.close();
+}
+
+void
+FlowSendApplication::RttChange (Time oldRtt, Time newRtt)
+{
+    std::ofstream ofs;
+    ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-rtt.txt", m_flowId), std::ofstream::out | std::ofstream::app);
+    ofs << m_flowId << "\t" << Simulator::Now ().GetNanoSeconds () << "\t" << newRtt.GetNanoSeconds() << std::endl;
+    ofs.close();
 }
 
 } // Namespace ns3

@@ -27,6 +27,7 @@
 #include "ns3/application.h"
 #include "ns3/event-id.h"
 #include "ns3/ptr.h"
+#include "ns3/string.h"
 #include "ns3/traced-callback.h"
 
 namespace ns3 {
@@ -76,7 +77,10 @@ private:
   uint64_t        m_ackedBytes;       //!< Amount of acknowledged bytes cached after close of the socket
   bool            m_isCompleted;      //!< True iff the flow is completed fully AND closed normally
 
-  /// Traced Callback: sent packets
+  // Flow logging
+  bool m_enableFlowLoggingToFile;          //!< True iff you want to write flow logs
+  std::string m_baseLogsDir;               //!< Where the flow logs will be written to:
+                                           //!<   logs_dir/flow-[id]-{progress, cwnd, rtt}.txt
   TracedCallback<Ptr<const Packet> > m_txTrace;
 
 private:
@@ -85,6 +89,9 @@ private:
   void DataSend (Ptr<Socket>, uint32_t);
   void SocketClosedNormal(Ptr<Socket> socket);
   void SocketClosedError(Ptr<Socket> socket);
+  void RttChange(Time oldRtt, Time newRtt);
+  void CwndChange(uint32_t oldCwnd, uint32_t newCwnd);
+  void HighestRxAckChange(SequenceNumber<unsigned int, int> oldHighestRxAck, SequenceNumber<unsigned int, int> newHighestRxAck);
 
 };
 

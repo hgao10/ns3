@@ -59,6 +59,7 @@ public:
     Topology* GetTopology();
     int64_t GetSimulationEndTimeNs();
     std::string GetConfigParamOrFail(std::string key);
+    std::string GetConfigParamOrDefault(std::string key, std::string default_value);
     std::string GetLogsDir();
     std::string GetRunDir();
 

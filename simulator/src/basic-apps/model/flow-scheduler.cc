@@ -7,6 +7,7 @@ FlowScheduler::FlowScheduler(BasicSimulation* basicSimulation) {
     m_nodes = basicSimulation->GetNodes();
     m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
     m_topology = m_basicSimulation->GetTopology();
+    m_enableFlowLoggingToFileForFlowIds = parse_set_positive_int64(m_basicSimulation->GetConfigParamOrDefault("enable_flow_logging_to_file_for_flow_ids", "set()"));
 
     // Read schedule
     m_schedule = read_schedule(
@@ -36,7 +37,9 @@ void FlowScheduler::StartNextFlow(int i) {
             "ns3::TcpSocketFactory",
             InetSocketAddress(m_nodes->Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
             entry.size_byte,
-            entry.flow_id
+            entry.flow_id,
+            m_enableFlowLoggingToFileForFlowIds.find(entry.flow_id) != m_enableFlowLoggingToFileForFlowIds.end(),
+            m_basicSimulation->GetLogsDir()
     );
 
     // Install it on the node and start it right now

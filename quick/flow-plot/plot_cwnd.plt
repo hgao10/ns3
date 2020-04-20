@@ -42,7 +42,7 @@ set output "plot_cwnd.pdf"
 
 # Axes labels
 set xlabel "Time (s)" # Markup: e.g. 99^{th}, {/Symbol s}, {/Helvetica-Italic P}
-set ylabel "Segments"
+set ylabel "CWND (segments)"
 
 # Axes ranges
 set xrange [0:]       # Explicitly set the x-range [lower:upper]
@@ -65,5 +65,5 @@ set key spacing 2
 
 #####################################
 ### PLOTS
-
-plot    "cwnd.txt" using 1:($2/1380) title "CWND" w lp ls 1, \
+set datafile separator ","
+plot    "flow-0-cwnd.txt" using ($2/1000000000):($3/1380) title "" w lp ls 1, \

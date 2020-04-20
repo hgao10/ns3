@@ -56,8 +56,10 @@ public:
    *        to.
    * \param maxBytes Amount of bytes to send
    * \param flowId Flow identifier
+   * \param enableFlowLoggingToFile True iff enable flow logging to file
+   * \param baseLogsDir Base log directory
    */
-  FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes, int64_t flowId);
+  FlowSendHelper (std::string protocol, Address address, uint64_t maxBytes, int64_t flowId, bool enableFlowLoggingToFile, std::string baseLogsDir);
 
   /**
    * Install an ns3::FlowSendApplication on each node of the input container

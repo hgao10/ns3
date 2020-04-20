@@ -462,6 +462,11 @@ std::string BasicSimulation::GetConfigParamOrFail(std::string key) {
     return get_param_or_fail(key, m_config);
 }
 
+std::string BasicSimulation::GetConfigParamOrDefault(std::string key, std::string default_value) {
+    m_configRequestedKeys.insert(key);
+    return get_param_or_default(key, default_value, m_config);
+}
+
 std::string BasicSimulation::GetLogsDir() {
     return m_logs_dir;
 }

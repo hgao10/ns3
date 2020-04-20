@@ -122,6 +122,10 @@ You MUST set the following key in `config_ns3.properties`:
 
 * `filename_schedule` : Schedule filename (relative to run folder) (path/to/schedule.csv)
 
+The following are OPTIONAL in `config_ns3.properties`:
+
+* `enable_flow_logging_to_file_for_flow_ids` : Set of flow identifiers for which you want logging to file for progress, cwnd and RTT (located at `logs_dir/flow-[id]-{progress, cwnd, rtt}.txt`). Example value: `set(0, 1`) to log for flows 0 and 1. The file format is: `flow_id,now_in_ns,[progress_byte/cwnd_byte/rtt_ns])`.
+
 **schedule.csv**
 
 Flow arrival schedule. 
