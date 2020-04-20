@@ -35,14 +35,14 @@ set style line 8 lt rgb "#7d7d7d" lw 2.4 pt 0 ps 1.4
 set style line 9 lt rgb "#000000" lw 2.4 pt 0 ps 1.4
 
 # Output
-set output "plot_progress.pdf"
+set output "plot_rate.pdf"
 
 #####################################
 ### AXES AND KEY
 
 # Axes labels
 set xlabel "Time (s)" # Markup: e.g. 99^{th}, {/Symbol s}, {/Helvetica-Italic P}
-set ylabel "Progress (Mbit)"
+set ylabel "Rate (Mbit/s)"
 
 # Axes ranges
 set xrange [0:]       # Explicitly set the x-range [lower:upper]
@@ -66,4 +66,4 @@ set key spacing 2
 #####################################
 ### PLOTS
 set datafile separator ","
-plot    "flow-0-progress.txt" using ($2/1000000000):($3/125000) title "" w lp ls 1, \
+plot    "flow-0-rate.txt" using ($2/1000000000):($3/1000000) title "" w lp ls 1, \

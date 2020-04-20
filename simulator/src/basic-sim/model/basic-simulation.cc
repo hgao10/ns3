@@ -326,8 +326,15 @@ void BasicSimulation::SetupTcpParameters() {
     printf("  > Segment size: %" PRId64 " byte\n", segment_size_byte);
     Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(segment_size_byte));
 
-    // Disable timestamp option
-    bool opt_timestamp_enabled = false; // Default: true. We set it to false because the timestamp option is limited to a resolution of 1ms.
+    // Timestamp option
+    bool opt_timestamp_enabled = true;  // Default: true.
+                                        // To get an RTT measurement with a resolution of less than 1ms, it needs
+                                        // to be disabled because the fields in the TCP Option are in milliseconds.
+                                        // When disabling it, there are two downsides:
+                                        //  (1) Less protection against wrapped sequence numbers (PAWS)
+                                        //  (2) Algorithm to see if it has entered loss recovery unnecessarily are not as possible (Eiffel)
+                                        // See: https://tools.ietf.org/html/rfc7323#section-3
+                                        //      https://tools.ietf.org/html/rfc3522
     printf("  > Timestamp option: %s\n", opt_timestamp_enabled ? "enabled" : "disabled");
     Config::SetDefault("ns3::TcpSocketBase::Timestamp", BooleanValue(opt_timestamp_enabled));
 
