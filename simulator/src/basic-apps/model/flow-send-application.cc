@@ -300,7 +300,7 @@ FlowSendApplication::HighestRxAckChange(SequenceNumber<unsigned int, int> oldHig
 {
     std::ofstream ofs;
     ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-progress.txt", m_flowId), std::ofstream::out | std::ofstream::app);
-    ofs << m_flowId << "\t" << Simulator::Now ().GetNanoSeconds () << "\t" << (m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()) << std::endl;
+    ofs << m_flowId << "," << Simulator::Now ().GetNanoSeconds () << "," << (m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()) << std::endl;
     ofs.close();
 }
 
@@ -309,7 +309,7 @@ FlowSendApplication::CwndChange(uint32_t oldCwnd, uint32_t newCwnd)
 {
     std::ofstream ofs;
     ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-cwnd.txt", m_flowId), std::ofstream::out | std::ofstream::app);
-    ofs << m_flowId << "\t" << Simulator::Now ().GetNanoSeconds () << "\t" << newCwnd << std::endl;
+    ofs << m_flowId << "," << Simulator::Now ().GetNanoSeconds () << "," << newCwnd << std::endl;
     ofs.close();
 }
 
@@ -318,7 +318,7 @@ FlowSendApplication::RttChange (Time oldRtt, Time newRtt)
 {
     std::ofstream ofs;
     ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-rtt.txt", m_flowId), std::ofstream::out | std::ofstream::app);
-    ofs << m_flowId << "\t" << Simulator::Now ().GetNanoSeconds () << "\t" << newRtt.GetNanoSeconds() << std::endl;
+    ofs << m_flowId << "," << Simulator::Now ().GetNanoSeconds () << "," << newRtt.GetNanoSeconds() << std::endl;
     ofs.close();
 }
 

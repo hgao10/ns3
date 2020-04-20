@@ -326,6 +326,11 @@ void BasicSimulation::SetupTcpParameters() {
     printf("  > Segment size: %" PRId64 " byte\n", segment_size_byte);
     Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(segment_size_byte));
 
+    // Disable timestamp option
+    bool opt_timestamp_enabled = false; // Default: true. We set it to false because the timestamp option is limited to a resolution of 1ms.
+    printf("  > Timestamp option: %s\n", opt_timestamp_enabled ? "enabled" : "disabled");
+    Config::SetDefault("ns3::TcpSocketBase::Timestamp", BooleanValue(opt_timestamp_enabled));
+
     std::cout << std::endl;
     RegisterTimestamp("Setup TCP parameters");
 }
