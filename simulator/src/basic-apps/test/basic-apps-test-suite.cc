@@ -19,7 +19,8 @@ public:
         AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndEcmpRemainTestCase, TestCase::QUICK);
         AddTestCase(new EndToEndNonExistentRunDirTestCase, TestCase::QUICK);
-        AddTestCase(new PingmeshOneToOneTestCase, TestCase::QUICK);
+        AddTestCase(new PingmeshNineAllTestCase, TestCase::QUICK);
+        AddTestCase(new PingmeshNinePairsTestCase, TestCase::QUICK);
     }
 };
 static BasicAppsTestSuite basicAppsTestSuite;

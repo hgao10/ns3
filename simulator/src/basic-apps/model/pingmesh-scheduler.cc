@@ -123,8 +123,6 @@ void PingmeshScheduler::WriteResults() {
         int total = 0;
         double sum_latency_to_there_ns = 0.0;
         double sum_latency_from_there_ns = 0.0;
-        int64_t min_rtt_ns = 100000000000; // 100s
-        int64_t max_rtt_ns = -1;
         std::vector<int64_t> rtts_ns;
         for (uint32_t j = 0; j < sent; j++) {
 
@@ -133,9 +131,9 @@ void PingmeshScheduler::WriteResults() {
             std::string reply_arrived_str = reply_arrived ? "YES" : "LOST";
 
             // Latencies
-            int64_t latency_to_there_ns = reply_arrived ? replyTimestamps[j] - sendRequestTimestamps[j] : -100000000000;
-            int64_t latency_from_there_ns = reply_arrived ? receiveReplyTimestamps[j] - replyTimestamps[j] : -100000000000;
-            int64_t rtt_ns = reply_arrived ? latency_to_there_ns + latency_from_there_ns : -100000000000;
+            int64_t latency_to_there_ns = reply_arrived ? replyTimestamps[j] - sendRequestTimestamps[j] : -1;
+            int64_t latency_from_there_ns = reply_arrived ? receiveReplyTimestamps[j] - replyTimestamps[j] : -1;
+            int64_t rtt_ns = reply_arrived ? latency_to_there_ns + latency_from_there_ns : -1;
 
             // Write plain to the csv
             fprintf(
@@ -150,26 +148,42 @@ void PingmeshScheduler::WriteResults() {
                 total++;
                 sum_latency_to_there_ns += latency_to_there_ns;
                 sum_latency_from_there_ns += latency_from_there_ns;
-                min_rtt_ns = std::min(min_rtt_ns, rtt_ns);
-                max_rtt_ns = std::max(max_rtt_ns, rtt_ns);
                 rtts_ns.push_back(rtt_ns);
             }
 
         }
 
-        // Calculate the sample standard deviation
+        // Finalize the statistics
+        int64_t min_rtt_ns = 10000000000000; // 10000s should be sufficiently high
+        int64_t max_rtt_ns = -1;
         double mean_rtt_ns = (sum_latency_to_there_ns + sum_latency_from_there_ns) / total;
         double sum_sq = 0.0;
         for (uint32_t j = 0; j < rtts_ns.size(); j++) {
+            min_rtt_ns = std::min(min_rtt_ns, rtts_ns[j]);
+            max_rtt_ns = std::max(max_rtt_ns, rtts_ns[j]);
             sum_sq += std::pow(rtts_ns[j] - mean_rtt_ns, 2);
         }
-        double sample_std_rtt_ns = rtts_ns.size() > 1 ? std::sqrt((1.0 / (rtts_ns.size() - 1)) *  sum_sq) : 0.0;
+        double sample_std_rtt_ns;
+        double mean_latency_to_there_ns;
+        double mean_latency_from_there_ns;
+        if (rtts_ns.size() == 0) { // If no measurements came through, it should all be -1
+            mean_latency_to_there_ns = -1;
+            mean_latency_from_there_ns = -1;
+            min_rtt_ns = -1;
+            max_rtt_ns = -1;
+            mean_rtt_ns = -1;
+            sample_std_rtt_ns = -1;
+        } else {
+            mean_latency_to_there_ns = sum_latency_to_there_ns / total;
+            mean_latency_from_there_ns = sum_latency_from_there_ns / total;
+            sample_std_rtt_ns = rtts_ns.size() > 1 ? std::sqrt((1.0 / (rtts_ns.size() - 1)) * sum_sq) : 0.0;
+        }
 
         // Write nicely formatted to the text
         char str_latency_to_there_ms[100];
-        sprintf(str_latency_to_there_ms, "%.2f ms", nanosec_to_millisec(sum_latency_to_there_ns / total));
+        sprintf(str_latency_to_there_ms, "%.2f ms", nanosec_to_millisec(mean_latency_to_there_ns));
         char str_latency_from_there_ms[100];
-        sprintf(str_latency_from_there_ms, "%.2f ms", nanosec_to_millisec(sum_latency_from_there_ns / total));
+        sprintf(str_latency_from_there_ms, "%.2f ms", nanosec_to_millisec(mean_latency_from_there_ns));
         char str_min_rtt_ms[100];
         sprintf(str_min_rtt_ms, "%.2f ms", nanosec_to_millisec(min_rtt_ns));
         char str_mean_rtt_ms[100];

@@ -23,34 +23,40 @@ public:
         remove_file_if_exists(temp_dir + "/topology.properties");
     }
 
-    void write_basic_config(int64_t simulation_end_time_ns, int64_t simulation_seed, double link_data_rate_megabit_per_s, int64_t link_delay_ns, int64_t pingmesh_interval_ns) {
+    void write_basic_config(int64_t simulation_end_time_ns, int64_t pingmesh_interval_ns, std::string pingmesh_endpoint_pairs) {
         std::ofstream config_file;
         config_file.open (temp_dir + "/config_ns3.properties");
         config_file << "filename_topology=\"topology.properties\"" << std::endl;
         config_file << "pingmesh_interval_ns=" << pingmesh_interval_ns << std::endl;
-        config_file << "simulation_end_time_ns=" << simulation_end_time_ns << std::endl;
-        config_file << "simulation_seed=" << simulation_seed << std::endl;
-        config_file << "link_data_rate_megabit_per_s=" << link_data_rate_megabit_per_s << std::endl;
-        config_file << "link_delay_ns=" << link_delay_ns << std::endl;
-        config_file << "link_max_queue_size_pkts=100" << std::endl;
-        config_file << "disable_qdisc_endpoint_tors_xor_servers=false" << std::endl;
-        config_file << "disable_qdisc_non_endpoint_switches=false" << std::endl;
+        config_file << "simulation_end_time_ns=5000000000" << std::endl;
+        config_file << "simulation_seed=123456789" << std::endl;
+        config_file << "link_data_rate_megabit_per_s=10000" << std::endl;
+        config_file << "link_delay_ns=50000000" << std::endl;
+        config_file << "link_max_queue_size_pkts=10000" << std::endl;
+        config_file << "disable_qdisc_endpoint_tors_xor_servers=true" << std::endl;
+        config_file << "disable_qdisc_non_endpoint_switches=true" << std::endl;
+        config_file << "pingmesh_endpoint_pairs=" << pingmesh_endpoint_pairs << std::endl;
         config_file.close();
     }
 
-    void write_single_topology() {
+    //
+    // 3 - 4 - 5
+    // |   |   |
+    // 0 - 1 - 2
+    //
+    void write_six_topology() {
         std::ofstream topology_file;
         topology_file.open (temp_dir + "/topology.properties");
-        topology_file << "num_nodes=2" << std::endl;
-        topology_file << "num_undirected_edges=1" << std::endl;
-        topology_file << "switches=set(0,1)" << std::endl;
-        topology_file << "switches_which_are_tors=set(0,1)" << std::endl;
+        topology_file << "num_nodes=6" << std::endl;
+        topology_file << "num_undirected_edges=7" << std::endl;
+        topology_file << "switches=set(0,1,2,3,4,5)" << std::endl;
+        topology_file << "switches_which_are_tors=set(0,1,2,3,5)" << std::endl;
         topology_file << "servers=set()" << std::endl;
-        topology_file << "undirected_edges=set(0-1)" << std::endl;
+        topology_file << "undirected_edges=set(0-1,1-2,3-4,4-5,0-3,1-4,2-5)" << std::endl;
         topology_file.close();
     }
 
-    void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, uint32_t expected_num_pings) {
+    void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, uint32_t expected_num_pings, std::map<std::pair<int64_t, int64_t>, int64_t> pair_to_expected_latency, int64_t max_delta_more_latency) {
 
         // Make sure these are removed
         remove_file_if_exists(temp_dir + "/logs_ns3/finished.txt");
@@ -72,9 +78,57 @@ public:
 
         // Check pingmesh.csv
         std::vector<std::string> lines_csv = read_file_direct(temp_dir + "/logs_ns3/pingmesh.csv");
-        ASSERT_EQUAL(lines_csv.size(), expected_num_pings);
-        // TODO: more in-depth checking
-        // TODO: check pingmesh.txt
+        std::pair<int64_t, int64_t> current = std::make_pair(-1, -1);
+        int64_t counter = 0;
+        for (std::string line : lines_csv) {
+            std::vector<std::string> spl = split_string(line, ",", 10);
+            int64_t from = parse_positive_int64(spl[0]);
+            int64_t to = parse_positive_int64(spl[1]);
+            int64_t i = parse_positive_int64(spl[2]);
+            if (std::make_pair(from, to) != current) {
+                counter = 0;
+                current = std::make_pair(from, to);
+            }
+            ASSERT_EQUAL(i, counter);
+            counter++;
+            int64_t sent = std::stoll(spl[3]);
+            int64_t reply = std::stoll(spl[4]);
+            int64_t got_reply = std::stoll(spl[5]);
+            int64_t way_there = std::stoll(spl[6]);
+            int64_t way_back = std::stoll(spl[7]);
+            int64_t rtt = std::stoll(spl[8]);
+            bool arrived = true;
+            if (trim(spl[9]) == "YES") {
+                arrived = true;
+            } else if (trim(spl[9]) == "LOST") {
+                arrived = false;
+            } else {
+                ASSERT_TRUE(false);
+            }
+            ASSERT_TRUE(simulation.GetTopology()->is_valid_endpoint(from));
+            ASSERT_TRUE(simulation.GetTopology()->is_valid_endpoint(to));
+            ASSERT_TRUE(i >= 0);
+            ASSERT_TRUE(sent >= 0);
+            if (arrived) {
+                ASSERT_TRUE(reply >= sent);
+                ASSERT_TRUE(got_reply >= reply);
+                ASSERT_EQUAL(way_there, reply - sent);
+                ASSERT_EQUAL(way_back, got_reply - reply);
+                ASSERT_EQUAL(rtt, got_reply - sent);
+                ASSERT_TRUE(pair_to_expected_latency.find(std::make_pair(from, to)) != pair_to_expected_latency.end());
+                int64_t expected_latency = pair_to_expected_latency.find(std::make_pair(from, to))->second;
+                ASSERT_TRUE(way_there >= expected_latency);
+                ASSERT_TRUE(way_there >= expected_latency);
+                ASSERT_TRUE(way_back <= expected_latency + max_delta_more_latency);
+                ASSERT_TRUE(way_back <= expected_latency + max_delta_more_latency);
+            } else {
+                ASSERT_EQUAL(reply, -1);
+                ASSERT_EQUAL(got_reply, -1);
+                ASSERT_EQUAL(way_there, -1);
+                ASSERT_EQUAL(way_back, -1);
+                ASSERT_EQUAL(rtt, -1);
+            }
+        }
 
         // Make sure these are removed
         remove_file_if_exists(temp_dir + "/config_ns3.properties");
@@ -84,22 +138,65 @@ public:
 
 };
 
-class PingmeshOneToOneTestCase : public PingmeshTestCase
+class PingmeshNineAllTestCase : public PingmeshTestCase
 {
 public:
-    PingmeshOneToOneTestCase () : PingmeshTestCase ("pingmesh 1-to-1") {};
+    PingmeshNineAllTestCase () : PingmeshTestCase ("pingmesh nine-all") {};
 
     void DoRun () {
         prepare_test_dir();
 
-        int64_t simulation_end_time_ns = 5000000000;
-
-        // One-to-one, 5s, 10.0 Mbit/s, 100 microseconds delay, 1 ping per 100ms
-        write_basic_config(simulation_end_time_ns, 123456, 10.0, 100000, 100000000);
-        write_single_topology();
+        // 5 seconds, every 100ms a ping
+        write_basic_config(5000000000, 100000000, "all");
+        write_six_topology();
+        std::map<std::pair<int64_t, int64_t>, int64_t> pair_to_expected_latency;
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(0, 1), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(0, 2), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(0, 3), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(0, 5), 150000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(1, 0), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(1, 2), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(1, 3), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(1, 5), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(2, 0), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(2, 1), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(2, 3), 150000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(2, 5), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(3, 0), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(3, 1), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(3, 2), 150000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(3, 5), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(5, 0), 150000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(5, 1), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(5, 2), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(5, 3), 100000000));
 
         // Perform the run
-        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, 100);
+        test_run_and_simple_validate(5000000000, temp_dir, 100, pair_to_expected_latency, 1000);
+
+    }
+};
+
+class PingmeshNinePairsTestCase : public PingmeshTestCase
+{
+public:
+    PingmeshNinePairsTestCase () : PingmeshTestCase ("pingmesh nine-pairs") {};
+
+    void DoRun () {
+        prepare_test_dir();
+
+        // 5 seconds, every 100ms a ping
+        write_basic_config(5000000000, 100000000, "set(2-1, 1-2, 0-5, 5-2, 3-1)");
+        write_six_topology();
+        std::map<std::pair<int64_t, int64_t>, int64_t> pair_to_expected_latency;
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(0, 5), 150000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(1, 2), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(2, 1), 50000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(3, 1), 100000000));
+        pair_to_expected_latency.insert(std::make_pair(std::make_pair(5, 2), 50000000));
+
+        // Perform the run
+        test_run_and_simple_validate(5000000000, temp_dir, 100, pair_to_expected_latency, 1000);
 
     }
 };
