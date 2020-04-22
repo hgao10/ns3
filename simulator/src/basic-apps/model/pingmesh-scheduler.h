@@ -58,6 +58,7 @@ protected:
     NodeContainer* m_nodes;
     std::vector<ApplicationContainer> m_apps;
     int64_t m_interval_ns;
+    std::vector<std::pair<int64_t, int64_t>> m_pingmesh_endpoint_pairs;
 
 };
 

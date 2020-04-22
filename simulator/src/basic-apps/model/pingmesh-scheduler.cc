@@ -6,6 +6,45 @@ PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation) {
     m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
     m_topology = m_basicSimulation->GetTopology();
     m_interval_ns = parse_positive_int64(basicSimulation->GetConfigParamOrFail("pingmesh_interval_ns"));
+    std::string pingmesh_endpoints_pair_str = basicSimulation->GetConfigParamOrDefault("pingmesh_endpoint_pairs", "all");
+    if (pingmesh_endpoints_pair_str == "all") {
+
+        // All-to-all for all endpoints
+        std::set<int64_t> endpoints = m_topology->get_endpoints();
+        for (int64_t i : endpoints) {
+            for (int64_t j : endpoints) {
+                if (i != j) {
+                    m_pingmesh_endpoint_pairs.push_back(std::make_pair(i, j));
+                }
+            }
+        }
+
+    } else {
+
+        // Only between select pairs
+        std::set<std::string> string_set = parse_set_string(pingmesh_endpoints_pair_str);
+        for (std::string s : string_set) {
+            std::vector<std::string> spl = split_string(s, "-", 2);
+            int64_t a = parse_positive_int64(spl[0]);
+            int64_t b = parse_positive_int64(spl[1]);
+            if (a == b) {
+                throw std::invalid_argument(format_string("Cannot have pingmesh pair to itself on node %" PRIu64 "", a));
+            }
+            if (!m_topology->is_valid_endpoint(a)) {
+                throw std::invalid_argument(format_string("Left node identifier in pingmesh pair is not a valid endpoint: %" PRIu64 "", a));
+            }
+            if (!m_topology->is_valid_endpoint(b)) {
+                throw std::invalid_argument(format_string("Right node identifier in pingmesh pair is not a valid endpoint: %" PRIu64 "", b));
+            }
+            m_pingmesh_endpoint_pairs.push_back(std::make_pair(a, b));
+        }
+
+    }
+
+    // Sort the pairs ascending such that we can do some spacing
+    std::sort(m_pingmesh_endpoint_pairs.begin(), m_pingmesh_endpoint_pairs.end());
+
+
 }
 
 void PingmeshScheduler::Schedule() {
@@ -14,7 +53,7 @@ void PingmeshScheduler::Schedule() {
     // Info
     std::cout << "  > Ping interval: " << m_interval_ns << " ns" << std::endl;
 
-    // Retrieve endpoints
+    // Endpoints
     std::set<int64_t> endpoints = m_topology->get_endpoints();
 
     // Install echo server on each node
@@ -26,31 +65,35 @@ void PingmeshScheduler::Schedule() {
     }
     m_basicSimulation->RegisterTimestamp("Setup pingmesh servers");
 
+
+
     // Install echo client from each node to each other node
-    std::cout << "  > Setting up " << (endpoints.size() * (endpoints.size() - 1)) << " pingmesh clients" << std::endl;
+    std::cout << "  > Setting up " << m_pingmesh_endpoint_pairs.size() << " pingmesh clients" << std::endl;
     int64_t in_between_ns = m_interval_ns / (endpoints.size() - 1);
-    for (int64_t i : endpoints) {
-        int counter = 0;
-        for (int64_t j : endpoints) {
-            if (i != j) {
+    int counter = 0;
+    int64_t prev_i = -1;
+    for (std::pair<int64_t, int64_t>& p : m_pingmesh_endpoint_pairs) {
 
-                // Helper to install the source application
-                UdpRttClientHelper source(
-                        m_nodes->Get(j)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
-                        1025,
-                        i,
-                        j
-                );
-                source.SetAttribute("Interval", TimeValue(NanoSeconds(m_interval_ns)));
-
-                // Install it on the node and start it right now
-                ApplicationContainer app = source.Install(m_nodes->Get(i));
-                app.Start(NanoSeconds(counter * in_between_ns));
-                m_apps.push_back(app);
-
-                counter++;
-            }
+        if (p.first != prev_i) {
+            prev_i = p.first;
+            counter = 0;
         }
+
+        // Helper to install the source application
+        UdpRttClientHelper source(
+                m_nodes->Get(p.second)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
+                1025,
+                p.first,
+                p.second
+        );
+        source.SetAttribute("Interval", TimeValue(NanoSeconds(m_interval_ns)));
+
+        // Install it on the node and start it right now
+        ApplicationContainer app = source.Install(m_nodes->Get(p.first));
+        app.Start(NanoSeconds(counter * in_between_ns));
+        m_apps.push_back(app);
+
+        counter++;
     }
 
     std::cout << std::endl;
