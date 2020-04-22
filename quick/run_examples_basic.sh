@@ -9,7 +9,7 @@ do
   ./waf --run="main_flows --run_dir='../runs/${experiment}'" 2>&1 | tee ../runs/${experiment}/logs_ns3/console.txt
 done
 
-for experiment in "pingmesh_example_grid" "pingmesh_example_single"
+for experiment in "pingmesh_example_grid" "pingmesh_example_single" "pingmesh_example_grid_select_pairs"
 do
   rm -rf ../runs/${experiment}/logs_ns3
   mkdir ../runs/${experiment}/logs_ns3
