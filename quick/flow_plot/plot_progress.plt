@@ -35,14 +35,14 @@ set style line 8 lt rgb "#7d7d7d" lw 2.4 pt 0 ps 1.4
 set style line 9 lt rgb "#000000" lw 2.4 pt 0 ps 1.4
 
 # Output
-set output "plot_cwnd.pdf"
+set output "[OUTPUT-FILE]"
 
 #####################################
 ### AXES AND KEY
 
 # Axes labels
 set xlabel "Time (s)" # Markup: e.g. 99^{th}, {/Symbol s}, {/Helvetica-Italic P}
-set ylabel "CWND (segments)"
+set ylabel "Progress (Mbit)"
 
 # Axes ranges
 set xrange [0:]       # Explicitly set the x-range [lower:upper]
@@ -66,4 +66,4 @@ set key spacing 2
 #####################################
 ### PLOTS
 set datafile separator ","
-plot    "flow-0-cwnd.txt" using ($2/1000000000):($3/1380) title "" w lp ls 1, \
+plot    "[DATA-FILE]" using ($2/1000000000):($3/125000) title "" w lp ls 1, \

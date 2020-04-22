@@ -81,7 +81,7 @@ FlowSendApplication::GetTypeId(void) {
                           MakeBooleanAccessor(&FlowSendApplication::m_enableFlowLoggingToFile),
                           MakeBooleanChecker())
             .AddAttribute ("BaseLogsDir",
-                           "Base logging directory (flow logging will be placed here, i.e. logs_dir/flow-[flow id]-{progress, cwnd, rtt}.txt",
+                           "Base logging directory (flow logging will be placed here, i.e. logs_dir/flow_[flow id]_{progress, cwnd, rtt}.txt",
                            StringValue (""),
                            MakeStringAccessor (&FlowSendApplication::m_baseLogsDir),
                            MakeStringChecker ())
@@ -160,13 +160,13 @@ void FlowSendApplication::StartApplication(void) { // Called at time specified b
         );
         if (m_enableFlowLoggingToFile) {
             std::ofstream ofs;
-            ofs.open(m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-progress.txt", m_flowId));
+            ofs.open(m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_progress.txt", m_flowId));
             ofs.close();
             m_socket->TraceConnectWithoutContext ("HighestRxAck", MakeCallback (&FlowSendApplication::HighestRxAckChange, this));
-            ofs.open(m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-cwnd.txt", m_flowId));
+            ofs.open(m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_cwnd.txt", m_flowId));
             ofs.close();
             m_socket->TraceConnectWithoutContext ("CongestionWindow", MakeCallback (&FlowSendApplication::CwndChange, this));
-            ofs.open(m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-rtt.txt", m_flowId));
+            ofs.open(m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_rtt.txt", m_flowId));
             ofs.close();
             m_socket->TraceConnectWithoutContext ("RTT", MakeCallback (&FlowSendApplication::RttChange, this));
         }
@@ -299,7 +299,7 @@ void
 FlowSendApplication::HighestRxAckChange(SequenceNumber<unsigned int, int> oldHighestRxAck, SequenceNumber<unsigned int, int> newHighestRxAck)
 {
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-progress.txt", m_flowId), std::ofstream::out | std::ofstream::app);
+    ofs.open (m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_progress.txt", m_flowId), std::ofstream::out | std::ofstream::app);
     ofs << m_flowId << "," << Simulator::Now ().GetNanoSeconds () << "," << (m_totBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()) << std::endl;
     ofs.close();
 }
@@ -308,7 +308,7 @@ void
 FlowSendApplication::CwndChange(uint32_t oldCwnd, uint32_t newCwnd)
 {
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-cwnd.txt", m_flowId), std::ofstream::out | std::ofstream::app);
+    ofs.open (m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_cwnd.txt", m_flowId), std::ofstream::out | std::ofstream::app);
     ofs << m_flowId << "," << Simulator::Now ().GetNanoSeconds () << "," << newCwnd << std::endl;
     ofs.close();
 }
@@ -317,7 +317,7 @@ void
 FlowSendApplication::RttChange (Time oldRtt, Time newRtt)
 {
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("flow-%" PRIu64 "-rtt.txt", m_flowId), std::ofstream::out | std::ofstream::app);
+    ofs.open (m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_rtt.txt", m_flowId), std::ofstream::out | std::ofstream::app);
     ofs << m_flowId << "," << Simulator::Now ().GetNanoSeconds () << "," << newRtt.GetNanoSeconds() << std::endl;
     ofs.close();
 }

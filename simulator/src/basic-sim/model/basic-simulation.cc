@@ -55,7 +55,7 @@ void BasicSimulation::ConfigureRunDirectory() {
         remove_file_if_exists(m_logs_dir + "/finished.txt");
         remove_file_if_exists(m_logs_dir + "/flows.txt");
         remove_file_if_exists(m_logs_dir + "/flows.csv");
-        remove_file_if_exists(m_logs_dir + "/timing-results.txt");
+        remove_file_if_exists(m_logs_dir + "/timing_results.txt");
     } else {
         mkdir_if_not_exists(m_logs_dir);
     }
@@ -428,7 +428,7 @@ void BasicSimulation::StoreTimingResults() {
     std::cout << "------" << std::endl;
 
     // Write to both file and out
-    std::ofstream fileTimingResults(m_logs_dir + "/timing-results.txt");
+    std::ofstream fileTimingResults(m_logs_dir + "/timing_results.txt");
     int64_t t_prev = -1;
     for (std::pair <std::string, int64_t> &ts : m_timestamps) {
         if (t_prev == -1) {
