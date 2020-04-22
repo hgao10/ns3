@@ -171,7 +171,7 @@ public:
             create_headered_packet(p, e);
             Ipv4Header ipHeader;
             p->RemoveHeader(ipHeader);
-            hash_results.push_back(routingArbiterEcmp.ComputeFiveTupleHash(ipHeader, p, e.node_id));
+            hash_results.push_back(routingArbiterEcmp.ComputeFiveTupleHash(ipHeader, p, e.node_id, false));
         }
         for (int i = 0; i < num_cases; i++) {
             for (int j = i + 1; j < num_cases; j++) {
@@ -193,8 +193,8 @@ public:
         Ipv4Header p2header;
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 6666),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 6666)
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 6666, false),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 6666, false)
         );
 
         // Same UDP for same 5-tuple
@@ -205,8 +205,8 @@ public:
         create_headered_packet(p2, {123456, 32543526, 937383, false, true, 1234, 6737});
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 123456),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 123456)
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 123456, false),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 123456, false)
         );
 
         // Same not TCP/UDP for same 3-tuple
@@ -217,8 +217,56 @@ public:
         create_headered_packet(p2, {7, 3626, 22, false, false, 44, 7777});
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7)
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, false),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, false)
+        );
+
+        // TCP: Different source and destination port, so hash should also be different
+        p1 = Create<Packet>(77);
+        p2 = Create<Packet>(77);
+        create_headered_packet(p1, {7, 3626, 22, true, false, 55, 123});
+        p1->RemoveHeader(p1header);
+        create_headered_packet(p2, {7, 3626, 22, true, false, 44, 7777});
+        p2->RemoveHeader(p2header);
+        ASSERT_NOT_EQUAL(
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, false),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, false)
+        );
+
+        // TCP: If the protocol field is to be ignored because the other headers are said to be not there explicitly
+        p1 = Create<Packet>(77);
+        p2 = Create<Packet>(77);
+        create_headered_packet(p1, {7, 3626, 22, true, false, 55, 123});
+        p1->RemoveHeader(p1header);
+        create_headered_packet(p2, {7, 3626, 22, true, false, 44, 7777});
+        p2->RemoveHeader(p2header);
+        ASSERT_EQUAL(
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, true),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, true)
+        );
+
+        // UDP: Different source and destination port, so hash should also be different
+        p1 = Create<Packet>(77);
+        p2 = Create<Packet>(77);
+        create_headered_packet(p1, {7, 3626, 22, false, true, 55, 123});
+        p1->RemoveHeader(p1header);
+        create_headered_packet(p2, {7, 3626, 22, false, true, 44, 7777});
+        p2->RemoveHeader(p2header);
+        ASSERT_NOT_EQUAL(
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, false),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, false)
+        );
+
+        // UDP: If the protocol field is to be ignored because the other headers are said to be not there explicitly
+        p1 = Create<Packet>(77);
+        p2 = Create<Packet>(77);
+        create_headered_packet(p1, {7, 3626, 22, false, true, 55, 123});
+        p1->RemoveHeader(p1header);
+        create_headered_packet(p2, {7, 3626, 22, false, true, 44, 7777});
+        p2->RemoveHeader(p2header);
+        ASSERT_EQUAL(
+                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, true),
+                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, true)
         );
 
         // Clean up topology file
@@ -313,7 +361,7 @@ public:
         this->next_decision = val;
     }
 
-    int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
+    int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
         return this->next_decision;
     }
 

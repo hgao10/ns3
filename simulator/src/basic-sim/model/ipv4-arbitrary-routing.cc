@@ -104,10 +104,17 @@ namespace ns3 {
     /**
      * Get an output route.
      *
-     * RouteOutput gets called once by TCP (tcp-socket-base.cc) with an header of which only the destination
-     * IP address is set in order to determine the source IP address for the socket (function: SetupEndpoint).
+     * TCP:
+     * (1) RouteOutput gets called once by TCP (tcp-socket-base.cc) with an header of which only the destination
+     *     IP address is set in order to determine the source IP address for the socket (function: SetupEndpoint).
+     * (2) Subsequently, RouteOutput is called by TCP (tcp-l4-protocol.cc) on the sender node with a proper IP
+     *     AND TCP header.
      *
-     * Subsequently, RouteOutput is called by TCP (tcp-l4-protocol.cc) on the sender node.
+     * UDP:
+     * (1) RouteOutput gets called once by UDP (udp-socket-impl.cc) with an header of which only the destination
+     *     IP address is set in order to determine the source IP address for the socket (function: DoSendTo).
+     * (2) It is **NOT** called subsequently in udp-l4-protocol.cc, as such the first decision which did not take
+     *     into account the UDP header is final. This means ECMP load balancing does not work at a UDP source.
      *
      * @param p         Packet
      * @param header    Header

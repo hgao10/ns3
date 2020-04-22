@@ -91,13 +91,16 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
  *
  * Inspired by: https://github.com/mkheirkhah/ecmp (February 20th, 2020)
  *
- * @param header IPv4 header
- * @param p      Packet
+ * @param header               IPv4 header
+ * @param p                    Packet
+ * @param node_id              Node identifier
+ * @param no_other_headers     True iff there are no other headers outside of the IPv4 one,
+ *                             irrespective of what the protocol field claims
  *
  * @return Hash value
  */
 uint64_t
-RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id)
+RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers)
 {
     std::memcpy(&hash_input_buff[0], &node_id, 4);
     
@@ -113,40 +116,52 @@ RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pac
     uint8_t protocol = header.GetProtocol();
     std::memcpy(&hash_input_buff[12], &protocol, 1);
 
-    // If there are ports, add them to the input
-    switch (protocol) {
-        case UDP_PROT_NUMBER: {
-            UdpHeader udpHeader;
-            p->PeekHeader(udpHeader);
-            uint16_t src_port = udpHeader.GetSourcePort();
-            uint16_t dst_port = udpHeader.GetDestinationPort();
-            std::memcpy(&hash_input_buff[13], &src_port, 2);
-            std::memcpy(&hash_input_buff[15], &dst_port, 2);
-            break;
-        }
-        case TCP_PROT_NUMBER: {
-            TcpHeader tcpHeader;
-            p->PeekHeader(tcpHeader);
-            uint16_t src_port = tcpHeader.GetSourcePort();
-            uint16_t dst_port = tcpHeader.GetDestinationPort();
-            std::memcpy(&hash_input_buff[13], &src_port, 2);
-            std::memcpy(&hash_input_buff[15], &dst_port, 2);
-            break;
-        }
-        default: {
-            hash_input_buff[13] = 0;
-            hash_input_buff[14] = 0;
-            hash_input_buff[15] = 0;
-            hash_input_buff[16] = 0;
-            break;
+    // If we have been notified that whatever is in the protocol field,
+    // does not mean there is another header to peek at, we do not peek
+    if (no_other_headers) {
+        hash_input_buff[13] = 0;
+        hash_input_buff[14] = 0;
+        hash_input_buff[15] = 0;
+        hash_input_buff[16] = 0;
+
+    } else {
+
+        // If there are ports we can use, add them to the input
+        switch (protocol) {
+            case UDP_PROT_NUMBER: {
+                UdpHeader udpHeader;
+                p->PeekHeader(udpHeader);
+                uint16_t src_port = udpHeader.GetSourcePort();
+                uint16_t dst_port = udpHeader.GetDestinationPort();
+                std::memcpy(&hash_input_buff[13], &src_port, 2);
+                std::memcpy(&hash_input_buff[15], &dst_port, 2);
+                break;
+            }
+            case TCP_PROT_NUMBER: {
+                TcpHeader tcpHeader;
+                p->PeekHeader(tcpHeader);
+                uint16_t src_port = tcpHeader.GetSourcePort();
+                uint16_t dst_port = tcpHeader.GetDestinationPort();
+                std::memcpy(&hash_input_buff[13], &src_port, 2);
+                std::memcpy(&hash_input_buff[15], &dst_port, 2);
+                break;
+            }
+            default: {
+                hash_input_buff[13] = 0;
+                hash_input_buff[14] = 0;
+                hash_input_buff[15] = 0;
+                hash_input_buff[16] = 0;
+                break;
+            }
         }
     }
+
     hasher.clear();
     return hasher.GetHash32(hash_input_buff, 17);
 }
 
-int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
-    uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, current_node_id);
+int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
+    uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, current_node_id, is_request_for_source_ip_so_no_next_header);
     int s = candidate_list[current_node_id][target_node_id].size();
     return candidate_list[current_node_id][target_node_id][hash % s];
 }

@@ -32,12 +32,15 @@ public:
     /**
      * From among the neighbors, decide where the packet needs to be routed to.
      *
-     * @param current_node_id       Node where the packet is right now
-     * @param source_node_id        Node where the packet originated from
-     * @param target_node_id        Node where the packet has to go to
-     * @param neighbor_node_ids     All neighboring nodes from which to choose
-     * @param pkt                   Packet pointer
-     * @param ipHeader              IPHeader instance
+     * @param current_node_id                               Node where the packet is right now
+     * @param source_node_id                                Node where the packet originated from
+     * @param target_node_id                                Node where the packet has to go to
+     * @param neighbor_node_ids                             All neighboring nodes from which to choose
+     * @param pkt                                           Packet pointer
+     * @param ipHeader                                      IPHeader instance
+     * @param is_request_for_source_ip_so_no_next_header    True iff it is a request for a source IP address,
+     *                                                      as such the returning next hop is only used to get the
+     *                                                      interface IP address
      *
      * @return Neighbor node id to which to forward to
      */
@@ -47,7 +50,8 @@ public:
             int32_t target_node_id,
             std::set<int64_t>& neighbor_node_ids,
             ns3::Ptr<const ns3::Packet> pkt,
-            ns3::Ipv4Header const &ipHeader
+            ns3::Ipv4Header const &ipHeader,
+            bool is_request_for_source_ip_so_no_next_header
     ) = 0;
 
     /**
