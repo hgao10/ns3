@@ -63,44 +63,7 @@ QueueChangeA (uint32_t oldNumPackets, uint32_t newNumPackets) {
 }
 
 ////////////////////////////////////////////////////////
-/// TRACK CONGESTION WINDOW SIZE
+/// PLOT FROM FLOW
 
-#include <fstream>
-
-std::ofstream ofs;
-ofs.open ("cwnd.txt");
-ofs.close();
-
-m_socket->TraceConnectWithoutContext ("CongestionWindow",
-        MakeCallback (&CwndChange));
-
-static void
-CwndChange (uint32_t oldCwnd, uint32_t newCwnd)
-{
-    std::ofstream ofs;
-    ofs.open ("cwnd.txt", std::ofstream::out | std::ofstream::app);
-    ofs << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
-    ofs.close();
-}
-
-////////////////////////////////////////////////////////
-/// TRACK RTT
-
-#include <fstream>
-
-std::ofstream ofs;
-ofs.open ("rtt.txt");
-ofs.close();
-
-void RttChange (Time oldT, Time newT);
-
-m_socket->TraceConnectWithoutContext ("RTT", MakeCallback (&FlowSendApplication::RttChange, this));
-
-void
-FlowSendApplication::RttChange (Time oldT, Time newT)
-{
-    std::ofstream ofs;
-    ofs.open ("rtt.txt", std::ofstream::out | std::ofstream::app);
-    ofs << m_flowId << "\t" << Simulator::Now ().GetSeconds () << "\t" << newT.GetSeconds() << std::endl;
-    ofs.close();
-}
+cd quick/flow_plot
+python flow_plot.py ./ ../../runs/flows_example_single/logs_ns3 0

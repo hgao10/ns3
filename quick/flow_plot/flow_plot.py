@@ -39,6 +39,7 @@ def flow_plot(flow_plot_dir, logs_ns3_dir, flow_id):
         local_shell.perfect_exec("sed -i 's/\\[OUTPUT\\-FILE\\]/" + out_filename + "/g' " + flow_plot_dir + "/temp.plt")
         local_shell.perfect_exec("sed -i 's/\\[DATA\\-FILE\\]/" + data_filename + "/g' " + flow_plot_dir + "/temp.plt")
         local_shell.perfect_exec("gnuplot " + flow_plot_dir + "/temp.plt")
+        print("Produced plot: " + out_filename.replace("\\", ""))
         local_shell.remove(flow_plot_dir + "/temp.plt")
 
 
@@ -46,7 +47,7 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if len(args) != 3:
         print("Must supply exactly three arguments")
-        print("Usage: python flow_plot.py [flow-plot directory] [logs_ns3 directory] [flow-id]")
+        print("Usage: python flow_plot.py [flow_plot directory] [logs_ns3 directory] [flow_id]")
         exit(1)
     else:
         flow_plot(
