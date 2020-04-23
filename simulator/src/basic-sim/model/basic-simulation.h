@@ -20,7 +20,6 @@
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/random-variable-stream.h"
 #include "ns3/command-line.h"
 #include "ns3/traffic-control-helper.h"

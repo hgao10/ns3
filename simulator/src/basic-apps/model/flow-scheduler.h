@@ -14,28 +14,24 @@
 #include <unistd.h>
 #include <chrono>
 #include <stdexcept>
-#include "ns3/flow-monitor-module.h"
+
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/random-variable-stream.h"
 #include "ns3/command-line.h"
+
+#include "ns3/basic-simulation.h"
 #include "ns3/exp-util.h"
-#include "ns3/schedule-reader.h"
 #include "ns3/topology.h"
+
+#include "ns3/schedule-reader.h"
 #include "ns3/flow-send-helper.h"
 #include "ns3/flow-send-application.h"
 #include "ns3/flow-sink-helper.h"
 #include "ns3/flow-sink.h"
-#include "ns3/routing-arbiter.h"
-#include "ns3/routing-arbiter-ecmp.h"
-#include "ns3/ipv4-arbitrary-routing.h"
-#include "ns3/ipv4-arbitrary-routing-helper.h"
-#include "ns3/traffic-control-helper.h"
-#include "ns3/basic-simulation.h"
 
 namespace ns3 {
 

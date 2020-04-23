@@ -1,5 +1,7 @@
 #include "pingmesh-scheduler.h"
 
+namespace ns3 {
+
 PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation) {
     m_basicSimulation = basicSimulation;
     m_nodes = basicSimulation->GetNodes();
@@ -203,5 +205,7 @@ void PingmeshScheduler::WriteResults() {
 
     std::cout << std::endl;
     m_basicSimulation->RegisterTimestamp("Write pingmesh log files");
+
+}
 
 }

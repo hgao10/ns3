@@ -1,5 +1,7 @@
 #include "flow-scheduler.h"
 
+namespace ns3 {
+
 FlowScheduler::FlowScheduler(BasicSimulation* basicSimulation) {
     m_basicSimulation = basicSimulation;
 
@@ -153,4 +155,6 @@ void FlowScheduler::WriteResults() {
 
     std::cout << std::endl;
     m_basicSimulation->RegisterTimestamp("Write flow log files");
+}
+
 }

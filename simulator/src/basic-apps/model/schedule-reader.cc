@@ -52,12 +52,6 @@ std::vector<schedule_entry_t> read_schedule(const std::string& filename, Topolog
             prev_start_time_ns = entry.start_time_ns;
 
             // Check node IDs
-            if (entry.from_node_id >= topology.num_nodes) {
-                throw std::invalid_argument(format_string("Invalid from node ID: %" PRId64 ".", entry.from_node_id));
-            }
-            if (entry.to_node_id >= topology.num_nodes) {
-                throw std::invalid_argument(format_string("Invalid to node ID: %" PRId64 ".", entry.to_node_id));
-            }
             if (entry.from_node_id == entry.to_node_id) {
                 throw std::invalid_argument(format_string("Flow to itself at node ID: %" PRId64 ".", entry.to_node_id));
             }
