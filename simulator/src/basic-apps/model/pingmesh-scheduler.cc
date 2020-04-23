@@ -65,8 +65,6 @@ void PingmeshScheduler::Schedule() {
     }
     m_basicSimulation->RegisterTimestamp("Setup pingmesh servers");
 
-
-
     // Install echo client from each node to each other node
     std::cout << "  > Setting up " << m_pingmesh_endpoint_pairs.size() << " pingmesh clients" << std::endl;
     int64_t in_between_ns = m_interval_ns / (endpoints.size() - 1);
