@@ -20,7 +20,7 @@
  * SOFTWARE.
 */
 
-#include "simon-util.h"
+#include "exp-util.h"
 
 /**
  * Trim from end of string.

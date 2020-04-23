@@ -8,9 +8,9 @@ using namespace ns3;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class SimonUtilStringsTestCase : public TestCase {
+class ExpUtilStringsTestCase : public TestCase {
 public:
-    SimonUtilStringsTestCase() : TestCase("simon-util strings") {};
+    ExpUtilStringsTestCase() : TestCase("exp-util strings") {};
 
     void DoRun() {
 
@@ -76,9 +76,9 @@ public:
     }
 };
 
-class SimonUtilParsingTestCase : public TestCase {
+class ExpUtilParsingTestCase : public TestCase {
 public:
-    SimonUtilParsingTestCase() : TestCase("simon-util parsing") {};
+    ExpUtilParsingTestCase() : TestCase("exp-util parsing") {};
 
     void DoRun() {
         bool caught = false;
@@ -161,9 +161,9 @@ public:
     }
 };
 
-class SimonUtilSetsTestCase : public TestCase {
+class ExpUtilSetsTestCase : public TestCase {
 public:
-    SimonUtilSetsTestCase() : TestCase("simon-util sets") {};
+    ExpUtilSetsTestCase() : TestCase("exp-util sets") {};
 
     void DoRun() {
         bool caught = false;
@@ -190,9 +190,9 @@ public:
     }
 };
 
-class SimonUtilConfigurationReadingTestCase : public TestCase {
+class ExpUtilConfigurationReadingTestCase : public TestCase {
 public:
-    SimonUtilConfigurationReadingTestCase() : TestCase("simon-util configuration-reading") {};
+    ExpUtilConfigurationReadingTestCase() : TestCase("exp-util configuration-reading") {};
 
     void DoRun() {
 
@@ -232,9 +232,9 @@ public:
     }
 };
 
-class SimonUtilUnitConversionTestCase : public TestCase {
+class ExpUtilUnitConversionTestCase : public TestCase {
 public:
-    SimonUtilUnitConversionTestCase() : TestCase("simon-util unit-conversion") {};
+    ExpUtilUnitConversionTestCase() : TestCase("exp-util unit-conversion") {};
 
     void DoRun() {
         ASSERT_EQUAL_APPROX(byte_to_megabit(10000000), 80, 0.000001);
@@ -244,9 +244,9 @@ public:
     }
 };
 
-class SimonUtilFileSystemTestCase : public TestCase {
+class ExpUtilFileSystemTestCase : public TestCase {
 public:
-    SimonUtilFileSystemTestCase() : TestCase("simon-util file-system") {};
+    ExpUtilFileSystemTestCase() : TestCase("exp-util file-system") {};
 
     void DoRun() {
 

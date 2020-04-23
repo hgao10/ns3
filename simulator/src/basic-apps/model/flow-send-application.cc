@@ -34,7 +34,7 @@
 #include "ns3/tcp-socket-factory.h"
 #include "ns3/tcp-socket-base.h"
 #include "ns3/tcp-tx-buffer.h"
-#include "ns3/simon-util.h"
+#include "ns3/exp-util.h"
 #include "flow-send-application.h"
 #include <fstream>
 

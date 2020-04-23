@@ -2,7 +2,7 @@
 #define TOPOLOGY_H
 
 #include <utility>
-#include "simon-util.h"
+#include "exp-util.h"
 
 class Topology
 {

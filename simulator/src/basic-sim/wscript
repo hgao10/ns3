@@ -10,7 +10,7 @@ def build(bld):
     module = bld.create_ns3_module('basic-sim', ['core', 'internet', 'applications', 'point-to-point', 'traffic-control'])
     module.source = [
         'model/basic-simulation.cc',
-        'model/simon-util.cc',
+        'model/exp-util.cc',
         'model/topology.cc',
         'model/ipv4-arbitrary-routing.cc',
         'helper/ipv4-arbitrary-routing-helper.cc',
@@ -27,7 +27,7 @@ def build(bld):
     headers.module = 'basic-sim'
     headers.source = [
         'model/basic-simulation.h',
-        'model/simon-util.h',
+        'model/exp-util.h',
         'model/topology.h',
         'model/ipv4-arbitrary-routing.h',
         'helper/ipv4-arbitrary-routing-helper.h',

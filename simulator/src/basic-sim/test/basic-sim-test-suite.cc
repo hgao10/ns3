@@ -2,7 +2,7 @@
 
 #include "ns3/basic-simulation.h"
 #include "ns3/test.h"
-#include "simon-util-test.h"
+#include "exp-util-test.h"
 #include "topology-test.h"
 #include "routing-arbiter-test.h"
 
@@ -11,12 +11,12 @@ using namespace ns3;
 class BasicSimTestSuite : public TestSuite {
 public:
     BasicSimTestSuite() : TestSuite("basic-sim", UNIT) {
-        AddTestCase(new SimonUtilStringsTestCase, TestCase::QUICK);
-        AddTestCase(new SimonUtilParsingTestCase, TestCase::QUICK);
-        AddTestCase(new SimonUtilSetsTestCase, TestCase::QUICK);
-        AddTestCase(new SimonUtilConfigurationReadingTestCase, TestCase::QUICK);
-        AddTestCase(new SimonUtilUnitConversionTestCase, TestCase::QUICK);
-        AddTestCase(new SimonUtilFileSystemTestCase, TestCase::QUICK);
+        AddTestCase(new ExpUtilStringsTestCase, TestCase::QUICK);
+        AddTestCase(new ExpUtilParsingTestCase, TestCase::QUICK);
+        AddTestCase(new ExpUtilSetsTestCase, TestCase::QUICK);
+        AddTestCase(new ExpUtilConfigurationReadingTestCase, TestCase::QUICK);
+        AddTestCase(new ExpUtilUnitConversionTestCase, TestCase::QUICK);
+        AddTestCase(new ExpUtilFileSystemTestCase, TestCase::QUICK);
         AddTestCase(new TopologyEmptyTestCase, TestCase::QUICK);
         AddTestCase(new TopologySingleTestCase, TestCase::QUICK);
         AddTestCase(new TopologyTorTestCase, TestCase::QUICK);

@@ -23,7 +23,7 @@
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/random-variable-stream.h"
 #include "ns3/command-line.h"
-#include "ns3/simon-util.h"
+#include "ns3/exp-util.h"
 #include "ns3/schedule-reader.h"
 #include "ns3/topology.h"
 #include "ns3/flow-send-helper.h"

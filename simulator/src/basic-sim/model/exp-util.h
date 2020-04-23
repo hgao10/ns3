@@ -20,8 +20,8 @@
  * SOFTWARE.
 */
 
-#ifndef SIMON_UTIL_H
-#define SIMON_UTIL_H
+#ifndef EXP_UTIL_H
+#define EXP_UTIL_H
 
 #include <string>
 #include <memory>
@@ -99,4 +99,4 @@ bool dir_exists(std::string dirname);
 void mkdir_if_not_exists(std::string dirname);
 std::vector<std::string> read_file_direct(const std::string& filename);
 
-#endif //SIMON_UTIL_H
+#endif //EXP_UTIL_H
