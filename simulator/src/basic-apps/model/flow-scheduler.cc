@@ -60,11 +60,11 @@ void FlowScheduler::StartNextFlow(int i) {
 void FlowScheduler::Schedule() {
     std::cout << "SCHEDULING FLOW APPLICATIONS" << std::endl;
 
-    // Install sink on each node
+    // Install sink on each endpoint node
     std::cout << "  > Setting up sinks" << std::endl;
-    for (int i = 0; i < m_topology->num_nodes; i++) {
+    for (int64_t endpoint : m_topology->get_endpoints()) {
         FlowSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), 1024));
-        ApplicationContainer app = sink.Install(m_nodes->Get(i));
+        ApplicationContainer app = sink.Install(m_nodes->Get(endpoint));
         app.Start(Seconds(0.0));
     }
     m_basicSimulation->RegisterTimestamp("Setup traffic sinks");
