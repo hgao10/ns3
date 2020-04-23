@@ -28,13 +28,13 @@ MapScheduler::DoSomething (void) const
 # Heap usage analysis
 rm -rf ../runs/example_big_grid_one_flow/logs_ns3
 mkdir ../runs/example_big_grid_one_flow/logs_ns3
-./waf --command-template="valgrind --time-unit=ms --max-snapshots=500 --tool=massif %s --run_dir='../runs/example_single_many_small_flows'" --run "main" 2>&1 | tee ../runs/example_single_many_small_flows/logs_ns3/console.txt
+./waf --command-template="valgrind --time-unit=ms --max-snapshots=500 --tool=massif %s --run_dir='../runs/flows_example_single_many_small_flows'" --run "main_flows" 2>&1 | tee ../runs/flows_example_single_many_small_flows/logs_ns3/console.txt
 massif-visualizer [massif file]
 
 # Memory leak check
 rm -rf ../runs/example_single/logs_ns3
 mkdir ../runs/example_single/logs_ns3
-./waf --command-template="valgrind %s --run_dir='../runs/example_single'" --run "main" 2>&1 | tee ../runs/example_single/logs_ns3/console.txt
+./waf --command-template="valgrind %s --run_dir='../runs/flows_example_single'" --run "main_flows" 2>&1 | tee ../runs/flows_example_single/logs_ns3/console.txt
 
 ////////////////////////////////////////////////////////
 /// SAVE NS-3 OUTPUT

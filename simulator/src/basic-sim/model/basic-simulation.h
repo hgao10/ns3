@@ -105,7 +105,7 @@ protected:
     // Generated based on NS-3 variables
     NodeContainer m_nodes;
     std::vector<std::pair<uint32_t, uint32_t>> m_interface_idxs_for_edges;
-    RoutingArbiterEcmp* m_routingArbiterEcmp = nullptr;
+    RoutingArbiter* m_routingArbiter = nullptr;
 
     // Progress show variables
     int64_t m_sim_start_time_ns_since_epoch;
