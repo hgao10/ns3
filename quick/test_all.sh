@@ -1,3 +1,3 @@
-mkdir -p test-results
+mkdir -p test_results
 cd ../simulator || exit 1
-python test.py -t ../quick/test-results/test-results-all
+python test.py -t ../quick/test_results/test_results_all
