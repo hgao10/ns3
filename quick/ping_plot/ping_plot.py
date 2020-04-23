@@ -15,7 +15,7 @@ def ping_plot(ping_plot_dir, logs_ns3_dir, from_id, to_id):
         with open(ping_plot_dir + "/temp_input.txt", "w+") as out_file:
             for val in rtts:
                 if val[0]:
-                    out_file.write(str(val[1]) + ",100000000000\n")
+                    out_file.write(str(val[1]) + ",-100000000\n")
                 else:
                     out_file.write(str(val[1]) + "," + str(val[2]) + "\n")
     else:
