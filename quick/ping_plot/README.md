@@ -1,11 +1,17 @@
-# Flow plotting
+# Ping plotting
 
-Quick utility to plot the output of FlowSendApplication: cwnd, rtt, progress and rate.
+Quick utility to plot the output of UdpRttClient.
 
-**Usage:**
+**Usage ping plot to plot time vs. RTT:**
 
 ```
-python flow_plot.py [flow_plot directory] [logs_ns3 directory] [flow_id]
+python ping_plot.py [ping_plot directory] [logs_ns3 directory] [from_id] [to_id]
+```
+
+**Usage ping analysis to identify interesting ping pairs:**
+
+```
+python pings_analysis.py [logs_ns3 directory]
 ```
 
 **Dependencies:**
