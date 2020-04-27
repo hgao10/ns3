@@ -15,7 +15,10 @@ def ping_plot(logs_ns3_dir):
         for val in rtt_results[from_to]:
             if not val[0]:
                 rtts_ns.append(val[2])
-        deltas.append((np.max(rtts_ns) - np.min(rtts_ns), from_to, np.min(rtts_ns), np.max(rtts_ns)))
+        if len(rtts_ns) > 0:
+            deltas.append((np.max(rtts_ns) - np.min(rtts_ns), from_to, np.min(rtts_ns), np.max(rtts_ns)))
+        else:
+            print("No RTT results for: " + str(from_to))
     deltas = sorted(deltas, reverse=True)
     print("TOP 25: WORST GAP MINIMUM AND MAXIMUM RTT")
     print("---------")
