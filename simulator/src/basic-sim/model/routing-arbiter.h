@@ -19,60 +19,100 @@
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-header.h"
 
+using namespace ns3;
+
+class RoutingArbiterResult {
+
+public:
+    RoutingArbiterResult(bool failed, uint32_t out_if_idx, uint32_t gateway_ip_address);
+    bool Failed();
+    uint32_t GetOutIfIdx();
+    uint32_t GetGatewayIpAddress();
+
+private:
+    bool m_failed;
+    uint32_t m_out_if_idx;
+    uint32_t m_gateway_ip_address;
+
+};
+
 class RoutingArbiter
 {
 
 public:
-    RoutingArbiter(Topology* topology, ns3::NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
+    RoutingArbiter(Ptr<Node> this_node, NodeContainer nodes);
     virtual ~RoutingArbiter();
-    int32_t decide_next_interface(int32_t current_node, ns3::Ptr<const ns3::Packet> pkt, ns3::Ipv4Header const &ipHeader);
-    uint32_t resolve_node_id_from_ip(uint32_t ip);
-    int64_t get_base_init_finish_ns_since_epoch();
 
     /**
-     * From among the neighbors, decide where the packet needs to be routed to.
+     * Resolve the node identifier from an IP address.
      *
-     * @param current_node_id                               Node where the packet is right now
-     * @param source_node_id                                Node where the packet originated from
-     * @param target_node_id                                Node where the packet has to go to
-     * @param neighbor_node_ids                             All neighboring nodes from which to choose
-     * @param pkt                                           Packet pointer
-     * @param ipHeader                                      IPHeader instance
-     * @param is_request_for_source_ip_so_no_next_header    True iff it is a request for a source IP address,
-     *                                                      as such the returning next hop is only used to get the
-     *                                                      interface IP address
+     * @param ip    IP address
      *
-     * @return Neighbor node id to which to forward to
+     * @return Node identifier
      */
-    virtual int32_t decide_next_node_id(
-            int32_t current_node_id,
+    uint32_t ResolveNodeIdFromIp(uint32_t ip);
+
+    /**
+     * Base decide how to forward. Directly called by ipv4-arbitrary-routing.
+     * It does some nice pre-processing and checking and calls Decide() of the
+     * subclass to actually make the decision.
+     *
+     * @param pkt                               Packet
+     * @param ipHeader                          IP header of the packet
+     *
+     * @return Routing arbiter result.
+     */
+    RoutingArbiterResult BaseDecide(
+            ns3::Ptr<const ns3::Packet> pkt,
+            ns3::Ipv4Header const &ipHeader
+    );
+
+    /**
+     * Decide what should be done with the result.
+     *
+     * @param source_node_id                    Node where the packet originated from
+     * @param target_node_id                    Node where the packet has to go to
+     * @param pkt                               Packet
+     * @param ipHeader                          IP header of the packet
+     * @param is_socket_request_for_source_ip   True iff there is not actually forwarding being done, but it is only
+     *                                          a dummy packet sent by the socket to decide the source IP address.
+     *                                          Most importantly, this means that THERE IS NO OTHER HEADER IN THE
+     *                                          PACKET, IT IS EMPTY (EVEN IF THE PROTOCOL FIELD IS SET IN THE IP
+     *                                          HEADER).
+     *
+     * @return Routing arbiter result.
+     *
+     *         If it is a socket request for source IP AND you signal it failed, it is not a drop but it will send
+     *         a direct signal to the socket that there is no route, likely terminating the socket directly.
+     *         In other cases, when you set it failed, it leads to a drop.
+     *
+     *         A TCP socket first asks for source IP, and then subsequently the tcp-l4 layer does another
+     *         call with the full header to get the real decision.
+     *
+     *         A UDP source only asks for source IP, and does not do another subsequent call in the udp-l4 layer.
+     */
+    virtual RoutingArbiterResult Decide(
             int32_t source_node_id,
             int32_t target_node_id,
-            std::set<int64_t>& neighbor_node_ids,
             ns3::Ptr<const ns3::Packet> pkt,
             ns3::Ipv4Header const &ipHeader,
-            bool is_request_for_source_ip_so_no_next_header
+            bool is_socket_request_for_source_ip
     ) = 0;
 
     /**
-     * Convert the routing table of a particular node to a string representation.
-     * This can have meaning (e.g., for ECMP the possible next hops), or none at all.
-     *
-     * @param node       Node of which a string representation of the routing table should be printed
+     * Convert the forwarding state (i.e., routing table) to a string representation.
      *
      * @return String representation
      */
-    virtual std::string string_repr_of_routing_table(int32_t node_id) = 0;
+    virtual std::string StringReprOfForwardingState() = 0;
 
 protected:
-    Topology* topology;
-    std::map<uint32_t, uint32_t> ip_to_node_id;
-    std::map<uint32_t, uint32_t>::iterator ip_to_node_id_it;
+    int32_t m_node_id;
+    ns3::NodeContainer m_nodes;
 
 private:
-    ns3::NodeContainer nodes;
-    uint32_t* neighbor_node_id_to_if_idx;
-    int64_t base_init_finish_ns_since_epoch;
+    std::map<uint32_t, uint32_t> m_ip_to_node_id;
+    std::map<uint32_t, uint32_t>::iterator m_ip_to_node_id_it;
 
 };
 

@@ -3,12 +3,12 @@
 using namespace ns3;
 
 RoutingArbiterEcmp::RoutingArbiterEcmp(
-        Topology* topology,
+        Ptr<Node> this_node,
         NodeContainer nodes,
+        Topology* topology,
         const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
-        )
-        : RoutingArbiter(topology, nodes, interface_idxs_for_edges
-        ) {
+) : TopologyRoutingArbiter(this_node nodes, topology, interface_idxs_for_edges
+) {
 
     ///////////////////////////
     // Floyd-Warshall
@@ -54,14 +54,14 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
     // the possible next hops
 
     // ECMP candidate list: candidate_list[current][destination] = [ list of next hops ]
-    candidate_list.reserve(topology->num_nodes);
+    m_candidate_list.reserve(topology->num_nodes);
     for (int i = 0; i < topology->num_nodes; i++) {
         std::vector<std::vector<uint32_t>> v;
         v.reserve(topology->num_nodes);
         for (int j = 0; j < topology->num_nodes; j++) {
             v.push_back(std::vector<uint32_t>());
         }
-        candidate_list.push_back(v);
+        m_candidate_list.push_back(v);
     }
 
     // Candidate next hops are determined in the following way:
@@ -71,10 +71,10 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
     for (std::pair<int64_t, int64_t> edge : topology->undirected_edges) {
         for (int j = 0; j < n; j++) {
             if (dist[edge.first * n + j] - 1 == dist[edge.second * n + j]) {
-                candidate_list[edge.first][j].push_back(edge.second);
+                m_candidate_list[edge.first][j].push_back(edge.second);
             }
             if (dist[edge.second * n + j] - 1 == dist[edge.first * n + j]) {
-                candidate_list[edge.second][j].push_back(edge.first);
+                m_candidate_list[edge.second][j].push_back(edge.first);
             }
         }
     }
@@ -82,8 +82,12 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
     // Free up the distance matrix
     delete[] dist;
 
-    ecmp_init_finish_ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
 
+int32_t RoutingArbiterEcmp::TopologyDecide(int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
+    uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, m_node_id, is_request_for_source_ip_so_no_next_header);
+    int s = candidate_list[current_node_id][target_node_id].size();
+    return candidate_list[current_node_id][target_node_id][hash % s];
 }
 
 /**
@@ -102,27 +106,27 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 uint64_t
 RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers)
 {
-    std::memcpy(&hash_input_buff[0], &node_id, 4);
+    std::memcpy(&m_hash_input_buff[0], &node_id, 4);
     
     // Source IP address
     uint32_t src_ip = header.GetSource().Get();
-    std::memcpy(&hash_input_buff[4], &src_ip, 4);
+    std::memcpy(&m_hash_input_buff[4], &src_ip, 4);
     
     // Destination IP address
     uint32_t dst_ip = header.GetDestination().Get();
-    std::memcpy(&hash_input_buff[8], &dst_ip, 4);
+    std::memcpy(&m_hash_input_buff[8], &dst_ip, 4);
     
     // Protocol
     uint8_t protocol = header.GetProtocol();
-    std::memcpy(&hash_input_buff[12], &protocol, 1);
+    std::memcpy(&m_hash_input_buff[12], &protocol, 1);
 
     // If we have been notified that whatever is in the protocol field,
     // does not mean there is another header to peek at, we do not peek
     if (no_other_headers) {
-        hash_input_buff[13] = 0;
-        hash_input_buff[14] = 0;
-        hash_input_buff[15] = 0;
-        hash_input_buff[16] = 0;
+        m_hash_input_buff[13] = 0;
+        m_hash_input_buff[14] = 0;
+        m_hash_input_buff[15] = 0;
+        m_hash_input_buff[16] = 0;
 
     } else {
 
@@ -133,8 +137,8 @@ RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pac
                 p->PeekHeader(udpHeader);
                 uint16_t src_port = udpHeader.GetSourcePort();
                 uint16_t dst_port = udpHeader.GetDestinationPort();
-                std::memcpy(&hash_input_buff[13], &src_port, 2);
-                std::memcpy(&hash_input_buff[15], &dst_port, 2);
+                std::memcpy(&m_hash_input_buff[13], &src_port, 2);
+                std::memcpy(&m_hash_input_buff[15], &dst_port, 2);
                 break;
             }
             case TCP_PROT_NUMBER: {
@@ -142,35 +146,25 @@ RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pac
                 p->PeekHeader(tcpHeader);
                 uint16_t src_port = tcpHeader.GetSourcePort();
                 uint16_t dst_port = tcpHeader.GetDestinationPort();
-                std::memcpy(&hash_input_buff[13], &src_port, 2);
-                std::memcpy(&hash_input_buff[15], &dst_port, 2);
+                std::memcpy(&m_hash_input_buff[13], &src_port, 2);
+                std::memcpy(&m_hash_input_buff[15], &dst_port, 2);
                 break;
             }
             default: {
-                hash_input_buff[13] = 0;
-                hash_input_buff[14] = 0;
-                hash_input_buff[15] = 0;
-                hash_input_buff[16] = 0;
+                m_hash_input_buff[13] = 0;
+                m_hash_input_buff[14] = 0;
+                m_hash_input_buff[15] = 0;
+                m_hash_input_buff[16] = 0;
                 break;
             }
         }
     }
 
-    hasher.clear();
-    return hasher.GetHash32(hash_input_buff, 17);
+    m_hasher.clear();
+    return m_hasher.GetHash32(m_hash_input_buff, 17);
 }
 
-int32_t RoutingArbiterEcmp::decide_next_node_id(int32_t current_node_id, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
-    uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, current_node_id, is_request_for_source_ip_so_no_next_header);
-    int s = candidate_list[current_node_id][target_node_id].size();
-    return candidate_list[current_node_id][target_node_id][hash % s];
-}
-
-int64_t RoutingArbiterEcmp::get_ecmp_init_finish_ns_since_epoch() {
-    return ecmp_init_finish_ns_since_epoch;
-}
-
-std::string RoutingArbiterEcmp::string_repr_of_routing_table(int32_t node_id) {
+std::string RoutingArbiterEcmp::StringReprOfForwardingState(int32_t node_id) {
     std::ostringstream res;
     res << "ECMP state of node " << node_id << std::endl;
     for (int i = 0; i < topology->num_nodes; i++) {

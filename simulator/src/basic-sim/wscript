@@ -15,6 +15,7 @@ def build(bld):
         'model/ipv4-arbitrary-routing.cc',
         'helper/ipv4-arbitrary-routing-helper.cc',
         'model/routing-arbiter.cc',
+        'model/topology-routing-arbiter.cc',
         'model/routing-arbiter-ecmp.cc',
         ]
 
@@ -32,6 +33,7 @@ def build(bld):
         'model/ipv4-arbitrary-routing.h',
         'helper/ipv4-arbitrary-routing-helper.h',
         'model/routing-arbiter.h',
+        'model/topology-routing-arbiter.h',
         'model/routing-arbiter-ecmp.h',
         ]
 

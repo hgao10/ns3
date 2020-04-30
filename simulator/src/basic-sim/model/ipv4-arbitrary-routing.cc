@@ -77,13 +77,23 @@ namespace ns3 {
         }
 
         // Decide interface index
-        uint32_t if_idx = 0;
+        uint32_t if_idx;
+        uint32_t gateway_ip_address;
         if (loopbackMask.IsMatch(dest, loopbackIp)) { // Loop-back
             if_idx = 0;
+            gateway_ip_address = 0;
 
         } else { // If not loop-back, it goes to the arbiter
                  // Local delivery has already been handled if it was input
-            if_idx = m_routingArbiter->decide_next_interface(m_nodeId, p, header);
+
+            RoutingArbiterResult result = m_routingArbiter->base_decide(p, header);
+            if (result.Failed()) {
+                return 0;
+            } else {
+                if_idx = result.GetOutIfIdx();
+                gateway_ip_address = result.GetGatewayIpAddress();
+            }
+
         }
 
         // Create routing entry
@@ -92,10 +102,8 @@ namespace ns3 {
         rtentry->SetSource(m_ipv4->SourceAddressSelection(if_idx, dest)); // This is basically the IP of the interface
                                                                           // It is used by a transport layer to
                                                                           // determine its source IP address
-        rtentry->SetGateway(Ipv4Address("0.0.0.0")); // This also works because a point-to-point network device
-                                                     // does not care about ARP resolution.
-        // uint32_t this_side_ip = m_ipv4->GetAddress(if_idx, 0).GetLocal().Get();
-        // rtentry->SetGateway(Ipv4Address(this_side_ip - 1 + 2 * (this_side_ip % 2)));
+        rtentry->SetGateway(Ipv4Address(gateway_ip_address)); // If the network device does not care about ARP resolution,
+                                                              // this can be set to 0.0.0.0
         rtentry->SetOutputDevice(m_ipv4->GetNetDevice(if_idx));
         return rtentry;
 
@@ -134,12 +142,16 @@ namespace ns3 {
         }
 
         // Perform lookup
-        // Info: If you want to decide that a packet should not be sent out (dropped), you can also return a null pointer (0) here
-        //       instead of a valid Ptr<IPv4Route> instance. If you do this for the header with source IP = 102.102.102.102,
+        // Info: If no route is found for a packet with the header with source IP = 102.102.102.102,
         //       the TCP socket will conclude there is no route and not even send out SYNs (any real packet).
         //       If source IP is set already, it just gets dropped and the TCP socket sees it as a normal loss somewhere in the network.
-        sockerr = Socket::ERROR_NOTERROR;
-        return LookupStatic(destination, header, p, oif);
+        Ptr<Ipv4Route> route = LookupStatic(destination, header, p, oif);
+        if (route == 0) {
+            sockerr = Socket::ERROR_NOROUTETOHOST;
+        } else {
+            sockerr = Socket::ERROR_NOTERROR;
+        }
+        return route;
 
     }
 
@@ -177,10 +189,21 @@ namespace ns3 {
         }
 
         // Uni-cast delivery
-        // Info: If you want to decide that a packet should not be routed (dropped),
-        //       you can decide that here by not calling ucb(), but still returning true.
-        ucb(LookupStatic(ipHeader.GetDestination(), ipHeader, p), p, ipHeader);
-        return true;
+        Ptr<Ipv4Route> route = LookupStatic(ipHeader.GetDestination(), ipHeader, p);
+        if (route == 0) {
+
+            // Lookup failed, so we did not find a route
+            // If there are no other routing protocols, this will lead to a drop
+            return false;
+
+        } else {
+
+            // Lookup succeeded in producing a route
+            // So we perform the unicast callback to forward there
+            ucb(route, p, ipHeader);
+            return true;
+
+        }
 
     }
 
