@@ -13,20 +13,20 @@ TopologyRoutingArbiter::TopologyRoutingArbiter(
     m_topology = topology;
 
     // Save which interface is for which neighbor node id
-    this->neighbor_node_id_to_if_idx = (uint32_t*) calloc(m_topology->num_nodes * m_topology->num_nodes, sizeof(uint32_t));
+    m_neighbor_node_id_to_if_idx = (uint32_t*) calloc(m_topology->num_nodes * m_topology->num_nodes, sizeof(uint32_t));
     for (int i = 0; i < m_topology->num_undirected_edges; i++) {
         std::pair<int64_t, int64_t> edge = m_topology->undirected_edges[i];
-        this->neighbor_node_id_to_if_idx[edge.first * m_topology->num_nodes + edge.second] = interface_idxs_for_edges[i].first;
-        this->neighbor_node_id_to_if_idx[edge.second * m_topology->num_nodes + edge.first] = interface_idxs_for_edges[i].second;
+        m_neighbor_node_id_to_if_idx[edge.first * m_topology->num_nodes + edge.second] = interface_idxs_for_edges[i].first;
+        m_neighbor_node_id_to_if_idx[edge.second * m_topology->num_nodes + edge.first] = interface_idxs_for_edges[i].second;
     }
 
 }
 
 TopologyRoutingArbiter::~TopologyRoutingArbiter() {
-    free(this->neighbor_node_id_to_if_idx);
+    free(m_neighbor_node_id_to_if_idx);
 }
 
-RoutingArbiterResult Decide(
+RoutingArbiterResult TopologyRoutingArbiter::Decide(
         int32_t source_node_id,
         int32_t target_node_id,
         ns3::Ptr<const ns3::Packet> pkt,
