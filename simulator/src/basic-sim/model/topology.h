@@ -10,9 +10,9 @@ class Topology : public Object
 {
 public:
     static TypeId GetTypeId (void);
-    virtual NodeContainer GetNodes() = 0;
+    virtual const NodeContainer& GetNodes() = 0;
     virtual bool IsValidEndpoint(int64_t node_id) = 0;
-    virtual std::set<int64_t> GetEndpoints() = 0;
+    virtual const std::set<int64_t>& GetEndpoints() = 0;
 };
 
 }

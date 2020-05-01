@@ -39,23 +39,24 @@ void TopologyPtop::ReadTopology() {
     std::map<std::string, std::string> config = read_config(m_basicSimulation->GetRunDir() + "/" + m_basicSimulation->GetConfigParamOrFail("filename_topology"));
 
     // Basic
-    this->num_nodes = parse_positive_int64(get_param_or_fail("num_nodes", config));
-    this->num_undirected_edges = parse_positive_int64(get_param_or_fail("num_undirected_edges", config));
+    m_num_nodes = parse_positive_int64(get_param_or_fail("num_nodes", config));
+    m_num_undirected_edges = parse_positive_int64(get_param_or_fail("num_undirected_edges", config));
 
     // Node types
-    std::string tmp = get_param_or_fail("switches", config);
-    this->switches = parse_set_positive_int64(tmp);
-    all_items_are_less_than(this->switches, num_nodes);
+    std::string tmp;
+    tmp = get_param_or_fail("switches", config);
+    m_switches = parse_set_positive_int64(tmp);
+    all_items_are_less_than(m_switches, m_num_nodes);
     tmp = get_param_or_fail("switches_which_are_tors", config);
-    this->switches_which_are_tors = parse_set_positive_int64(tmp);
-    all_items_are_less_than(this->switches_which_are_tors, num_nodes);
+    m_switches_which_are_tors = parse_set_positive_int64(tmp);
+    all_items_are_less_than(m_switches_which_are_tors, m_num_nodes);
     tmp = get_param_or_fail("servers", config);
-    this->servers = parse_set_positive_int64(tmp);
-    all_items_are_less_than(this->servers, num_nodes);
+    m_servers = parse_set_positive_int64(tmp);
+    all_items_are_less_than(m_servers, m_num_nodes);
 
     // Adjacency list
-    for (int i = 0; i < this->num_nodes; i++) {
-        adjacency_list.push_back(std::set<int64_t>());
+    for (int i = 0; i < m_num_nodes; i++) {
+        m_adjacency_list.push_back(std::set<int64_t>());
     }
 
     // Edges
@@ -68,67 +69,67 @@ void TopologyPtop::ReadTopology() {
         if (a == b) {
             throw std::invalid_argument(format_string("Cannot have edge to itself on node %" PRIu64 "", a));
         }
-        if (a >= this->num_nodes) {
+        if (a >= m_num_nodes) {
             throw std::invalid_argument(format_string("Left node identifier in edge does not exist: %" PRIu64 "", a));
         }
-        if (b >= this->num_nodes) {
+        if (b >= m_num_nodes) {
             throw std::invalid_argument(format_string("Right node identifier in edge does not exist: %" PRIu64 "", b));
         }
-        undirected_edges.push_back(std::make_pair(a < b ? a : b, a < b ? b : a));
-        undirected_edges_set.insert(std::make_pair(a < b ? a : b, a < b ? b : a));
-        adjacency_list[a].insert(b);
-        adjacency_list[b].insert(a);
+        m_undirected_edges.push_back(std::make_pair(a < b ? a : b, a < b ? b : a));
+        m_undirected_edges_set.insert(std::make_pair(a < b ? a : b, a < b ? b : a));
+        m_adjacency_list[a].insert(b);
+        m_adjacency_list[b].insert(a);
     }
 
     // Sort them for convenience
-    std::sort(undirected_edges.begin(), undirected_edges.end());
+    std::sort(m_undirected_edges.begin(), m_undirected_edges.end());
 
     // Edge checks
 
-    if (undirected_edges.size() != (size_t) num_undirected_edges) {
+    if (m_undirected_edges.size() != (size_t) m_num_undirected_edges) {
         throw std::invalid_argument("Indicated number of undirected edges does not match edge set");
     }
 
-    if (undirected_edges.size() != undirected_edges_set.size()) {
+    if (m_undirected_edges.size() != m_undirected_edges_set.size()) {
         throw std::invalid_argument("Duplicates in edge set");
     }
 
     // Node type hierarchy checks
 
-    if (!direct_set_intersection(this->servers, this->switches).empty()) {
+    if (!direct_set_intersection(m_servers, m_switches).empty()) {
         throw std::invalid_argument("Server and switch identifiers are not distinct");
     }
 
-    if (direct_set_union(this->servers, this->switches).size() != (size_t) num_nodes) {
+    if (direct_set_union(m_servers, m_switches).size() != (size_t) m_num_nodes) {
         throw std::invalid_argument("The servers and switches do not encompass all nodes");
     }
 
-    if (direct_set_intersection(this->switches, this->switches_which_are_tors).size() != this->switches_which_are_tors.size()) {
+    if (direct_set_intersection(m_switches, m_switches_which_are_tors).size() != m_switches_which_are_tors.size()) {
         throw std::invalid_argument("Servers are marked as ToRs");
     }
 
     // Servers must be connected to ToRs only
-    for (int64_t node_id : this->servers) {
-        for (int64_t neighbor_id : adjacency_list[node_id]) {
-            if (this->switches_which_are_tors.find(neighbor_id) == this->switches_which_are_tors.end()) {
+    for (int64_t node_id : m_servers) {
+        for (int64_t neighbor_id : m_adjacency_list[node_id]) {
+            if (m_switches_which_are_tors.find(neighbor_id) == m_switches_which_are_tors.end()) {
                 throw std::invalid_argument(format_string("Server node %" PRId64 " has an edge to node %" PRId64 " which is not a ToR.", node_id, neighbor_id));
             }
         }
     }
 
     // Check
-    if (this->servers.size() > 0) {
-        has_zero_servers = false;
+    if (m_servers.size() > 0) {
+        m_has_zero_servers = false;
     } else {
-        has_zero_servers = true;
+        m_has_zero_servers = true;
     }
 
     // Print summary
     printf("TOPOLOGY SUMMARY\n");
-    printf("  > Number of nodes.... %" PRIu64 "\n", this->num_nodes);
-    printf("    >> Switches........ %" PRIu64 " (of which %" PRIu64 " are ToRs)\n", this->switches.size(), this->switches_which_are_tors.size());
-    printf("    >> Servers......... %" PRIu64 "\n", this->servers.size());
-    printf("  > Undirected edges... %" PRIu64 "\n\n", this->num_undirected_edges);
+    printf("  > Number of nodes.... %" PRIu64 "\n", m_num_nodes);
+    printf("    >> Switches........ %" PRIu64 " (of which %" PRIu64 " are ToRs)\n", m_switches.size(), m_switches_which_are_tors.size());
+    printf("    >> Servers......... %" PRIu64 "\n", m_servers.size());
+    printf("  > Undirected edges... %" PRIu64 "\n\n", m_num_undirected_edges);
     m_basicSimulation->RegisterTimestamp("Read topology");
 
     // MTU = 1500 byte, +2 with the p2p header.
@@ -140,7 +141,7 @@ void TopologyPtop::ReadTopology() {
     // If the topology is not big, < 10 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
     //
     // num_hops * (((n_q + 2) * 1502 byte) / link data rate) + link delay)
-    int num_hops = std::min((int64_t) 20, this->num_undirected_edges * 2);
+    int num_hops = std::min((int64_t) 20, m_num_undirected_edges * 2);
     m_worst_case_rtt_ns = num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
     printf("Estimated worst-case RTT: %.3f ms\n\n", m_worst_case_rtt_ns / 1e6);
 
@@ -151,7 +152,7 @@ void TopologyPtop::SetupNodes(const Ipv4RoutingHelper& ipv4RoutingHelper) {
     std::cout << "  > Creating nodes and installing Internet stack on each" << std::endl;
 
     // Install Internet on all nodes
-    m_nodes.Create(this->num_nodes);
+    m_nodes.Create(m_num_nodes);
     InternetStackHelper internet;
     internet.SetRoutingHelper(ipv4RoutingHelper);
     internet.Install(m_nodes);
@@ -180,7 +181,7 @@ void TopologyPtop::SetupLinks() {
     std::string p2p_net_device_max_queue_size_pkts_str = format_string("%" PRId64 "p", m_link_max_queue_size_pkts);
 
     // Notify about topology state
-    if (this->has_zero_servers) {
+    if (m_has_zero_servers) {
         std::cout << "  > Because there are no servers, ToRs are considered valid flow-endpoints" << std::endl;
     } else {
         std::cout << "  > Only servers are considered valid flow-endpoints" << std::endl;
@@ -216,7 +217,7 @@ void TopologyPtop::SetupLinks() {
     // Create Links
     std::cout << "  > Installing links" << std::endl;
     m_interface_idxs_for_edges.clear();
-    for (std::pair <int64_t, int64_t> link : this->undirected_edges) {
+    for (std::pair <int64_t, int64_t> link : m_undirected_edges) {
 
         // Install link
         NetDeviceContainer container = p2p.Install(m_nodes.Get(link.first), m_nodes.Get(link.second));
@@ -224,12 +225,12 @@ void TopologyPtop::SetupLinks() {
         container.Get(1)->GetObject<PointToPointNetDevice>()->GetQueue()->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
 
         // Install traffic control
-        if (this->IsValidEndpoint(link.first)) {
+        if (IsValidEndpoint(link.first)) {
             tch_endpoints.Install(container.Get(0));
         } else {
             tch_not_endpoints.Install(container.Get(0));
         }
-        if (this->IsValidEndpoint(link.second)) {
+        if (IsValidEndpoint(link.second)) {
             tch_endpoints.Install(container.Get(1));
         } else {
             tch_not_endpoints.Install(container.Get(1));
@@ -250,32 +251,68 @@ void TopologyPtop::SetupLinks() {
     m_basicSimulation->RegisterTimestamp("Create links and edge-to-interface-index mapping");
 }
 
-NodeContainer TopologyPtop::GetNodes() {
+const NodeContainer& TopologyPtop::GetNodes() {
     return m_nodes;
 }
 
+int64_t TopologyPtop::GetNumNodes() {
+    return m_num_nodes;
+}
+
+int64_t TopologyPtop::GetNumUndirectedEdges() {
+    return m_num_undirected_edges;
+}
+
+const std::set<int64_t>& TopologyPtop::GetSwitches() {
+    return m_switches;
+}
+
+const std::set<int64_t>& TopologyPtop::GetSwitchesWhichAreTors() {
+    return m_switches_which_are_tors;
+}
+
+const std::set<int64_t>& TopologyPtop::GetServers() {
+    return m_servers;
+}
+
 bool TopologyPtop::IsValidEndpoint(int64_t node_id) {
-    if (has_zero_servers) {
-        return this->switches_which_are_tors.find(node_id) != this->switches_which_are_tors.end();
+    if (m_has_zero_servers) {
+        return m_switches_which_are_tors.find(node_id) != m_switches_which_are_tors.end();
     } else {
-        return this->servers.find(node_id) != this->servers.end();
+        return m_servers.find(node_id) != m_servers.end();
     }
 }
 
-std::set<int64_t> TopologyPtop::GetEndpoints() {
-    if (has_zero_servers) {
-        return this->switches_which_are_tors;
+const std::set<int64_t>& TopologyPtop::GetEndpoints() {
+    if (m_has_zero_servers) {
+        return m_switches_which_are_tors;
     } else {
-        return this->servers;
+        return m_servers;
     }
+}
+
+const std::vector<std::pair<int64_t, int64_t>>& TopologyPtop::GetUndirectedEdges() {
+    return m_undirected_edges;
+}
+
+const std::set<std::pair<int64_t, int64_t>>& TopologyPtop::GetUndirectedEdgesSet() {
+    return m_undirected_edges_set;
+}
+
+const std::vector<std::set<int64_t>>& TopologyPtop::GetAllAdjacencyLists() {
+    return m_adjacency_list;
+}
+
+const std::set<int64_t>& TopologyPtop::GetAdjacencyList(int64_t node_id) {
+    return m_adjacency_list[node_id];
 }
 
 int64_t TopologyPtop::GetWorstCaseRttEstimateNs() {
     return m_worst_case_rtt_ns;
 }
 
-std::vector<std::pair<uint32_t, uint32_t>>* TopologyPtop::GetInterfaceIdxsForEdges() {
-    return &m_interface_idxs_for_edges;
+const std::vector<std::pair<uint32_t, uint32_t>>& TopologyPtop::GetInterfaceIdxsForEdges() {
+    return m_interface_idxs_for_edges;
 }
 
 }

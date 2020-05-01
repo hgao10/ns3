@@ -16,18 +16,18 @@ ArbiterPtop::ArbiterPtop(
         Ptr<Node> this_node,
         NodeContainer nodes,
         Ptr<TopologyPtop> topology,
-        const std::vector<std::pair<uint32_t, uint32_t>>* interface_idxs_for_edges
+        const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
 ) : Arbiter(this_node, nodes) {
 
     // Topology
     m_topology = topology;
 
     // Save which interface is for which neighbor node id
-    m_neighbor_node_id_to_if_idx = (uint32_t*) calloc(m_topology->num_nodes * m_topology->num_nodes, sizeof(uint32_t));
-    for (int i = 0; i < m_topology->num_undirected_edges; i++) {
-        std::pair<int64_t, int64_t> edge = m_topology->undirected_edges[i];
-        m_neighbor_node_id_to_if_idx[edge.first * m_topology->num_nodes + edge.second] = (*interface_idxs_for_edges)[i].first;
-        m_neighbor_node_id_to_if_idx[edge.second * m_topology->num_nodes + edge.first] = (*interface_idxs_for_edges)[i].second;
+    m_neighbor_node_id_to_if_idx = (uint32_t*) calloc(m_topology->GetNumNodes() * m_topology->GetNumNodes(), sizeof(uint32_t));
+    for (int i = 0; i < m_topology->GetNumUndirectedEdges(); i++) {
+        std::pair<int64_t, int64_t> edge = m_topology->GetUndirectedEdges()[i];
+        m_neighbor_node_id_to_if_idx[edge.first * m_topology->GetNumNodes() + edge.second] = interface_idxs_for_edges[i].first;
+        m_neighbor_node_id_to_if_idx[edge.second * m_topology->GetNumNodes() + edge.first] = interface_idxs_for_edges[i].second;
     }
 
 }
@@ -48,7 +48,7 @@ ArbiterResult ArbiterPtop::Decide(
     int32_t selected_node_id = TopologyPtopDecide(
                 source_node_id,
                 target_node_id,
-                m_topology->adjacency_list[m_node_id],
+                m_topology->GetAdjacencyList(m_node_id),
                 pkt,
                 ipHeader,
                 is_socket_request_for_source_ip
@@ -58,14 +58,14 @@ ArbiterResult ArbiterPtop::Decide(
     if (selected_node_id != -1) {
 
         // Must be a valid node identifier
-        if (selected_node_id < 0 || selected_node_id >= m_topology->num_nodes) {
+        if (selected_node_id < 0 || selected_node_id >= m_topology->GetNumNodes()) {
             throw std::runtime_error(format_string(
-                    "The selected next node %d is out of node id range of [0, %"  PRId64 ").", selected_node_id, m_topology->num_nodes
+                    "The selected next node %d is out of node id range of [0, %"  PRId64 ").", selected_node_id, m_topology->GetNumNodes()
             ));
         }
 
         // Convert the neighbor node id to the interface index of the edge which connects to it
-        uint32_t selected_if_idx = m_neighbor_node_id_to_if_idx[m_node_id * m_topology->num_nodes + selected_node_id];
+        uint32_t selected_if_idx = m_neighbor_node_id_to_if_idx[m_node_id * m_topology->GetNumNodes() + selected_node_id];
         if (selected_if_idx == 0) {
             throw std::runtime_error(format_string(
                     "The selected next node %d is not a neighbor of node %d.",

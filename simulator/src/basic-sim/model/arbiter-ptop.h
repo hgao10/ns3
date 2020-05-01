@@ -26,7 +26,7 @@ class ArbiterPtop : public Arbiter
 
 public:
     static TypeId GetTypeId (void);
-    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, Ptr<TopologyPtop> topology, const std::vector<std::pair<uint32_t, uint32_t>>* interface_idxs_for_edges);
+    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, Ptr<TopologyPtop> topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
     virtual ~ArbiterPtop();
 
     // Topology implementation
@@ -55,7 +55,7 @@ public:
     virtual int32_t TopologyPtopDecide(
             int32_t source_node_id,
             int32_t target_node_id,
-            std::set<int64_t>& neighbor_node_ids,
+            const std::set<int64_t>& neighbor_node_ids,
             ns3::Ptr<const ns3::Packet> pkt,
             ns3::Ipv4Header const &ipHeader,
             bool is_socket_request_for_source_ip
