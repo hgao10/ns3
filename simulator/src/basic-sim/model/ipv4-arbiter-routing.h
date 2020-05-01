@@ -30,7 +30,7 @@
 #include "ns3/ptr.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-routing-protocol.h"
-#include "ns3/routing-arbiter.h"
+#include "ns3/arbiter.h"
 #include "ns3/point-to-point-net-device.h"
 #include "ns3/point-to-point-channel.h"
 
@@ -97,12 +97,12 @@ public:
   virtual void NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address);
   virtual void PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit = Time::S) const;
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
-  void SetRoutingArbiter (RoutingArbiter* routingArbiter);
+  void SetArbiter (Arbiter* arbiter);
 
 private:
     Ptr<Ipv4> m_ipv4;
     Ptr<Ipv4Route> LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif = 0);
-    RoutingArbiter* m_routingArbiter = 0;
+    Arbiter* m_arbiter = 0;
     Ipv4Address m_nodeSingleIpAddress;
     Ipv4Mask loopbackMask = Ipv4Mask("255.0.0.0");
     Ipv4Address loopbackIp = Ipv4Address("127.0.0.1");

@@ -26,8 +26,7 @@
 
 #include "ns3/exp-util.h"
 #include "ns3/topology.h"
-#include "ns3/routing-arbiter.h"
-#include "ns3/routing-arbiter-ecmp.h"
+#include "ns3/arbiter-ecmp.h"
 #include "ns3/ipv4-arbiter-routing.h"
 #include "ns3/ipv4-arbiter-routing-helper.h"
 

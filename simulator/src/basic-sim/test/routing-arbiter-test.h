@@ -36,10 +36,10 @@ std::vector<std::pair<uint32_t, uint32_t>> setup_links(NodeContainer nodes, Topo
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class RoutingArbiterIpResolutionTestCase : public TestCase
+class ArbiterIpResolutionTestCase : public TestCase
 {
 public:
-    RoutingArbiterIpResolutionTestCase () : TestCase ("routing-arbiter basic") {};
+    ArbiterIpResolutionTestCase () : TestCase ("routing-arbiter basic") {};
     void DoRun () {
         std::ofstream topology_file;
         topology_file.open ("topology.properties.temp");
@@ -55,7 +55,7 @@ public:
         // Create nodes, setup links and create arbiter
         NodeContainer nodes = create_nodes(topology);
         std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        RoutingArbiterEcmp routingArbiter = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+        ArbiterEcmp routingArbiter = ArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
 
         // Test valid IPs
         ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.0.1").Get()), 0);
@@ -121,10 +121,10 @@ void create_headered_packet(Ptr<Packet> p, ecmp_fields_t e) {
 
 }
 
-class RoutingArbiterEcmpHashTestCase : public TestCase
+class ArbiterEcmpHashTestCase : public TestCase
 {
 public:
-    RoutingArbiterEcmpHashTestCase () : TestCase ("routing-arbiter-ecmp hash") {};
+    ArbiterEcmpHashTestCase () : TestCase ("routing-arbiter-ecmp hash") {};
     void DoRun () {
         std::ofstream topology_file;
         topology_file.open ("topology.properties.temp");
@@ -140,7 +140,7 @@ public:
         // Create nodes, setup links and create arbiter
         NodeContainer nodes = create_nodes(topology);
         std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        RoutingArbiterEcmp routingArbiterEcmp = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+        ArbiterEcmp routingArbiterEcmp = ArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
 
         ///////
         // All hashes should be different if any of the 5 values are different
@@ -279,10 +279,10 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class RoutingArbiterEcmpStringReprTestCase : public TestCase
+class ArbiterEcmpStringReprTestCase : public TestCase
 {
 public:
-    RoutingArbiterEcmpStringReprTestCase () : TestCase ("routing-arbiter-ecmp string-repr") {};
+    ArbiterEcmpStringReprTestCase () : TestCase ("routing-arbiter-ecmp string-repr") {};
     void DoRun () {
         std::ofstream topology_file;
         topology_file.open ("topology.properties.temp");
@@ -298,10 +298,10 @@ public:
         // Create nodes, setup links and create arbiter
         NodeContainer nodes = create_nodes(topology);
         std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        RoutingArbiterEcmp routingArbiterEcmp = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+        ArbiterEcmp routingArbiterEcmp = ArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
 
         for (int i = 0; i < topology.num_nodes; i++) {
-            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetRoutingArbiter(&routingArbiterEcmp);
+            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(&routingArbiterEcmp);
             std::ostringstream res;
             OutputStreamWrapper out_stream = OutputStreamWrapper(&res);
             nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->PrintRoutingTable(&out_stream);
@@ -349,11 +349,11 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class RoutingArbiterBad: public RoutingArbiter
+class ArbiterBad: public Arbiter
 {
 public:
 
-    RoutingArbiterBad(Topology* topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) : RoutingArbiter(topology, nodes, interface_idxs_for_edges) {
+    ArbiterBad(Topology* topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) : Arbiter(topology, nodes, interface_idxs_for_edges) {
         // Left empty intentionally
     }
 
@@ -374,10 +374,10 @@ private:
 
 };
 
-class RoutingArbiterBadImplTestCase : public TestCase
+class ArbiterBadImplTestCase : public TestCase
 {
 public:
-    RoutingArbiterBadImplTestCase () : TestCase ("routing-arbiter bad-impl") {};
+    ArbiterBadImplTestCase () : TestCase ("routing-arbiter bad-impl") {};
     void DoRun () {
         std::ofstream topology_file;
         topology_file.open ("topology.properties.temp");
@@ -393,7 +393,7 @@ public:
         // Create nodes, setup links and create arbiter
         NodeContainer nodes = create_nodes(topology); // Only nodes to create
         std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        RoutingArbiterBad arbiterBad = RoutingArbiterBad(&topology, nodes, interface_idxs_for_edges);
+        ArbiterBad arbiterBad = ArbiterBad(&topology, nodes, interface_idxs_for_edges);
 
         // This should be fine
         arbiterBad.set_decision(2);
@@ -434,10 +434,10 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////
 
 // Currently disabled because it takes too long for a quick test
-class RoutingArbiterEcmpTooBigFailTestCase : public TestCase
+class ArbiterEcmpTooBigFailTestCase : public TestCase
 {
 public:
-    RoutingArbiterEcmpTooBigFailTestCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
+    ArbiterEcmpTooBigFailTestCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
     void DoRun () {
         std::ofstream topology_file;
         topology_file.open ("topology.properties.temp");
@@ -461,7 +461,7 @@ public:
         // Create nodes, setup links and create arbiter
         NodeContainer nodes = create_nodes(topology); // Only nodes to create
         std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ASSERT_EXCEPTION(RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges)); // > 40000 nodes is not allowed
+        ASSERT_EXCEPTION(ArbiterEcmp(&topology, nodes, interface_idxs_for_edges)); // > 40000 nodes is not allowed
 
         remove_file_if_exists("topology.properties.temp");
 

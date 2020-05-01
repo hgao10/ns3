@@ -1,5 +1,5 @@
-#ifndef TOPOLOGY_ROUTING_ARBITER_H
-#define TOPOLOGY_ROUTING_ARBITER_H
+#ifndef ARBITER_PTOP_H
+#define ARBITER_PTOP_H
 
 #include <map>
 #include <iostream>
@@ -17,17 +17,17 @@
 #include "ns3/node-container.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-header.h"
-#include "ns3/routing-arbiter.h"
+#include "ns3/arbiter.h"
 
-class TopologyRoutingArbiter : public RoutingArbiter
+class ArbiterPtop : public Arbiter
 {
 
 public:
-    TopologyRoutingArbiter(Ptr<Node> this_node, NodeContainer nodes, Topology* topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
-    virtual ~TopologyRoutingArbiter();
+    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, Topology* topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
+    virtual ~ArbiterPtop();
 
     // Topology implementation
-    RoutingArbiterResult Decide(
+    ArbiterResult Decide(
             int32_t source_node_id,
             int32_t target_node_id,
             ns3::Ptr<const ns3::Packet> pkt,
@@ -66,4 +66,4 @@ protected:
 
 };
 
-#endif //TOPOLOGY_ROUTING_ARBITER_H
+#endif //ARBITER_PTOP_H

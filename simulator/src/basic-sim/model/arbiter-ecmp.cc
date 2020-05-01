@@ -1,13 +1,13 @@
-#include "routing-arbiter-ecmp.h"
+#include "arbiter-ecmp.h"
 
 using namespace ns3;
 
-RoutingArbiterEcmp::RoutingArbiterEcmp(
+ArbiterEcmp::ArbiterEcmp(
         Ptr<Node> this_node,
         NodeContainer nodes,
         Topology* topology,
         const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
-) : TopologyRoutingArbiter(this_node, nodes, topology, interface_idxs_for_edges
+) : ArbiterPtop(this_node, nodes, topology, interface_idxs_for_edges
 ) {
 
     ///////////////////////////
@@ -84,7 +84,7 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 
 }
 
-int32_t RoutingArbiterEcmp::TopologyDecide(int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
+int32_t ArbiterEcmp::TopologyDecide(int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
     uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, m_node_id, is_request_for_source_ip_so_no_next_header);
     int s = m_candidate_list[m_node_id][target_node_id].size();
     return m_candidate_list[m_node_id][target_node_id][hash % s];
@@ -104,7 +104,7 @@ int32_t RoutingArbiterEcmp::TopologyDecide(int32_t source_node_id, int32_t targe
  * @return Hash value
  */
 uint64_t
-RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers)
+ArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers)
 {
     std::memcpy(&m_hash_input_buff[0], &node_id, 4);
     
@@ -164,7 +164,7 @@ RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pac
     return m_hasher.GetHash32(m_hash_input_buff, 17);
 }
 
-std::string RoutingArbiterEcmp::StringReprOfForwardingState() {
+std::string ArbiterEcmp::StringReprOfForwardingState() {
     std::ostringstream res;
     res << "ECMP state of node " << m_node_id << std::endl;
     for (int i = 0; i < m_topology->num_nodes; i++) {

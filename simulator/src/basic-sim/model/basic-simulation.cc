@@ -249,8 +249,8 @@ void BasicSimulation::SetupRouting() {
     std::cout << "  > Calculating ECMP routing" << std::endl;
     std::cout << "  > Setting the routing protocol on each node" << std::endl;
     for (int i = 0; i < m_topology->num_nodes; i++) {
-        RoutingArbiterEcmp* routingArbiterEcmp = new RoutingArbiterEcmp(m_nodes.Get(i), m_nodes, m_topology, m_interface_idxs_for_edges); // Remains alive for the entire simulation // TODO: memory leak
-        m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetRoutingArbiter(routingArbiterEcmp);
+        ArbiterEcmp* routingArbiterEcmp = new ArbiterEcmp(m_nodes.Get(i), m_nodes, m_topology, m_interface_idxs_for_edges); // Remains alive for the entire simulation // TODO: memory leak
+        m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(routingArbiterEcmp);
     }
 
     std::cout << std::endl;

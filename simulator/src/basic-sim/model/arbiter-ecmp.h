@@ -1,7 +1,7 @@
-#ifndef ROUTING_ARBITER_ECMP_H
-#define ROUTING_ARBITER_ECMP_H
+#ifndef ARBITER_ECMP_H
+#define ARBITER_ECMP_H
 
-#include "ns3/topology-routing-arbiter.h"
+#include "ns3/arbiter-ptop.h"
 #include "ns3/topology.h"
 #include "ns3/hash.h"
 #include "ns3/ipv4-header.h"
@@ -13,12 +13,12 @@ using namespace ns3;
 const uint8_t TCP_PROT_NUMBER = 6;
 const uint8_t UDP_PROT_NUMBER = 17;
 
-class RoutingArbiterEcmp : public TopologyRoutingArbiter
+class ArbiterEcmp : public ArbiterPtop
 {
 public:
 
     // Constructor for ECMP forwarding state
-    RoutingArbiterEcmp(
+    ArbiterEcmp(
             Ptr<Node> this_node,
             NodeContainer nodes,
             Topology* topology,
@@ -46,4 +46,4 @@ private:
 
 };
 
-#endif //ROUTING_ARBITER_ECMP_H
+#endif //ARBITER_ECMP_H

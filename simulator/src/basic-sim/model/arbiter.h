@@ -1,5 +1,5 @@
-#ifndef ROUTING_ARBITER_H
-#define ROUTING_ARBITER_H
+#ifndef ARBITER_H
+#define ARBITER_H
 
 
 #include <map>
@@ -21,10 +21,10 @@
 
 using namespace ns3;
 
-class RoutingArbiterResult {
+class ArbiterResult {
 
 public:
-    RoutingArbiterResult(bool failed, uint32_t out_if_idx, uint32_t gateway_ip_address);
+    ArbiterResult(bool failed, uint32_t out_if_idx, uint32_t gateway_ip_address);
     bool Failed();
     uint32_t GetOutIfIdx();
     uint32_t GetGatewayIpAddress();
@@ -36,11 +36,11 @@ private:
 
 };
 
-class RoutingArbiter
+class Arbiter
 {
 
 public:
-    RoutingArbiter(Ptr<Node> this_node, NodeContainer nodes);
+    Arbiter(Ptr<Node> this_node, NodeContainer nodes);
 
     /**
      * Resolve the node identifier from an IP address.
@@ -61,7 +61,7 @@ public:
      *
      * @return Routing arbiter result.
      */
-    RoutingArbiterResult BaseDecide(
+    ArbiterResult BaseDecide(
             ns3::Ptr<const ns3::Packet> pkt,
             ns3::Ipv4Header const &ipHeader
     );
@@ -90,7 +90,7 @@ public:
      *
      *         A UDP source only asks for source IP, and does not do another subsequent call in the udp-l4 layer.
      */
-    virtual RoutingArbiterResult Decide(
+    virtual ArbiterResult Decide(
             int32_t source_node_id,
             int32_t target_node_id,
             ns3::Ptr<const ns3::Packet> pkt,
@@ -115,4 +115,4 @@ private:
 
 };
 
-#endif //ROUTING_ARBITER_H
+#endif //ARBITER_H

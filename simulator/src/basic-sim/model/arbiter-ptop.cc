@@ -1,13 +1,13 @@
-#include "ns3/topology-routing-arbiter.h"
+#include "ns3/arbiter-ptop.h"
 
 using namespace ns3;
 
-TopologyRoutingArbiter::TopologyRoutingArbiter(
+ArbiterPtop::ArbiterPtop(
         Ptr<Node> this_node,
         NodeContainer nodes,
         Topology* topology,
         const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
-) : RoutingArbiter(this_node, nodes) {
+) : Arbiter(this_node, nodes) {
 
     // Topology
     m_topology = topology;
@@ -22,11 +22,11 @@ TopologyRoutingArbiter::TopologyRoutingArbiter(
 
 }
 
-TopologyRoutingArbiter::~TopologyRoutingArbiter() {
+ArbiterPtop::~ArbiterPtop() {
     free(m_neighbor_node_id_to_if_idx);
 }
 
-RoutingArbiterResult TopologyRoutingArbiter::Decide(
+ArbiterResult ArbiterPtop::Decide(
         int32_t source_node_id,
         int32_t target_node_id,
         ns3::Ptr<const ns3::Packet> pkt,
@@ -65,10 +65,10 @@ RoutingArbiterResult TopologyRoutingArbiter::Decide(
         }
 
         // We succeeded in finding the interface to the next hop
-        return RoutingArbiterResult(false, selected_if_idx, 0); // Gateway is 0.0.0.0
+        return ArbiterResult(false, selected_if_idx, 0); // Gateway is 0.0.0.0
 
     } else {
-        return RoutingArbiterResult(true, 0, 0); // Failed = no route (means either drop, or socket fails)
+        return ArbiterResult(true, 0, 0); // Failed = no route (means either drop, or socket fails)
     }
 
 }

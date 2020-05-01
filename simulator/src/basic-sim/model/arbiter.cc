@@ -1,27 +1,27 @@
-#include "ns3/routing-arbiter.h"
+#include "ns3/arbiter.h"
 
 using namespace ns3;
 
 // Routing arbiter result
 
-RoutingArbiterResult::RoutingArbiterResult(bool failed, uint32_t out_if_idx, uint32_t gateway_ip_address) {
+ArbiterResult::ArbiterResult(bool failed, uint32_t out_if_idx, uint32_t gateway_ip_address) {
     m_failed = failed;
     m_out_if_idx = out_if_idx;
     m_gateway_ip_address = gateway_ip_address;
 }
 
-bool RoutingArbiterResult::Failed() {
+bool ArbiterResult::Failed() {
     return m_failed;
 }
 
-uint32_t RoutingArbiterResult::GetOutIfIdx() {
+uint32_t ArbiterResult::GetOutIfIdx() {
     if (m_failed) {
         throw std::runtime_error("Cannot retrieve out interface index if the arbiter did not succeed in finding a next hop");
     }
     return m_out_if_idx;
 }
 
-uint32_t RoutingArbiterResult::GetGatewayIpAddress() {
+uint32_t ArbiterResult::GetGatewayIpAddress() {
     if (m_failed) {
         throw std::runtime_error("Cannot retrieve gateway IP address if the arbiter did not succeed in finding a next hop");
     }
@@ -30,7 +30,7 @@ uint32_t RoutingArbiterResult::GetGatewayIpAddress() {
 
 // Routing arbiter
 
-RoutingArbiter::RoutingArbiter(Ptr<Node> this_node, NodeContainer nodes) {
+Arbiter::Arbiter(Ptr<Node> this_node, NodeContainer nodes) {
     this->m_node_id = this_node->GetId();
     this->m_nodes = nodes;
 
@@ -43,7 +43,7 @@ RoutingArbiter::RoutingArbiter(Ptr<Node> this_node, NodeContainer nodes) {
 
 }
 
-uint32_t RoutingArbiter::ResolveNodeIdFromIp(uint32_t ip) {
+uint32_t Arbiter::ResolveNodeIdFromIp(uint32_t ip) {
     m_ip_to_node_id_it = m_ip_to_node_id.find(ip);
     if (m_ip_to_node_id_it != m_ip_to_node_id.end()) {
         return m_ip_to_node_id_it->second;
@@ -52,7 +52,7 @@ uint32_t RoutingArbiter::ResolveNodeIdFromIp(uint32_t ip) {
     }
 }
 
-RoutingArbiterResult RoutingArbiter::BaseDecide(Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
+ArbiterResult Arbiter::BaseDecide(Ptr<const Packet> pkt, Ipv4Header const &ipHeader) {
 
     // Retrieve the source node id
     uint32_t source_ip = ipHeader.GetSource().Get();

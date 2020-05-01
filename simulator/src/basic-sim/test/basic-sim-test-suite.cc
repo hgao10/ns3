@@ -23,12 +23,12 @@ public:
         AddTestCase(new TopologyLeafSpineTestCase, TestCase::QUICK);
         AddTestCase(new TopologyRingTestCase, TestCase::QUICK);
         AddTestCase(new TopologyInvalidTestCase, TestCase::QUICK);
-        AddTestCase(new RoutingArbiterIpResolutionTestCase, TestCase::QUICK);
-        AddTestCase(new RoutingArbiterEcmpHashTestCase, TestCase::QUICK);
-        AddTestCase(new RoutingArbiterEcmpStringReprTestCase, TestCase::QUICK);
-        AddTestCase(new RoutingArbiterBadImplTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterIpResolutionTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterEcmpHashTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterEcmpStringReprTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterBadImplTestCase, TestCase::QUICK);
         // Disabled because it takes too long for a quick test:
-        // AddTestCase(new RoutingArbiterEcmpTooBigFailTestCase, TestCase::QUICK);
+        // AddTestCase(new ArbiterEcmpTooBigFailTestCase, TestCase::QUICK);
     }
 };
 static BasicSimTestSuite basicSimTestSuite;

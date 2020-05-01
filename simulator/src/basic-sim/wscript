@@ -12,11 +12,11 @@ def build(bld):
         'model/basic-simulation.cc',
         'model/exp-util.cc',
         'model/topology.cc',
+        'model/arbiter.cc',
+        'model/arbiter-ptop.cc',
+        'model/arbiter-ecmp.cc',
         'model/ipv4-arbiter-routing.cc',
         'helper/ipv4-arbiter-routing-helper.cc',
-        'model/routing-arbiter.cc',
-        'model/topology-routing-arbiter.cc',
-        'model/routing-arbiter-ecmp.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-sim')
@@ -30,11 +30,11 @@ def build(bld):
         'model/basic-simulation.h',
         'model/exp-util.h',
         'model/topology.h',
+        'model/arbiter.h',
+        'model/arbiter-ptop.h',
+        'model/arbiter-ecmp.h',
         'model/ipv4-arbiter-routing.h',
         'helper/ipv4-arbiter-routing-helper.h',
-        'model/routing-arbiter.h',
-        'model/topology-routing-arbiter.h',
-        'model/routing-arbiter-ecmp.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:
