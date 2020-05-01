@@ -12,12 +12,11 @@ TypeId TopologyPtop::GetTypeId (void)
     return tid;
 }
 
-TopologyPtop::TopologyPtop(Ptr<BasicSimulation> basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper) {
+TopologyPtop::TopologyPtop(Ptr<BasicSimulation> basicSimulation, const Ipv4RoutingHelper& ipv4RoutingHelper) {
     m_basicSimulation = basicSimulation;
-    m_ipv4RoutingHelper = ipv4RoutingHelper;
     ReadProperties();
     ReadGraph();
-    SetupNodes();
+    SetupNodes(ipv4RoutingHelper);
     SetupLinks();
 }
 
@@ -143,14 +142,14 @@ void TopologyPtop::ReadGraph() {
 
 }
 
-void TopologyPtop::SetupNodes() {
+void TopologyPtop::SetupNodes(const Ipv4RoutingHelper& ipv4RoutingHelper) {
     std::cout << "SETUP NODES" << std::endl;
     std::cout << "  > Creating nodes and installing Internet stack on each" << std::endl;
 
     // Install Internet on all nodes
     m_nodes.Create(this->num_nodes);
     InternetStackHelper internet;
-    internet.SetRoutingHelper(*m_ipv4RoutingHelper);
+    internet.SetRoutingHelper(ipv4RoutingHelper);
     internet.Install(m_nodes);
 
     std::cout << std::endl;
