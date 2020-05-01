@@ -40,14 +40,14 @@ int main(int argc, char *argv[]) {
 
     // Read point-to-point topology, and install routing arbiters
     Ipv4ArbiterRoutingHelper routingHelper;
-    TopologyPtop topology = TopologyPtop(&simulation, &routingHelper);
-    ArbiterEcmpHelper::InstallArbiters(simulation, &topology);
+    Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(&simulation, &routingHelper);
+    ArbiterEcmpHelper::InstallArbiters(simulation, topology);
 
     // Optimize TCP
-    TcpOptimizer::OptimizeUsingWorstCaseRtt(simulation, topology.GetWorstCaseRttEstimateNs());
+    TcpOptimizer::OptimizeUsingWorstCaseRtt(simulation, topology->GetWorstCaseRttEstimateNs());
 
     // Schedule flows
-    FlowScheduler flowScheduler(&simulation, &topology); // Requires filename_schedule to be present in the configuration
+    FlowScheduler flowScheduler(&simulation, topology); // Requires filename_schedule to be present in the configuration
     flowScheduler.Schedule();
 
     // Run simulation

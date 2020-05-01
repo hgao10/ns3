@@ -39,7 +39,7 @@ class FlowScheduler
 {
 
 public:
-    FlowScheduler(BasicSimulation* basicSimulation, Topology* topology);
+    FlowScheduler(BasicSimulation* basicSimulation, Ptr<Topology> topology);
     void Schedule();
     void WriteResults();
 
@@ -47,7 +47,7 @@ protected:
     void StartNextFlow(int i);
     BasicSimulation* m_basicSimulation;
     int64_t m_simulation_end_time_ns;
-    Topology* m_topology = nullptr;
+    Ptr<Topology> m_topology = nullptr;
     std::vector<schedule_entry_t> m_schedule;
     NodeContainer m_nodes;
     std::vector<ApplicationContainer> m_apps;

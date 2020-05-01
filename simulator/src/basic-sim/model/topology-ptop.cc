@@ -2,6 +2,16 @@
 
 namespace ns3 {
 
+NS_OBJECT_ENSURE_REGISTERED (TopologyPtop);
+TypeId TopologyPtop::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::TopologyPtop")
+            .SetParent<Object> ()
+            .SetGroupName("BasicSim")
+    ;
+    return tid;
+}
+
 TopologyPtop::TopologyPtop(BasicSimulation* basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper) {
     m_basicSimulation = basicSimulation;
     m_ipv4RoutingHelper = ipv4RoutingHelper;

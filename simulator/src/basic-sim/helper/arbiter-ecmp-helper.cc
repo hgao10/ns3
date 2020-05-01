@@ -2,7 +2,7 @@
 
 namespace ns3 {
 
-void ArbiterEcmpHelper::InstallArbiters (BasicSimulation& basicSimulation, TopologyPtop* topology) {
+void ArbiterEcmpHelper::InstallArbiters (BasicSimulation& basicSimulation, Ptr<TopologyPtop> topology) {
     std::cout << "SETUP ECMP ROUTING" << std::endl;
 
     NodeContainer nodes = topology->GetNodes();
@@ -23,7 +23,7 @@ void ArbiterEcmpHelper::InstallArbiters (BasicSimulation& basicSimulation, Topol
 }
 
 // This is static
-std::vector<std::vector<std::vector<uint32_t>>> ArbiterEcmpHelper::CalculateGlobalState(TopologyPtop* topology) {
+std::vector<std::vector<std::vector<uint32_t>>> ArbiterEcmpHelper::CalculateGlobalState(Ptr<TopologyPtop> topology) {
 
     // Final result
     std::vector<std::vector<std::vector<uint32_t>>> global_candidate_list;

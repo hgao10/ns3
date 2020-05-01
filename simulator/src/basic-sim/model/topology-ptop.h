@@ -23,6 +23,7 @@ class TopologyPtop : public Topology
 {
 public:
 
+    static TypeId GetTypeId (void);
     TopologyPtop(BasicSimulation* basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper);
     void ReadProperties();
     void ReadGraph();

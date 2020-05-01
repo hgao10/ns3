@@ -40,11 +40,11 @@ int main(int argc, char *argv[]) {
 
     // Read point-to-point topology, and install routing arbiters
     Ipv4ArbiterRoutingHelper routingHelper;
-    TopologyPtop topology = TopologyPtop(&simulation, &routingHelper);
-    ArbiterEcmpHelper::InstallArbiters(simulation, &topology);
+    Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(&simulation, &routingHelper);
+    ArbiterEcmpHelper::InstallArbiters(simulation, topology);
 
     // Schedule pings
-    PingmeshScheduler pingmeshScheduler(&simulation, &topology); // Requires pingmesh_interval_ns to be present in the configuration
+    PingmeshScheduler pingmeshScheduler(&simulation, topology); // Requires pingmesh_interval_ns to be present in the configuration
     pingmeshScheduler.Schedule();
 
     // Run simulation

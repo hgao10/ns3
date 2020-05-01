@@ -22,7 +22,7 @@ public:
     ArbiterEcmp(
             Ptr<Node> this_node,
             NodeContainer nodes,
-            TopologyPtop* topology,
+            Ptr<TopologyPtop> topology,
             const std::vector<std::pair<uint32_t, uint32_t>>* interface_idxs_for_edges,
             std::vector<std::vector<uint32_t>> candidate_list
     );
@@ -49,7 +49,7 @@ public:
      * @return Global candidate list:
      *         for each current node id, to each target node, a list of candidate next-hop node ids
      */
-    static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(TopologyPtop* topology);
+    static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(Ptr<TopologyPtop> topology);
 
 private:
     uint64_t ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers);

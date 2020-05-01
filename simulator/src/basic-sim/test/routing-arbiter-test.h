@@ -353,7 +353,7 @@ class ArbiterBad: public Arbiter
 {
 public:
 
-    ArbiterBad(Topology* topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) : Arbiter(topology, nodes, interface_idxs_for_edges) {
+    ArbiterBad(Ptr<Topology> topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) : Arbiter(topology, nodes, interface_idxs_for_edges) {
         // Left empty intentionally
     }
 

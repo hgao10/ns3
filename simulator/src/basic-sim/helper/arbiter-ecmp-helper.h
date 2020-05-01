@@ -12,9 +12,9 @@ namespace ns3 {
     class ArbiterEcmpHelper
     {
     public:
-        static void InstallArbiters (BasicSimulation& basicSimulation, TopologyPtop* topology);
+        static void InstallArbiters (BasicSimulation& basicSimulation, Ptr<TopologyPtop> topology);
     private:
-        static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(TopologyPtop* topology);
+        static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(Ptr<TopologyPtop> topology);
     };
 
 } // namespace ns3

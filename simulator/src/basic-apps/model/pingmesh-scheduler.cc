@@ -2,7 +2,7 @@
 
 namespace ns3 {
 
-PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation, Topology* topology) {
+PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation, Ptr<Topology> topology) {
     m_basicSimulation = basicSimulation;
     m_topology = topology;
 

@@ -15,7 +15,7 @@ TypeId ArbiterPtop::GetTypeId (void)
 ArbiterPtop::ArbiterPtop(
         Ptr<Node> this_node,
         NodeContainer nodes,
-        TopologyPtop* topology,
+        Ptr<TopologyPtop> topology,
         const std::vector<std::pair<uint32_t, uint32_t>>* interface_idxs_for_edges
 ) : Arbiter(this_node, nodes) {
 
