@@ -16,88 +16,17 @@ ArbiterEcmp::ArbiterEcmp(
         Ptr<Node> this_node,
         NodeContainer nodes,
         Topology* topology,
-        const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
+        const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges,
+        std::vector<std::vector<uint32_t>> candidate_list
 ) : ArbiterPtop(this_node, nodes, topology, interface_idxs_for_edges
 ) {
-
-    ///////////////////////////
-    // Floyd-Warshall
-
-    int64_t n = topology->num_nodes;
-
-    // Enforce that more than 40000 nodes is not permitted (sqrt(2^31) ~= 46340, so let's call it an even 40000)
-    if (n > 40000) {
-        throw std::runtime_error("Cannot handle more than 40000 nodes");
-    }
-
-    // Initialize with 0 distance to itself, and infinite distance to all others
-    int32_t* dist = new int32_t[n * n];
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if (i == j) {
-                dist[n * i + j] = 0;
-            } else {
-                dist[n * i + j] = 100000000;
-            }
-        }
-    }
-
-    // If there is an edge, the distance is 1
-    for (std::pair<int64_t, int64_t> edge : topology->undirected_edges) {
-        dist[n * edge.first + edge.second] = 1;
-        dist[n * edge.second + edge.first] = 1;
-    }
-
-    // Floyd-Warshall core
-    for (int k = 0; k < n; k++) {
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                if (dist[n * i + j] > dist[n * i + k] + dist[n * k + j]) {
-                    dist[n * i + j] = dist[n * i + k] + dist[n * k + j];
-                }
-            }
-        }
-    }
-
-    ///////////////////////////
-    // Determine from the shortest path distances
-    // the possible next hops
-
-    // ECMP candidate list: candidate_list[current][destination] = [ list of next hops ]
-    m_candidate_list.reserve(topology->num_nodes);
-    for (int i = 0; i < topology->num_nodes; i++) {
-        std::vector<std::vector<uint32_t>> v;
-        v.reserve(topology->num_nodes);
-        for (int j = 0; j < topology->num_nodes; j++) {
-            v.push_back(std::vector<uint32_t>());
-        }
-        m_candidate_list.push_back(v);
-    }
-
-    // Candidate next hops are determined in the following way:
-    // For each edge a -> b, for a destination t:
-    // If the shortest_path_distance(b, t) == shortest_path_distance(a, t) - 1
-    // then a -> b must be part of a shortest path from a towards t.
-    for (std::pair<int64_t, int64_t> edge : topology->undirected_edges) {
-        for (int j = 0; j < n; j++) {
-            if (dist[edge.first * n + j] - 1 == dist[edge.second * n + j]) {
-                m_candidate_list[edge.first][j].push_back(edge.second);
-            }
-            if (dist[edge.second * n + j] - 1 == dist[edge.first * n + j]) {
-                m_candidate_list[edge.second][j].push_back(edge.first);
-            }
-        }
-    }
-
-    // Free up the distance matrix
-    delete[] dist;
-
+    m_candidate_list = candidate_list;
 }
 
 int32_t ArbiterEcmp::TopologyDecide(int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
     uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, m_node_id, is_request_for_source_ip_so_no_next_header);
-    int s = m_candidate_list[m_node_id][target_node_id].size();
-    return m_candidate_list[m_node_id][target_node_id][hash % s];
+    int s = m_candidate_list[target_node_id].size();
+    return m_candidate_list[target_node_id][hash % s];
 }
 
 /**
@@ -180,7 +109,7 @@ std::string ArbiterEcmp::StringReprOfForwardingState() {
     for (int i = 0; i < m_topology->num_nodes; i++) {
         res << "  -> " << i << ": {";
         bool first = true;
-        for (int j : m_candidate_list[m_node_id][i]) {
+        for (int j : m_candidate_list[i]) {
             if (!first) {
                 res << ",";
             }
@@ -190,6 +119,89 @@ std::string ArbiterEcmp::StringReprOfForwardingState() {
         res << "}" << std::endl;
     }
     return res.str();
+}
+
+// This is static
+std::vector<std::vector<std::vector<uint32_t>>> ArbiterEcmp::CalculateGlobalState(Topology* topology) {
+
+    // Final result
+    std::vector<std::vector<std::vector<uint32_t>>> global_candidate_list;
+
+    ///////////////////////////
+    // Floyd-Warshall
+
+    int64_t n = topology->num_nodes;
+
+    // Enforce that more than 40000 nodes is not permitted (sqrt(2^31) ~= 46340, so let's call it an even 40000)
+    if (n > 40000) {
+        throw std::runtime_error("Cannot handle more than 40000 nodes");
+    }
+
+    // Initialize with 0 distance to itself, and infinite distance to all others
+    int32_t* dist = new int32_t[n * n];
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i == j) {
+                dist[n * i + j] = 0;
+            } else {
+                dist[n * i + j] = 100000000;
+            }
+        }
+    }
+
+    // If there is an edge, the distance is 1
+    for (std::pair<int64_t, int64_t> edge : topology->undirected_edges) {
+        dist[n * edge.first + edge.second] = 1;
+        dist[n * edge.second + edge.first] = 1;
+    }
+
+    // Floyd-Warshall core
+    for (int k = 0; k < n; k++) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (dist[n * i + j] > dist[n * i + k] + dist[n * k + j]) {
+                    dist[n * i + j] = dist[n * i + k] + dist[n * k + j];
+                }
+            }
+        }
+    }
+
+    ///////////////////////////
+    // Determine from the shortest path distances
+    // the possible next hops
+
+    // ECMP candidate list: candidate_list[current][destination] = [ list of next hops ]
+    global_candidate_list.reserve(topology->num_nodes);
+    for (int i = 0; i < topology->num_nodes; i++) {
+        std::vector<std::vector<uint32_t>> v;
+        v.reserve(topology->num_nodes);
+        for (int j = 0; j < topology->num_nodes; j++) {
+            v.push_back(std::vector<uint32_t>());
+        }
+        global_candidate_list.push_back(v);
+    }
+
+    // Candidate next hops are determined in the following way:
+    // For each edge a -> b, for a destination t:
+    // If the shortest_path_distance(b, t) == shortest_path_distance(a, t) - 1
+    // then a -> b must be part of a shortest path from a towards t.
+    for (std::pair<int64_t, int64_t> edge : topology->undirected_edges) {
+        for (int j = 0; j < n; j++) {
+            if (dist[edge.first * n + j] - 1 == dist[edge.second * n + j]) {
+                global_candidate_list[edge.first][j].push_back(edge.second);
+            }
+            if (dist[edge.second * n + j] - 1 == dist[edge.first * n + j]) {
+                global_candidate_list[edge.second][j].push_back(edge.first);
+            }
+        }
+    }
+
+    // Free up the distance matrix
+    delete[] dist;
+
+    // Return the final global candidate list
+    return global_candidate_list;
+
 }
 
 }

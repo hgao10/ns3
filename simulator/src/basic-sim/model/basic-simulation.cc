@@ -247,14 +247,18 @@ void BasicSimulation::SetupRouting() {
 
     // Calculate and instantiate the routing
     std::cout << "  > Calculating ECMP routing" << std::endl;
+    std::vector<std::vector<std::vector<uint32_t>>> global_ecmp_state = ArbiterEcmp::CalculateGlobalState(m_topology);
+    RegisterTimestamp("Calculate ECMP routing state");
+
     std::cout << "  > Setting the routing protocol on each node" << std::endl;
     for (int i = 0; i < m_topology->num_nodes; i++) {
-        Ptr<ArbiterEcmp> arbiterEcmp = CreateObject<ArbiterEcmp>(m_nodes.Get(i), m_nodes, m_topology, m_interface_idxs_for_edges);
+        Ptr<ArbiterEcmp> arbiterEcmp = CreateObject<ArbiterEcmp>(m_nodes.Get(i), m_nodes, m_topology, m_interface_idxs_for_edges, global_ecmp_state[i]);
         m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(arbiterEcmp);
     }
+    RegisterTimestamp("Setup routing arbiter on each node");
 
     std::cout << std::endl;
-    RegisterTimestamp("Setup routing arbiter on each node");
+
 }
 
 void BasicSimulation::SetupTcpParameters() {

@@ -23,7 +23,8 @@ public:
             Ptr<Node> this_node,
             NodeContainer nodes,
             Topology* topology,
-            const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
+            const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges,
+            std::vector<std::vector<uint32_t>> candidate_list
     );
 
     // ECMP implementation
@@ -39,9 +40,20 @@ public:
     // ECMP routing table
     std::string StringReprOfForwardingState();
 
+    /**
+     * Calculate the global state, which can then be used to initialize ArbiterEcmp instances without having
+     * to calculate that separately for each instance.
+     *
+     * @param   topology    Topology instance
+     *
+     * @return Global candidate list:
+     *         for each current node id, to each target node, a list of candidate next-hop node ids
+     */
+    static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(Topology* topology);
+
 private:
     uint64_t ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers);
-    std::vector<std::vector<std::vector<uint32_t>>> m_candidate_list;
+    std::vector<std::vector<uint32_t>> m_candidate_list;
     char m_hash_input_buff[17];
     ns3::Hasher m_hasher;
 
