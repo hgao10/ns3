@@ -57,10 +57,10 @@ std::vector<schedule_entry_t> read_schedule(const std::string& filename, Topolog
             }
 
             // Check endpoint validity
-            if (!topology.is_valid_endpoint(entry.from_node_id)) {
+            if (!topology.IsValidEndpoint(entry.from_node_id)) {
                 throw std::invalid_argument(format_string("Invalid from-endpoint for a schedule entry based on topology: %d", entry.from_node_id));
             }
-            if (!topology.is_valid_endpoint(entry.to_node_id)) {
+            if (!topology.IsValidEndpoint(entry.to_node_id)) {
                 throw std::invalid_argument(format_string("Invalid to-endpoint for a schedule entry based on topology: %d", entry.to_node_id));
             }
 

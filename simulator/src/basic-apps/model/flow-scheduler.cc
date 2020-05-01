@@ -2,13 +2,13 @@
 
 namespace ns3 {
 
-FlowScheduler::FlowScheduler(BasicSimulation* basicSimulation) {
+FlowScheduler::FlowScheduler(BasicSimulation* basicSimulation, Topology* topology) {
     m_basicSimulation = basicSimulation;
+    m_topology = topology;
 
     // Properties we will use often
-    m_nodes = basicSimulation->GetNodes();
+    m_nodes = m_topology->GetNodes();
     m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
-    m_topology = m_basicSimulation->GetTopology();
     m_enableFlowLoggingToFileForFlowIds = parse_set_positive_int64(m_basicSimulation->GetConfigParamOrDefault("enable_flow_logging_to_file_for_flow_ids", "set()"));
 
     // Read schedule
@@ -17,9 +17,13 @@ FlowScheduler::FlowScheduler(BasicSimulation* basicSimulation) {
             *m_topology,
             m_simulation_end_time_ns
     );
-    printf("SCHEDULE\n");
-    printf("  > Read schedule (total flow start events: %lu)\n", m_schedule.size());
     m_basicSimulation->RegisterTimestamp("Read schedule");
+
+    printf("FLOW SCHEDULE\n");
+    printf("  > Read schedule (total flow start events: %lu)\n", m_schedule.size());
+    remove_file_if_exists(m_basicSimulation->GetLogsDir() + "/flows.csv");
+    remove_file_if_exists(m_basicSimulation->GetLogsDir() + "/flows.txt");
+    printf("  > Removed previous flow log files if present\n");
 
     std::cout << std::endl;
 
@@ -37,7 +41,7 @@ void FlowScheduler::StartNextFlow(int i) {
     // Helper to install the source application
     FlowSendHelper source(
             "ns3::TcpSocketFactory",
-            InetSocketAddress(m_nodes->Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
+            InetSocketAddress(m_nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
             entry.size_byte,
             entry.flow_id,
             m_enableFlowLoggingToFileForFlowIds.find(entry.flow_id) != m_enableFlowLoggingToFileForFlowIds.end(),
@@ -45,7 +49,7 @@ void FlowScheduler::StartNextFlow(int i) {
     );
 
     // Install it on the node and start it right now
-    ApplicationContainer app = source.Install(m_nodes->Get(entry.from_node_id));
+    ApplicationContainer app = source.Install(m_nodes.Get(entry.from_node_id));
     app.Start(NanoSeconds(0));
     m_apps.push_back(app);
 
@@ -62,9 +66,9 @@ void FlowScheduler::Schedule() {
 
     // Install sink on each endpoint node
     std::cout << "  > Setting up sinks" << std::endl;
-    for (int64_t endpoint : m_topology->get_endpoints()) {
+    for (int64_t endpoint : m_topology->GetEndpoints()) {
         FlowSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), 1024));
-        ApplicationContainer app = sink.Install(m_nodes->Get(endpoint));
+        ApplicationContainer app = sink.Install(m_nodes.Get(endpoint));
         app.Start(Seconds(0.0));
     }
     m_basicSimulation->RegisterTimestamp("Setup traffic sinks");
@@ -152,8 +156,8 @@ void FlowScheduler::WriteResults() {
     fclose(file_txt);
 
     std::cout << "  > Flow log files have been written" << std::endl;
-
     std::cout << std::endl;
+
     m_basicSimulation->RegisterTimestamp("Write flow log files");
 }
 

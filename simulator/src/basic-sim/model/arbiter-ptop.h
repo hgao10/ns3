@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <chrono>
 #include <stdexcept>
-#include "ns3/topology.h"
+#include "ns3/topology-ptop.h"
 #include "ns3/node-container.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-header.h"
@@ -26,7 +26,7 @@ class ArbiterPtop : public Arbiter
 
 public:
     static TypeId GetTypeId (void);
-    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, Topology* topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
+    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, TopologyPtop* topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
     virtual ~ArbiterPtop();
 
     // Topology implementation
@@ -52,7 +52,7 @@ public:
      *
      * @return Neighbor node id to which to forward to (-1 means to none)
      */
-    virtual int32_t TopologyDecide(
+    virtual int32_t TopologyPtopDecide(
             int32_t source_node_id,
             int32_t target_node_id,
             std::set<int64_t>& neighbor_node_ids,
@@ -64,7 +64,7 @@ public:
     virtual std::string StringReprOfForwardingState() = 0;
 
 protected:
-    Topology* m_topology;
+    TopologyPtop* m_topology;
     uint32_t* m_neighbor_node_id_to_if_idx;
 
 };

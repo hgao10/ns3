@@ -2,7 +2,7 @@
 #define ARBITER_ECMP_H
 
 #include "ns3/arbiter-ptop.h"
-#include "ns3/topology.h"
+#include "ns3/topology-ptop.h"
 #include "ns3/hash.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/udp-header.h"
@@ -22,13 +22,13 @@ public:
     ArbiterEcmp(
             Ptr<Node> this_node,
             NodeContainer nodes,
-            Topology* topology,
+            TopologyPtop* topology,
             const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges,
             std::vector<std::vector<uint32_t>> candidate_list
     );
 
     // ECMP implementation
-    int32_t TopologyDecide(
+    int32_t TopologyPtopDecide(
             int32_t source_node_id,
             int32_t target_node_id,
             std::set<int64_t>& neighbor_node_ids,
@@ -44,12 +44,12 @@ public:
      * Calculate the global state, which can then be used to initialize ArbiterEcmp instances without having
      * to calculate that separately for each instance.
      *
-     * @param   topology    Topology instance
+     * @param   topology    TopologyPtop instance
      *
      * @return Global candidate list:
      *         for each current node id, to each target node, a list of candidate next-hop node ids
      */
-    static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(Topology* topology);
+    static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(TopologyPtop* topology);
 
 private:
     uint64_t ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers);

@@ -1,29 +1,20 @@
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H
 
-#include <utility>
-#include "exp-util.h"
+#include "ns3/core-module.h"
+#include "ns3/node-container.h"
+
+namespace ns3 {
 
 class Topology
 {
 public:
-    int64_t num_nodes;
-    int64_t num_undirected_edges;
-    std::set<int64_t> switches;
-    std::set<int64_t> switches_which_are_tors;
-    std::set<int64_t> servers;
-    std::vector<std::pair<int64_t, int64_t>> undirected_edges;
-    std::set<std::pair<int64_t, int64_t>> undirected_edges_set;
-    std::vector<std::set<int64_t>> adjacency_list;
-
-    Topology(const std::string& filename);
-    bool is_valid_endpoint(int64_t node_id);
-    bool are_tors_endpoints();
-    std::set<int64_t> get_endpoints();
-
-private:
-    bool has_zero_servers;
-
+    Topology();
+    virtual NodeContainer GetNodes() = 0;
+    virtual bool IsValidEndpoint(int64_t node_id) = 0;
+    virtual std::set<int64_t> GetEndpoints() = 0;
 };
+
+}
 
 #endif //TOPOLOGY_H

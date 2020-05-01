@@ -1,3 +1,5 @@
 .idea
 ns-3.30.1
 *.pyc
+CMakeLists.txt
+cmake-build-debug

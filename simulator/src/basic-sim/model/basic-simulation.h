@@ -25,10 +25,6 @@
 #include "ns3/traffic-control-helper.h"
 
 #include "ns3/exp-util.h"
-#include "ns3/topology.h"
-#include "ns3/arbiter-ecmp.h"
-#include "ns3/ipv4-arbiter-routing.h"
-#include "ns3/ipv4-arbiter-routing-helper.h"
 
 namespace ns3 {
 
@@ -49,25 +45,19 @@ public:
     void RegisterTimestamp(std::string label, int64_t t);
 
     // Getters
-    NodeContainer* GetNodes();
-    Topology* GetTopology();
     int64_t GetSimulationEndTimeNs();
     std::string GetConfigParamOrFail(std::string key);
     std::string GetConfigParamOrDefault(std::string key, std::string default_value);
     std::string GetLogsDir();
     std::string GetRunDir();
 
-protected:
+private:
 
     // Internal setup
     void ConfigureRunDirectory();
     void WriteFinished(bool finished);
     void ReadConfig();
     void ConfigureSimulation();
-    void SetupNodes();
-    void SetupLinks();
-    void SetupRouting();
-    void SetupTcpParameters();
     void ShowSimulationProgress();
     void RunSimulation();
     void CleanUpSimulation();
@@ -84,21 +74,8 @@ protected:
     // Config variables
     std::map<std::string, std::string> m_config;
     std::set<std::string> m_configRequestedKeys;
-    Topology* m_topology = nullptr;
     int64_t m_simulation_seed;
     int64_t m_simulation_end_time_ns;
-    double m_link_data_rate_megabit_per_s;
-    int64_t m_link_delay_ns;
-    int64_t m_link_max_queue_size_pkts;
-    bool m_disable_qdisc_endpoint_tors_xor_servers;
-    bool m_disable_qdisc_non_endpoint_switches;
-
-    // Directly derived from config variables
-    int64_t m_worst_case_rtt_ns;
-
-    // Generated based on NS-3 variables
-    NodeContainer m_nodes;
-    std::vector<std::pair<uint32_t, uint32_t>> m_interface_idxs_for_edges;
 
     // Progress show variables
     int64_t m_sim_start_time_ns_since_epoch;

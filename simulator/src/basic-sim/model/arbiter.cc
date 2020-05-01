@@ -41,8 +41,8 @@ TypeId Arbiter::GetTypeId (void)
 }
 
 Arbiter::Arbiter(Ptr<Node> this_node, NodeContainer nodes) {
-    this->m_node_id = this_node->GetId();
-    this->m_nodes = nodes;
+    m_node_id = this_node->GetId();
+    m_nodes = nodes;
 
     // Store IP address to node id (each interface has an IP address, so multiple IPs per node)
     for (uint32_t i = 0; i < m_nodes.GetN(); i++) {

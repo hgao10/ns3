@@ -11,16 +11,6 @@ BasicSimulation::BasicSimulation(std::string run_dir) {
     WriteFinished(false);
     ReadConfig();
     ConfigureSimulation();
-    SetupNodes();
-    SetupLinks();
-    SetupRouting();
-    SetupTcpParameters();
-}
-
-BasicSimulation::~BasicSimulation() {
-    if (m_topology != nullptr) {
-        delete m_topology;
-    }
 }
 
 int64_t BasicSimulation::now_ns_since_epoch() {
@@ -50,8 +40,6 @@ void BasicSimulation::ConfigureRunDirectory() {
     if (dir_exists(m_logs_dir)) {
         printf("  > Emptying existing logs directory\n");
         remove_file_if_exists(m_logs_dir + "/finished.txt");
-        remove_file_if_exists(m_logs_dir + "/flows.txt");
-        remove_file_if_exists(m_logs_dir + "/flows.csv");
         remove_file_if_exists(m_logs_dir + "/timing_results.txt");
     } else {
         mkdir_if_not_exists(m_logs_dir);
@@ -87,39 +75,6 @@ void BasicSimulation::ReadConfig() {
     // Seed
     m_simulation_seed = parse_positive_int64(GetConfigParamOrFail("simulation_seed"));
 
-    // Link properties
-    m_link_data_rate_megabit_per_s = parse_positive_double(GetConfigParamOrFail("link_data_rate_megabit_per_s"));
-    m_link_delay_ns = parse_positive_int64(GetConfigParamOrFail("link_delay_ns"));
-    m_link_max_queue_size_pkts = parse_positive_int64(GetConfigParamOrFail("link_max_queue_size_pkts"));
-
-    // Qdisc properties
-    m_disable_qdisc_endpoint_tors_xor_servers = parse_boolean(GetConfigParamOrFail("disable_qdisc_endpoint_tors_xor_servers"));
-    m_disable_qdisc_non_endpoint_switches = parse_boolean(GetConfigParamOrFail("disable_qdisc_non_endpoint_switches"));
-
-    // Read topology
-    m_topology = new Topology(m_run_dir + "/" + GetConfigParamOrFail("filename_topology"));
-    printf("TOPOLOGY\n-----\n");
-    printf("%-25s  %" PRIu64 "\n", "# Nodes", m_topology->num_nodes);
-    printf("%-25s  %" PRIu64 "\n", "# Undirected edges", m_topology->num_undirected_edges);
-    printf("%-25s  %" PRIu64 "\n", "# Switches", m_topology->switches.size());
-    printf("%-25s  %" PRIu64 "\n", "# ... of which ToRs", m_topology->switches_which_are_tors.size());
-    printf("%-25s  %" PRIu64 "\n", "# Servers", m_topology->servers.size());
-    std::cout << std::endl;
-    RegisterTimestamp("Read topology");
-
-    // MTU = 1500 byte, +2 with the p2p header.
-    // There are n_q packets in the queue at most, e.g. n_q + 2 (incl. transmit and within mandatory 1-packet qdisc)
-    // Queueing + transmission delay/hop = (n_q + 2) * 1502 byte / link data rate
-    // Propagation delay/hop = link delay
-    //
-    // If the topology is big, lets assume 10 hops either direction worst case, so 20 hops total
-    // If the topology is not big, < 10 undirected edges, we just use 2 * number of undirected edges as worst-case hop count
-    //
-    // num_hops * (((n_q + 2) * 1502 byte) / link data rate) + link delay)
-    int num_hops = std::min((int64_t) 20, m_topology->num_undirected_edges * 2);
-    m_worst_case_rtt_ns = num_hops * (((m_link_max_queue_size_pkts + 2) * 1502) / (m_link_data_rate_megabit_per_s * 125000 / 1000000000) + m_link_delay_ns);
-    printf("Estimated worst-case RTT: %.3f ms\n\n", m_worst_case_rtt_ns / 1e6);
-
 }
 
 void BasicSimulation::ConfigureSimulation() {
@@ -135,210 +90,6 @@ void BasicSimulation::ConfigureSimulation() {
 
     std::cout << std::endl;
     RegisterTimestamp("Configure simulator");
-}
-
-void BasicSimulation::SetupNodes() {
-    std::cout << "SETUP NODES" << std::endl;
-    std::cout << "  > Creating nodes and installing Internet stack on each" << std::endl;
-
-    // Install Internet on all nodes
-    m_nodes.Create(m_topology->num_nodes);
-    InternetStackHelper internet;
-    Ipv4ArbiterRoutingHelper arbiterRoutingHelper;
-    internet.SetRoutingHelper(arbiterRoutingHelper);
-    internet.Install(m_nodes);
-
-    std::cout << std::endl;
-    RegisterTimestamp("Create and install nodes");
-}
-
-void BasicSimulation::SetupLinks() {
-    std::cout << "SETUP LINKS" << std::endl;
-
-    // Each link is a network on its own
-    Ipv4AddressHelper address;
-    address.SetBase("10.0.0.0", "255.255.255.0");
-
-    // Direct network device attributes
-    std::cout << "  > Point-to-point network device attributes:" << std::endl;
-
-    // Point-to-point network device helper
-    PointToPointHelper p2p;
-    p2p.SetDeviceAttribute("DataRate", StringValue(std::to_string(m_link_data_rate_megabit_per_s) + "Mbps"));
-    p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(m_link_delay_ns)));
-    std::cout << "      >> Data rate......... " << m_link_data_rate_megabit_per_s << " Mbit/s" << std::endl;
-    std::cout << "      >> Delay............. " << m_link_delay_ns << " ns" << std::endl;
-    std::cout << "      >> Max. queue size... " << m_link_max_queue_size_pkts << " packets" << std::endl;
-    std::string p2p_net_device_max_queue_size_pkts_str = format_string("%" PRId64 "p", m_link_max_queue_size_pkts);
-
-    // Notify about topology state
-    if (m_topology->are_tors_endpoints()) {
-        std::cout << "  > Because there are no servers, ToRs are considered valid flow-endpoints" << std::endl;
-    } else {
-        std::cout << "  > Only servers are considered valid flow-endpoints" << std::endl;
-    }
-
-    // Queueing disciplines
-    std::cout << "  > Traffic control queueing disciplines:" << std::endl;
-
-    // Qdisc for endpoints (i.e., servers if they are defined, else the ToRs)
-    TrafficControlHelper tch_endpoints;
-    if (m_disable_qdisc_endpoint_tors_xor_servers) {
-        tch_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
-        std::cout << "      >> Flow-endpoints....... none (FIFO with 1 max. queue size)" << std::endl;
-    } else {
-        std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
-        std::string target = format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
-        tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue(interval), "Target", StringValue(target));
-        printf("      >> Flow-endpoints....... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
-    }
-
-    // Qdisc for non-endpoints (i.e., if servers are defined, all switches, else the switches which are not ToRs)
-    TrafficControlHelper tch_not_endpoints;
-    if (m_disable_qdisc_non_endpoint_switches) {
-        tch_not_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
-        std::cout << "      >> Non-flow-endpoints... none (FIFO with 1 max. queue size)" << std::endl;
-    } else {
-        std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
-        std::string target = format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
-        tch_not_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue(interval), "Target", StringValue(target));
-        printf("      >> Non-flow-endpoints... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
-    }
-
-    // Create Links
-    std::cout << "  > Installing links" << std::endl;
-    m_interface_idxs_for_edges.clear();
-    for (std::pair <int64_t, int64_t> link : m_topology->undirected_edges) {
-
-        // Install link
-        NetDeviceContainer container = p2p.Install(m_nodes.Get(link.first), m_nodes.Get(link.second));
-        container.Get(0)->GetObject<PointToPointNetDevice>()->GetQueue()->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
-        container.Get(1)->GetObject<PointToPointNetDevice>()->GetQueue()->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
-
-        // Install traffic control
-        if (m_topology->is_valid_endpoint(link.first)) {
-            tch_endpoints.Install(container.Get(0));
-        } else {
-            tch_not_endpoints.Install(container.Get(0));
-        }
-        if (m_topology->is_valid_endpoint(link.second)) {
-            tch_endpoints.Install(container.Get(1));
-        } else {
-            tch_not_endpoints.Install(container.Get(1));
-        }
-
-        // Assign IP addresses
-        address.Assign(container);
-        address.NewNetwork();
-
-        // Save to mapping
-        uint32_t a = container.Get(0)->GetIfIndex();
-        uint32_t b = container.Get(1)->GetIfIndex();
-        m_interface_idxs_for_edges.push_back(std::make_pair(a, b));
-
-    }
-
-    std::cout << std::endl;
-    RegisterTimestamp("Create links and edge-to-interface-index mapping");
-}
-
-void BasicSimulation::SetupRouting() {
-    std::cout << "SETUP ROUTING" << std::endl;
-
-    // Calculate and instantiate the routing
-    std::cout << "  > Calculating ECMP routing" << std::endl;
-    std::vector<std::vector<std::vector<uint32_t>>> global_ecmp_state = ArbiterEcmp::CalculateGlobalState(m_topology);
-    RegisterTimestamp("Calculate ECMP routing state");
-
-    std::cout << "  > Setting the routing protocol on each node" << std::endl;
-    for (int i = 0; i < m_topology->num_nodes; i++) {
-        Ptr<ArbiterEcmp> arbiterEcmp = CreateObject<ArbiterEcmp>(m_nodes.Get(i), m_nodes, m_topology, m_interface_idxs_for_edges, global_ecmp_state[i]);
-        m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(arbiterEcmp);
-    }
-    RegisterTimestamp("Setup routing arbiter on each node");
-
-    std::cout << std::endl;
-
-}
-
-void BasicSimulation::SetupTcpParameters() {
-    std::cout << "TCP PARAMETERS" << std::endl;
-
-    // Clock granularity
-    printf("  > Clock granularity.......... 1 ns\n");
-    Config::SetDefault("ns3::TcpSocketBase::ClockGranularity", TimeValue(NanoSeconds(1)));
-
-    // Initial congestion window
-    uint32_t init_cwnd_pkts = 10;  // 1 is default, but we use 10
-    printf("  > Initial CWND............... %u packets\n", init_cwnd_pkts);
-    Config::SetDefault("ns3::TcpSocket::InitialCwnd", UintegerValue(init_cwnd_pkts));
-
-    // Maximum segment lifetime
-    int64_t max_seg_lifetime_ns = 5 * m_worst_case_rtt_ns; // 120s is default
-    printf("  > Maximum segment lifetime... %.3f ms\n", max_seg_lifetime_ns / 1e6);
-    Config::SetDefault("ns3::TcpSocketBase::MaxSegLifetime", DoubleValue(max_seg_lifetime_ns / 1e9));
-
-    // Minimum retransmission timeout
-    int64_t min_rto_ns = (int64_t)(1.5 * m_worst_case_rtt_ns);  // 1s is default, Linux uses 200ms
-    printf("  > Minimum RTO................ %.3f ms\n", min_rto_ns / 1e6);
-    Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(NanoSeconds(min_rto_ns)));
-
-    // Initial RTT estimate
-    int64_t initial_rtt_estimate_ns = 2 * m_worst_case_rtt_ns;  // 1s is default
-    printf("  > Initial RTT measurement.... %.3f ms\n", initial_rtt_estimate_ns / 1e6);
-    Config::SetDefault("ns3::RttEstimator::InitialEstimation", TimeValue(NanoSeconds(initial_rtt_estimate_ns)));
-
-    // Connection timeout
-    int64_t connection_timeout_ns = 2 * m_worst_case_rtt_ns;  // 3s is default
-    printf("  > Connection timeout......... %.3f ms\n", connection_timeout_ns / 1e6);
-    Config::SetDefault("ns3::TcpSocket::ConnTimeout", TimeValue(NanoSeconds(connection_timeout_ns)));
-
-    // Delayed ACK timeout
-    int64_t delayed_ack_timeout_ns = 0.2 * m_worst_case_rtt_ns;  // 0.2s is default
-    printf("  > Delayed ACK timeout........ %.3f ms\n", delayed_ack_timeout_ns / 1e6);
-    Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(NanoSeconds(delayed_ack_timeout_ns)));
-
-    // Persist timeout
-    int64_t persist_timeout_ns = 4 * m_worst_case_rtt_ns;  // 6s is default
-    printf("  > Persist timeout............ %.3f ms\n", persist_timeout_ns / 1e6);
-    Config::SetDefault("ns3::TcpSocket::PersistTimeout", TimeValue(NanoSeconds(persist_timeout_ns)));
-
-    // Send buffer size
-    int64_t snd_buf_size_byte = 131072 * 256;  // 131072 bytes = 128 KiB is default, we set to 32 MiB
-    printf("  > Send buffer size........... %.3f MB\n", snd_buf_size_byte / 1e6);
-    Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(snd_buf_size_byte));
-
-    // Receive buffer size
-    int64_t rcv_buf_size_byte = 131072 * 256;  // 131072 bytes = 128 KiB is default, we set to 32 MiB
-    printf("  > Receive buffer size........ %.3f MB\n", rcv_buf_size_byte / 1e6);
-    Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(rcv_buf_size_byte));
-
-    // Segment size
-    int64_t segment_size_byte = 1380;   // 536 byte is default, but we know the a point-to-point network device has an MTU of 1500.
-                                        // IP header size: min. 20 byte, max. 60 byte
-                                        // TCP header size: min. 20 byte, max. 60 byte
-                                        // So, 1500 - 60 - 60 = 1380 would be the safest bet (given we don't do tunneling)
-                                        // This could be increased higher, e.g. as discussed here:
-                                        // https://blog.cloudflare.com/increasing-ipv6-mtu/ (retrieved April 7th, 2020)
-                                        // In past ns-3 simulations, I've observed that the IP + TCP header is generally not larger than 80 bytes.
-                                        // This means it could be potentially set closer to 1400-1420.
-    printf("  > Segment size............... %" PRId64 " byte\n", segment_size_byte);
-    Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(segment_size_byte));
-
-    // Timestamp option
-    bool opt_timestamp_enabled = true;  // Default: true.
-                                        // To get an RTT measurement with a resolution of less than 1ms, it needs
-                                        // to be disabled because the fields in the TCP Option are in milliseconds.
-                                        // When disabling it, there are two downsides:
-                                        //  (1) Less protection against wrapped sequence numbers (PAWS)
-                                        //  (2) Algorithm to see if it has entered loss recovery unnecessarily are not as possible (Eiffel)
-                                        // See: https://tools.ietf.org/html/rfc7323#section-3
-                                        //      https://tools.ietf.org/html/rfc3522
-    printf("  > Timestamp option........... %s\n", opt_timestamp_enabled ? "enabled" : "disabled");
-    Config::SetDefault("ns3::TcpSocketBase::Timestamp", BooleanValue(opt_timestamp_enabled));
-
-    std::cout << std::endl;
-    RegisterTimestamp("Setup TCP parameters");
 }
 
 void BasicSimulation::ShowSimulationProgress() {
@@ -454,14 +205,6 @@ void BasicSimulation::Finalize() {
     CleanUpSimulation();
     StoreTimingResults();
     WriteFinished(true);
-}
-
-NodeContainer* BasicSimulation::GetNodes() {
-    return &m_nodes;
-}
-
-Topology* BasicSimulation::GetTopology() {
-    return m_topology;
 }
 
 int64_t BasicSimulation::GetSimulationEndTimeNs() {

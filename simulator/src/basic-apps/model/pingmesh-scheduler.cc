@@ -2,17 +2,18 @@
 
 namespace ns3 {
 
-PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation) {
+PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation, Topology* topology) {
     m_basicSimulation = basicSimulation;
-    m_nodes = basicSimulation->GetNodes();
+    m_topology = topology;
+
+    m_nodes = m_topology->GetNodes();
     m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
-    m_topology = m_basicSimulation->GetTopology();
     m_interval_ns = parse_positive_int64(basicSimulation->GetConfigParamOrFail("pingmesh_interval_ns"));
     std::string pingmesh_endpoints_pair_str = basicSimulation->GetConfigParamOrDefault("pingmesh_endpoint_pairs", "all");
     if (pingmesh_endpoints_pair_str == "all") {
 
         // All-to-all for all endpoints
-        std::set<int64_t> endpoints = m_topology->get_endpoints();
+        std::set<int64_t> endpoints = m_topology->GetEndpoints();
         for (int64_t i : endpoints) {
             for (int64_t j : endpoints) {
                 if (i != j) {
@@ -32,10 +33,10 @@ PingmeshScheduler::PingmeshScheduler(BasicSimulation* basicSimulation) {
             if (a == b) {
                 throw std::invalid_argument(format_string("Cannot have pingmesh pair to itself on node %" PRIu64 "", a));
             }
-            if (!m_topology->is_valid_endpoint(a)) {
+            if (!m_topology->IsValidEndpoint(a)) {
                 throw std::invalid_argument(format_string("Left node identifier in pingmesh pair is not a valid endpoint: %" PRIu64 "", a));
             }
-            if (!m_topology->is_valid_endpoint(b)) {
+            if (!m_topology->IsValidEndpoint(b)) {
                 throw std::invalid_argument(format_string("Right node identifier in pingmesh pair is not a valid endpoint: %" PRIu64 "", b));
             }
             m_pingmesh_endpoint_pairs.push_back(std::make_pair(a, b));
@@ -56,13 +57,13 @@ void PingmeshScheduler::Schedule() {
     std::cout << "  > Ping interval: " << m_interval_ns << " ns" << std::endl;
 
     // Endpoints
-    std::set<int64_t> endpoints = m_topology->get_endpoints();
+    std::set<int64_t> endpoints = m_topology->GetEndpoints();
 
     // Install echo server on each node
     std::cout << "  > Setting up " << endpoints.size() << " pingmesh servers" << std::endl;
     for (int64_t i : endpoints) {
         UdpRttServerHelper echoServerHelper(1025);
-        ApplicationContainer app = echoServerHelper.Install(m_nodes->Get(i));
+        ApplicationContainer app = echoServerHelper.Install(m_nodes.Get(i));
         app.Start(Seconds(0.0));
     }
     m_basicSimulation->RegisterTimestamp("Setup pingmesh servers");
@@ -81,7 +82,7 @@ void PingmeshScheduler::Schedule() {
 
         // Helper to install the source application
         UdpRttClientHelper source(
-                m_nodes->Get(p.second)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
+                m_nodes.Get(p.second)->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal(),
                 1025,
                 p.first,
                 p.second
@@ -89,7 +90,7 @@ void PingmeshScheduler::Schedule() {
         source.SetAttribute("Interval", TimeValue(NanoSeconds(m_interval_ns)));
 
         // Install it on the node and start it right now
-        ApplicationContainer app = source.Install(m_nodes->Get(p.first));
+        ApplicationContainer app = source.Install(m_nodes.Get(p.first));
         app.Start(NanoSeconds(counter * in_between_ns));
         m_apps.push_back(app);
 

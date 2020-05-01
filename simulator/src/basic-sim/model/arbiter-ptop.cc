@@ -15,7 +15,7 @@ TypeId ArbiterPtop::GetTypeId (void)
 ArbiterPtop::ArbiterPtop(
         Ptr<Node> this_node,
         NodeContainer nodes,
-        Topology* topology,
+        TopologyPtop* topology,
         const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
 ) : Arbiter(this_node, nodes) {
 
@@ -45,7 +45,7 @@ ArbiterResult ArbiterPtop::Decide(
 ) {
 
     // Decide the next node
-    int32_t selected_node_id = TopologyDecide(
+    int32_t selected_node_id = TopologyPtopDecide(
                 source_node_id,
                 target_node_id,
                 m_topology->adjacency_list[m_node_id],

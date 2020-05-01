@@ -11,10 +11,12 @@ def build(bld):
     module.source = [
         'model/basic-simulation.cc',
         'model/exp-util.cc',
-        'model/topology.cc',
+        'model/tcp-optimizer.cc',
+        'model/topology-ptop.cc',
         'model/arbiter.cc',
         'model/arbiter-ptop.cc',
         'model/arbiter-ecmp.cc',
+        'helper/arbiter-ecmp-helper.cc',
         'model/ipv4-arbiter-routing.cc',
         'helper/ipv4-arbiter-routing-helper.cc',
         ]
@@ -29,10 +31,13 @@ def build(bld):
     headers.source = [
         'model/basic-simulation.h',
         'model/exp-util.h',
+        'model/tcp-optimizer.h',
         'model/topology.h',
+        'model/topology-ptop.h',
         'model/arbiter.h',
         'model/arbiter-ptop.h',
         'model/arbiter-ecmp.h',
+        'helper/arbiter-ecmp-helper.h',
         'model/ipv4-arbiter-routing.h',
         'helper/ipv4-arbiter-routing-helper.h',
         ]

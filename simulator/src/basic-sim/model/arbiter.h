@@ -18,6 +18,7 @@
 #include "ns3/node-container.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-header.h"
+#include "ns3/exp-util.h"
 
 namespace ns3 {
 
