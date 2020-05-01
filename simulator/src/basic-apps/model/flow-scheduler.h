@@ -39,13 +39,13 @@ class FlowScheduler
 {
 
 public:
-    FlowScheduler(BasicSimulation* basicSimulation, Ptr<Topology> topology);
+    FlowScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Topology> topology);
     void Schedule();
     void WriteResults();
 
 protected:
     void StartNextFlow(int i);
-    BasicSimulation* m_basicSimulation;
+    Ptr<BasicSimulation> m_basicSimulation;
     int64_t m_simulation_end_time_ns;
     Ptr<Topology> m_topology = nullptr;
     std::vector<schedule_entry_t> m_schedule;

@@ -35,29 +35,29 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Load basic simulation config
-    BasicSimulation simulation(run_dir);
+    // Load basic simulation environment
+    Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(run_dir);
 
     // Read point-to-point topology, and install routing arbiters
     Ipv4ArbiterRoutingHelper routingHelper;
-    Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(&simulation, &routingHelper);
-    ArbiterEcmpHelper::InstallArbiters(simulation, topology);
+    Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, &routingHelper);
+    ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
 
     // Optimize TCP
-    TcpOptimizer::OptimizeUsingWorstCaseRtt(simulation, topology->GetWorstCaseRttEstimateNs());
+    TcpOptimizer::OptimizeUsingWorstCaseRtt(basicSimulation, topology->GetWorstCaseRttEstimateNs());
 
     // Schedule flows
-    FlowScheduler flowScheduler(&simulation, topology); // Requires filename_schedule to be present in the configuration
+    FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
     flowScheduler.Schedule();
 
     // Run simulation
-    simulation.Run();
+    basicSimulation->Run();
 
     // Write result
     flowScheduler.WriteResults();
 
     // Finalize the simulation
-    simulation.Finalize();
+    basicSimulation->Finalize();
 
     return 0;
 

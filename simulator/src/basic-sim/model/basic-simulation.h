@@ -28,12 +28,13 @@
 
 namespace ns3 {
 
-class BasicSimulation
+class BasicSimulation : public Object
 {
 
 public:
 
     // Primary
+    static TypeId GetTypeId (void);
     BasicSimulation(std::string run_dir);
     void Run();
     void Finalize();

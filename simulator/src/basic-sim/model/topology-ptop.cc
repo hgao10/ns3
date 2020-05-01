@@ -12,7 +12,7 @@ TypeId TopologyPtop::GetTypeId (void)
     return tid;
 }
 
-TopologyPtop::TopologyPtop(BasicSimulation* basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper) {
+TopologyPtop::TopologyPtop(Ptr<BasicSimulation> basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper) {
     m_basicSimulation = basicSimulation;
     m_ipv4RoutingHelper = ipv4RoutingHelper;
     ReadProperties();

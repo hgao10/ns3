@@ -2,7 +2,7 @@
 
 namespace ns3 {
 
-FlowScheduler::FlowScheduler(BasicSimulation* basicSimulation, Ptr<Topology> topology) {
+FlowScheduler::FlowScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Topology> topology) {
     m_basicSimulation = basicSimulation;
     m_topology = topology;
 

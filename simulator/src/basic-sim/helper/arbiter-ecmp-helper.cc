@@ -2,7 +2,7 @@
 
 namespace ns3 {
 
-void ArbiterEcmpHelper::InstallArbiters (BasicSimulation& basicSimulation, Ptr<TopologyPtop> topology) {
+void ArbiterEcmpHelper::InstallArbiters (Ptr<BasicSimulation> basicSimulation, Ptr<TopologyPtop> topology) {
     std::cout << "SETUP ECMP ROUTING" << std::endl;
 
     NodeContainer nodes = topology->GetNodes();
@@ -10,14 +10,14 @@ void ArbiterEcmpHelper::InstallArbiters (BasicSimulation& basicSimulation, Ptr<T
     // Calculate and instantiate the routing
     std::cout << "  > Calculating ECMP routing" << std::endl;
     std::vector<std::vector<std::vector<uint32_t>>> global_ecmp_state = CalculateGlobalState(topology);
-    basicSimulation.RegisterTimestamp("Calculate ECMP routing state");
+    basicSimulation->RegisterTimestamp("Calculate ECMP routing state");
 
     std::cout << "  > Setting the routing arbiter on each node" << std::endl;
     for (int i = 0; i < topology->num_nodes; i++) {
         Ptr<ArbiterEcmp> arbiterEcmp = CreateObject<ArbiterEcmp>(nodes.Get(i), nodes, topology, topology->GetInterfaceIdxsForEdges(), global_ecmp_state[i]);
         nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(arbiterEcmp);
     }
-    basicSimulation.RegisterTimestamp("Setup routing arbiter on each node");
+    basicSimulation->RegisterTimestamp("Setup routing arbiter on each node");
 
     std::cout << std::endl;
 }

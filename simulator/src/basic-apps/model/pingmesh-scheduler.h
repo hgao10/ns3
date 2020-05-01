@@ -40,12 +40,12 @@ class PingmeshScheduler
 {
 
 public:
-    PingmeshScheduler(BasicSimulation* basicSimulation, Ptr<Topology> topology);
+    PingmeshScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Topology> topology);
     void Schedule();
     void WriteResults();
 
 protected:
-    BasicSimulation* m_basicSimulation;
+    Ptr<BasicSimulation> m_basicSimulation;
     int64_t m_simulation_end_time_ns;
     Ptr<Topology> m_topology = nullptr;
     NodeContainer m_nodes;

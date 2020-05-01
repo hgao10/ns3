@@ -24,7 +24,7 @@ class TopologyPtop : public Topology
 public:
 
     static TypeId GetTypeId (void);
-    TopologyPtop(BasicSimulation* basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper);
+    TopologyPtop(Ptr<BasicSimulation> basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper);
     void ReadProperties();
     void ReadGraph();
     void SetupNodes();
@@ -46,7 +46,7 @@ public:
 
 private:
 
-    BasicSimulation* m_basicSimulation;
+    Ptr<BasicSimulation> m_basicSimulation;
 
     // Directly derived from config variables
     int64_t m_worst_case_rtt_ns;

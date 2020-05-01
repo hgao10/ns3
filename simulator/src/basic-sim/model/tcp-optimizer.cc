@@ -47,17 +47,16 @@ void TcpOptimizer::CommonSense() {
     printf("  > Timestamp option........... %s\n", opt_timestamp_enabled ? "enabled" : "disabled");
     Config::SetDefault("ns3::TcpSocketBase::Timestamp", BooleanValue(opt_timestamp_enabled));
 
-    std::cout << std::endl;
 }
 
-void TcpOptimizer::OptimizeBasic(BasicSimulation& basicSimulation) {
+void TcpOptimizer::OptimizeBasic(Ptr<BasicSimulation> basicSimulation) {
     std::cout << "TCP OPTIMIZATION BASIC" << std::endl;
     CommonSense();
     std::cout << std::endl;
-    basicSimulation.RegisterTimestamp("Setup TCP parameters");
+    basicSimulation->RegisterTimestamp("Setup TCP parameters");
 }
 
-void TcpOptimizer::OptimizeUsingWorstCaseRtt(BasicSimulation& basicSimulation, int64_t worst_case_rtt_ns) {
+void TcpOptimizer::OptimizeUsingWorstCaseRtt(Ptr<BasicSimulation> basicSimulation, int64_t worst_case_rtt_ns) {
     std::cout << "TCP OPTIMIZATION USING WORST-CASE RTT" << std::endl;
 
     CommonSense();
@@ -93,7 +92,7 @@ void TcpOptimizer::OptimizeUsingWorstCaseRtt(BasicSimulation& basicSimulation, i
     Config::SetDefault("ns3::TcpSocket::PersistTimeout", TimeValue(NanoSeconds(persist_timeout_ns)));
 
     std::cout << std::endl;
-    basicSimulation.RegisterTimestamp("Setup TCP parameters");
+    basicSimulation->RegisterTimestamp("Setup TCP parameters");
 }
 
 }

@@ -4,6 +4,16 @@
 
 namespace ns3 {
 
+NS_OBJECT_ENSURE_REGISTERED (BasicSimulation);
+TypeId BasicSimulation::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::BasicSimulation")
+            .SetParent<Object> ()
+            .SetGroupName("BasicSim")
+    ;
+    return tid;
+}
+
 BasicSimulation::BasicSimulation(std::string run_dir) {
     m_run_dir = run_dir;
     RegisterTimestamp("Start");
