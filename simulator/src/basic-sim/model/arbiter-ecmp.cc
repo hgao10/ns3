@@ -2,7 +2,6 @@
 
 namespace ns3 {
 
-//NS_LOG_COMPONENT_DEFINE ("ArbiterEcmp");
 NS_OBJECT_ENSURE_REGISTERED (ArbiterEcmp);
 TypeId ArbiterEcmp::GetTypeId (void)
 {

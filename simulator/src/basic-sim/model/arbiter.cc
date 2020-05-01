@@ -30,7 +30,6 @@ uint32_t ArbiterResult::GetGatewayIpAddress() {
 
 // Arbiter
 
-//NS_LOG_COMPONENT_DEFINE ("Arbiter");
 NS_OBJECT_ENSURE_REGISTERED (Arbiter);
 TypeId Arbiter::GetTypeId (void)
 {
