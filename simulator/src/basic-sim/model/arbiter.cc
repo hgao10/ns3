@@ -70,10 +70,10 @@ ArbiterResult Arbiter::BaseDecide(Ptr<const Packet> pkt, Ipv4Header const &ipHea
 
     // Ipv4Address default constructor has IP 0x66666666 = 102.102.102.102 = 1717986918,
     // which is set by TcpSocketBase::SetupEndpoint to discover its actually source IP.
-    bool is_request_for_source_ip = source_ip == 1717986918;
+    bool is_socket_request_for_source_ip = source_ip == 1717986918;
 
     // If it is a request for source IP, the source node id is just the current node.
-    if (is_request_for_source_ip) {
+    if (is_socket_request_for_source_ip) {
         source_node_id = m_node_id;
     } else {
         source_node_id = ResolveNodeIdFromIp(source_ip);
@@ -86,7 +86,7 @@ ArbiterResult Arbiter::BaseDecide(Ptr<const Packet> pkt, Ipv4Header const &ipHea
                 target_node_id,
                 pkt,
                 ipHeader,
-                is_request_for_source_ip
+                is_socket_request_for_source_ip
     );
 
 }
