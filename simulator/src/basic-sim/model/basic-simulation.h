@@ -40,9 +40,7 @@ public:
     void Finalize();
 
     // Timestamps to track performance
-    int64_t now_ns_since_epoch();
     void RegisterTimestamp(std::string label);
-    void RegisterTimestamp(std::string label, int64_t t);
 
     // Getters
     int64_t GetSimulationEndTimeNs();
@@ -64,8 +62,9 @@ private:
     void ConfirmAllConfigParamKeysRequested();
     void StoreTimingResults();
 
-    // List of all important events happening in the pipeline
-    std::vector<std::pair<std::string, int64_t>> m_timestamps;
+    // Timestamp to identify which parts take long
+    int64_t NowNsSinceEpoch();
+    std::vector<std::pair<std::string, int64_t>> m_timestamps; // List of all important events happening in the pipeline
 
     // Run directory
     std::string m_run_dir;

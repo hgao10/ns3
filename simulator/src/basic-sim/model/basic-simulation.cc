@@ -23,16 +23,12 @@ BasicSimulation::BasicSimulation(std::string run_dir) {
     ConfigureSimulation();
 }
 
-int64_t BasicSimulation::now_ns_since_epoch() {
+int64_t BasicSimulation::NowNsSinceEpoch() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 void BasicSimulation::RegisterTimestamp(std::string label) {
-    m_timestamps.push_back(std::make_pair(label, now_ns_since_epoch()));
-}
-
-void BasicSimulation::RegisterTimestamp(std::string label, int64_t t) {
-    m_timestamps.push_back(std::make_pair(label, t));
+    m_timestamps.push_back(std::make_pair(label, NowNsSinceEpoch()));
 }
 
 void BasicSimulation::ConfigureRunDirectory() {
@@ -103,7 +99,7 @@ void BasicSimulation::ConfigureSimulation() {
 }
 
 void BasicSimulation::ShowSimulationProgress() {
-    int64_t now = now_ns_since_epoch();
+    int64_t now = NowNsSinceEpoch();
     if (now - m_last_log_time_ns_since_epoch > m_progress_interval_ns) {
         printf(
                 "%5.2f%% - Simulation Time = %.2f s ::: Wallclock Time = %.2f s\n",
@@ -156,7 +152,7 @@ void BasicSimulation::Run() {
     ConfirmAllConfigParamKeysRequested();
 
     // Schedule progress printing
-    m_sim_start_time_ns_since_epoch = now_ns_since_epoch();
+    m_sim_start_time_ns_since_epoch = NowNsSinceEpoch();
     m_last_log_time_ns_since_epoch = m_sim_start_time_ns_since_epoch;
     Simulator::Schedule(Seconds(m_simulation_event_interval_s), &BasicSimulation::ShowSimulationProgress, this);
 
@@ -169,7 +165,7 @@ void BasicSimulation::Run() {
     printf(
             "Simulation of %.1f seconds took in wallclock time %.1f seconds.\n\n",
             m_simulation_end_time_ns / 1e9,
-            (now_ns_since_epoch() - m_sim_start_time_ns_since_epoch) / 1e9
+            (NowNsSinceEpoch() - m_sim_start_time_ns_since_epoch) / 1e9
     );
 
     RegisterTimestamp("Run simulation");
