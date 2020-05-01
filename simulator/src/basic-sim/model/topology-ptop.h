@@ -25,8 +25,8 @@ public:
 
     static TypeId GetTypeId (void);
     TopologyPtop(Ptr<BasicSimulation> basicSimulation, const Ipv4RoutingHelper& ipv4RoutingHelper);
-    void ReadProperties();
-    void ReadGraph();
+    void ReadRelevantConfig();
+    void ReadTopology();
     void SetupNodes(const Ipv4RoutingHelper& ipv4RoutingHelper);
     void SetupLinks();
     NodeContainer GetNodes();

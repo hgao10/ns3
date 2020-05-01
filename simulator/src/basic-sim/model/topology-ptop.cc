@@ -14,13 +14,13 @@ TypeId TopologyPtop::GetTypeId (void)
 
 TopologyPtop::TopologyPtop(Ptr<BasicSimulation> basicSimulation, const Ipv4RoutingHelper& ipv4RoutingHelper) {
     m_basicSimulation = basicSimulation;
-    ReadProperties();
-    ReadGraph();
+    ReadRelevantConfig();
+    ReadTopology();
     SetupNodes(ipv4RoutingHelper);
     SetupLinks();
 }
 
-void TopologyPtop::ReadProperties() {
+void TopologyPtop::ReadRelevantConfig() {
 
     // Link properties
     m_link_data_rate_megabit_per_s = parse_positive_double(m_basicSimulation->GetConfigParamOrFail("link_data_rate_megabit_per_s"));
@@ -33,9 +33,12 @@ void TopologyPtop::ReadProperties() {
 
 }
 
-void TopologyPtop::ReadGraph() {
+void TopologyPtop::ReadTopology() {
 
+    // Read the topology configuration
     std::map<std::string, std::string> config = read_config(m_basicSimulation->GetRunDir() + "/" + m_basicSimulation->GetConfigParamOrFail("filename_topology"));
+
+    // Basic
     this->num_nodes = parse_positive_int64(get_param_or_fail("num_nodes", config));
     this->num_undirected_edges = parse_positive_int64(get_param_or_fail("num_undirected_edges", config));
 
@@ -80,6 +83,8 @@ void TopologyPtop::ReadGraph() {
     // Sort them for convenience
     std::sort(undirected_edges.begin(), undirected_edges.end());
 
+    // Edge checks
+
     if (undirected_edges.size() != (size_t) num_undirected_edges) {
         throw std::invalid_argument("Indicated number of undirected edges does not match edge set");
     }
@@ -111,20 +116,19 @@ void TopologyPtop::ReadGraph() {
         }
     }
 
+    // Check
     if (this->servers.size() > 0) {
         has_zero_servers = false;
     } else {
         has_zero_servers = true;
     }
 
-    // Read topology
-    printf("TOPOLOGY\n-----\n");
-    printf("%-25s  %" PRIu64 "\n", "# Nodes", this->num_nodes);
-    printf("%-25s  %" PRIu64 "\n", "# Undirected edges", this->num_undirected_edges);
-    printf("%-25s  %" PRIu64 "\n", "# Switches", this->switches.size());
-    printf("%-25s  %" PRIu64 "\n", "# ... of which ToRs", this->switches_which_are_tors.size());
-    printf("%-25s  %" PRIu64 "\n", "# Servers", this->servers.size());
-    std::cout << std::endl;
+    // Print summary
+    printf("TOPOLOGY SUMMARY\n");
+    printf("  > Number of nodes.... %" PRIu64 "\n", this->num_nodes);
+    printf("    >> Switches........ %" PRIu64 " (of which %" PRIu64 " are ToRs)\n", this->switches.size(), this->switches_which_are_tors.size());
+    printf("    >> Servers......... %" PRIu64 "\n", this->servers.size());
+    printf("  > Undirected edges... %" PRIu64 "\n\n", this->num_undirected_edges);
     m_basicSimulation->RegisterTimestamp("Read topology");
 
     // MTU = 1500 byte, +2 with the p2p header.
@@ -170,9 +174,9 @@ void TopologyPtop::SetupLinks() {
     PointToPointHelper p2p;
     p2p.SetDeviceAttribute("DataRate", StringValue(std::to_string(m_link_data_rate_megabit_per_s) + "Mbps"));
     p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(m_link_delay_ns)));
-    std::cout << "      >> Data rate......... " << m_link_data_rate_megabit_per_s << " Mbit/s" << std::endl;
-    std::cout << "      >> Delay............. " << m_link_delay_ns << " ns" << std::endl;
-    std::cout << "      >> Max. queue size... " << m_link_max_queue_size_pkts << " packets" << std::endl;
+    std::cout << "    >> Data rate......... " << m_link_data_rate_megabit_per_s << " Mbit/s" << std::endl;
+    std::cout << "    >> Delay............. " << m_link_delay_ns << " ns" << std::endl;
+    std::cout << "    >> Max. queue size... " << m_link_max_queue_size_pkts << " packets" << std::endl;
     std::string p2p_net_device_max_queue_size_pkts_str = format_string("%" PRId64 "p", m_link_max_queue_size_pkts);
 
     // Notify about topology state
@@ -189,24 +193,24 @@ void TopologyPtop::SetupLinks() {
     TrafficControlHelper tch_endpoints;
     if (m_disable_qdisc_endpoint_tors_xor_servers) {
         tch_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
-        std::cout << "      >> Flow-endpoints....... none (FIFO with 1 max. queue size)" << std::endl;
+        std::cout << "    >> Flow-endpoints....... none (FIFO with 1 max. queue size)" << std::endl;
     } else {
         std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
         std::string target = format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
         tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue(interval), "Target", StringValue(target));
-        printf("      >> Flow-endpoints....... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
+        printf("    >> Flow-endpoints....... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
     }
 
     // Qdisc for non-endpoints (i.e., if servers are defined, all switches, else the switches which are not ToRs)
     TrafficControlHelper tch_not_endpoints;
     if (m_disable_qdisc_non_endpoint_switches) {
         tch_not_endpoints.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", QueueSizeValue(QueueSize("1p"))); // No queueing discipline basically
-        std::cout << "      >> Non-flow-endpoints... none (FIFO with 1 max. queue size)" << std::endl;
+        std::cout << "    >> Non-flow-endpoints... none (FIFO with 1 max. queue size)" << std::endl;
     } else {
         std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
         std::string target = format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
         tch_not_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval", StringValue(interval), "Target", StringValue(target));
-        printf("      >> Non-flow-endpoints... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
+        printf("    >> Non-flow-endpoints... fq-co-del (interval = %.2f ms, target = %.2f ms)\n", m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
     }
 
     // Create Links
