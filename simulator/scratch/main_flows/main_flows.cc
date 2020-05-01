@@ -39,7 +39,8 @@ int main(int argc, char *argv[]) {
     BasicSimulation simulation(run_dir);
 
     // Read point-to-point topology, and install routing arbiters
-    TopologyPtop topology = TopologyPtop(&simulation, Ipv4ArbiterRoutingHelper());
+    Ipv4ArbiterRoutingHelper routingHelper;
+    TopologyPtop topology = TopologyPtop(&simulation, &routingHelper);
     ArbiterEcmpHelper::InstallArbiters(simulation, &topology);
 
     // Optimize TCP

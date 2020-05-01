@@ -23,7 +23,7 @@ class TopologyPtop : public Topology
 {
 public:
 
-    TopologyPtop(BasicSimulation* basicSimulation, Ptr<Ipv4RoutingHelper> ipv4RoutingHelper);
+    TopologyPtop(BasicSimulation* basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper);
     void ReadProperties();
     void ReadGraph();
     void SetupNodes();
@@ -32,6 +32,7 @@ public:
     bool IsValidEndpoint(int64_t node_id);
     std::set<int64_t> GetEndpoints();
     int64_t GetWorstCaseRttEstimateNs();
+    std::vector<std::pair<uint32_t, uint32_t>>* GetInterfaceIdxsForEdges();
 
     int64_t num_nodes; // TODO: Move a bunch of these into private
     int64_t num_undirected_edges;
@@ -56,7 +57,7 @@ private:
     bool has_zero_servers;
 
     // From generating ns3 objects
-    Ptr<Ipv4RoutingHelper> m_ipv4RoutingHelper;
+    Ipv4RoutingHelper* m_ipv4RoutingHelper;
     NodeContainer m_nodes;
     std::vector<std::pair<uint32_t, uint32_t>> m_interface_idxs_for_edges;
 

@@ -26,7 +26,7 @@ class ArbiterPtop : public Arbiter
 
 public:
     static TypeId GetTypeId (void);
-    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, TopologyPtop* topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
+    ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, TopologyPtop* topology, const std::vector<std::pair<uint32_t, uint32_t>>* interface_idxs_for_edges);
     virtual ~ArbiterPtop();
 
     // Topology implementation

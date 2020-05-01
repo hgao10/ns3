@@ -35,7 +35,6 @@ public:
 
     // Primary
     BasicSimulation(std::string run_dir);
-    ~BasicSimulation();
     void Run();
     void Finalize();
 

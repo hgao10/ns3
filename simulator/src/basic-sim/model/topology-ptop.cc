@@ -2,7 +2,7 @@
 
 namespace ns3 {
 
-TopologyPtop::TopologyPtop(BasicSimulation* basicSimulation, Ptr<Ipv4RoutingHelper> ipv4RoutingHelper) {
+TopologyPtop::TopologyPtop(BasicSimulation* basicSimulation, Ipv4RoutingHelper* ipv4RoutingHelper) {
     m_basicSimulation = basicSimulation;
     m_ipv4RoutingHelper = ipv4RoutingHelper;
     ReadProperties();
@@ -26,7 +26,7 @@ void TopologyPtop::ReadProperties() {
 
 void TopologyPtop::ReadGraph() {
 
-    std::map<std::string, std::string> config = read_config(m_basicSimulation->GetConfigParamOrFail("filename_topology"));
+    std::map<std::string, std::string> config = read_config(m_basicSimulation->GetRunDir() + "/" + m_basicSimulation->GetConfigParamOrFail("filename_topology"));
     this->num_nodes = parse_positive_int64(get_param_or_fail("num_nodes", config));
     this->num_undirected_edges = parse_positive_int64(get_param_or_fail("num_undirected_edges", config));
 
@@ -259,6 +259,10 @@ std::set<int64_t> TopologyPtop::GetEndpoints() {
 
 int64_t TopologyPtop::GetWorstCaseRttEstimateNs() {
     return m_worst_case_rtt_ns;
+}
+
+std::vector<std::pair<uint32_t, uint32_t>>* TopologyPtop::GetInterfaceIdxsForEdges() {
+    return &m_interface_idxs_for_edges;
 }
 
 }
