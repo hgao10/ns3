@@ -41,7 +41,6 @@ class RoutingArbiter
 
 public:
     RoutingArbiter(Ptr<Node> this_node, NodeContainer nodes);
-    virtual ~RoutingArbiter();
 
     /**
      * Resolve the node identifier from an IP address.

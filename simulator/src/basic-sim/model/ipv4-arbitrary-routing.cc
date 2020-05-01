@@ -86,7 +86,7 @@ namespace ns3 {
         } else { // If not loop-back, it goes to the arbiter
                  // Local delivery has already been handled if it was input
 
-            RoutingArbiterResult result = m_routingArbiter->base_decide(p, header);
+            RoutingArbiterResult result = m_routingArbiter->BaseDecide(p, header);
             if (result.Failed()) {
                 return 0;
             } else {
@@ -277,7 +277,7 @@ namespace ns3 {
     void 
     Ipv4ArbitraryRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const {
         std::ostream* os = stream->GetStream ();
-        *os << m_routingArbiter->string_repr_of_routing_table(m_nodeId);
+        *os << m_routingArbiter->StringReprOfForwardingState();
     }
 
     void

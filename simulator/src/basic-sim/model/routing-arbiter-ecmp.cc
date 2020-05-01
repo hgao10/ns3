@@ -7,7 +7,7 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
         NodeContainer nodes,
         Topology* topology,
         const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges
-) : TopologyRoutingArbiter(this_node nodes, topology, interface_idxs_for_edges
+) : TopologyRoutingArbiter(this_node, nodes, topology, interface_idxs_for_edges
 ) {
 
     ///////////////////////////
@@ -86,8 +86,8 @@ RoutingArbiterEcmp::RoutingArbiterEcmp(
 
 int32_t RoutingArbiterEcmp::TopologyDecide(int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
     uint32_t hash = ComputeFiveTupleHash(ipHeader, pkt, m_node_id, is_request_for_source_ip_so_no_next_header);
-    int s = candidate_list[current_node_id][target_node_id].size();
-    return candidate_list[current_node_id][target_node_id][hash % s];
+    int s = m_candidate_list[m_node_id][target_node_id].size();
+    return m_candidate_list[m_node_id][target_node_id][hash % s];
 }
 
 /**
@@ -164,13 +164,13 @@ RoutingArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Pac
     return m_hasher.GetHash32(m_hash_input_buff, 17);
 }
 
-std::string RoutingArbiterEcmp::StringReprOfForwardingState(int32_t node_id) {
+std::string RoutingArbiterEcmp::StringReprOfForwardingState() {
     std::ostringstream res;
-    res << "ECMP state of node " << node_id << std::endl;
-    for (int i = 0; i < topology->num_nodes; i++) {
+    res << "ECMP state of node " << m_node_id << std::endl;
+    for (int i = 0; i < m_topology->num_nodes; i++) {
         res << "  -> " << i << ": {";
         bool first = true;
-        for (int j : candidate_list[node_id][i]) {
+        for (int j : m_candidate_list[m_node_id][i]) {
             if (!first) {
                 res << ",";
             }

@@ -21,9 +21,6 @@ BasicSimulation::~BasicSimulation() {
     if (m_topology != nullptr) {
         delete m_topology;
     }
-    if (m_routingArbiter != nullptr) {
-        delete m_routingArbiter;
-    }
 }
 
 int64_t BasicSimulation::now_ns_since_epoch() {
@@ -250,13 +247,10 @@ void BasicSimulation::SetupRouting() {
 
     // Calculate and instantiate the routing
     std::cout << "  > Calculating ECMP routing" << std::endl;
-    RoutingArbiterEcmp* routingArbiterEcmp = new RoutingArbiterEcmp(m_topology, m_nodes, m_interface_idxs_for_edges); // Remains alive for the entire simulation
-    m_routingArbiter = routingArbiterEcmp;
-    RegisterTimestamp("Routing arbiter base", routingArbiterEcmp->get_base_init_finish_ns_since_epoch());
-    RegisterTimestamp("Routing arbiter ECMP", routingArbiterEcmp->get_ecmp_init_finish_ns_since_epoch());
     std::cout << "  > Setting the routing protocol on each node" << std::endl;
     for (int i = 0; i < m_topology->num_nodes; i++) {
-        m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(m_routingArbiter);
+        RoutingArbiterEcmp* routingArbiterEcmp = new RoutingArbiterEcmp(m_nodes.Get(i), m_nodes, m_topology, m_interface_idxs_for_edges); // Remains alive for the entire simulation // TODO: memory leak
+        m_nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(routingArbiterEcmp);
     }
 
     std::cout << std::endl;

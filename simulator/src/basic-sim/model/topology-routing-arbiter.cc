@@ -38,10 +38,10 @@ RoutingArbiterResult TopologyRoutingArbiter::Decide(
     int32_t selected_node_id = TopologyDecide(
                 source_node_id,
                 target_node_id,
-                m_topology->adjacency_list[current_node],
+                m_topology->adjacency_list[m_node_id],
                 pkt,
                 ipHeader,
-                is_request_for_source_ip
+                is_socket_request_for_source_ip
     );
 
     // Invalid selected node id
@@ -55,12 +55,12 @@ RoutingArbiterResult TopologyRoutingArbiter::Decide(
         }
 
         // Convert the neighbor node id to the interface index of the edge which connects to it
-        uint32_t selected_if_idx = neighbor_node_id_to_if_idx[current_node * m_topology->num_nodes + selected_node_id];
+        uint32_t selected_if_idx = m_neighbor_node_id_to_if_idx[m_node_id * m_topology->num_nodes + selected_node_id];
         if (selected_if_idx == 0) {
             throw std::runtime_error(format_string(
                     "The selected next node %d is not a neighbor of node %d.",
                     selected_node_id,
-                    current_node
+                    m_node_id
             ));
         }
 
