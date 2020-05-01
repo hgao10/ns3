@@ -18,8 +18,8 @@
  * Author: Simon Kassing <kassings@ethz.ch>
  */
 
-#ifndef IPV4_ARBITRARY_ROUTING_H
-#define IPV4_ARBITRARY_ROUTING_H
+#ifndef IPV4_ARBITER_ROUTING_H
+#define IPV4_ARBITER_ROUTING_H
 
 #include <list>
 #include <utility>
@@ -112,4 +112,4 @@ private:
 
 } // Namespace ns3
 
-#endif /* IPV4_ARBITRARY_ROUTING_H */
+#endif /* IPV4_ARBITER_ROUTING_H */
