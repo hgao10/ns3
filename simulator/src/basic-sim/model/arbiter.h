@@ -19,7 +19,7 @@
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-header.h"
 
-using namespace ns3;
+namespace ns3 {
 
 class ArbiterResult {
 
@@ -36,10 +36,11 @@ private:
 
 };
 
-class Arbiter
+class Arbiter : public Object
 {
 
 public:
+    static TypeId GetTypeId (void);
     Arbiter(Ptr<Node> this_node, NodeContainer nodes);
 
     /**
@@ -114,5 +115,7 @@ private:
     std::map<uint32_t, uint32_t>::iterator m_ip_to_node_id_it;
 
 };
+
+}
 
 #endif //ARBITER_H

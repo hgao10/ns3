@@ -1,8 +1,8 @@
 #include "ns3/arbiter.h"
 
-using namespace ns3;
+namespace ns3 {
 
-// Routing arbiter result
+// Arbiter result
 
 ArbiterResult::ArbiterResult(bool failed, uint32_t out_if_idx, uint32_t gateway_ip_address) {
     m_failed = failed;
@@ -28,7 +28,18 @@ uint32_t ArbiterResult::GetGatewayIpAddress() {
     return m_gateway_ip_address;
 }
 
-// Routing arbiter
+// Arbiter
+
+//NS_LOG_COMPONENT_DEFINE ("Arbiter");
+NS_OBJECT_ENSURE_REGISTERED (Arbiter);
+TypeId Arbiter::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::Arbiter")
+            .SetParent<Object> ()
+            .SetGroupName("BasicSim")
+    ;
+    return tid;
+}
 
 Arbiter::Arbiter(Ptr<Node> this_node, NodeContainer nodes) {
     this->m_node_id = this_node->GetId();
@@ -78,5 +89,7 @@ ArbiterResult Arbiter::BaseDecide(Ptr<const Packet> pkt, Ipv4Header const &ipHea
                 ipHeader,
                 is_request_for_source_ip
     );
+
+}
 
 }

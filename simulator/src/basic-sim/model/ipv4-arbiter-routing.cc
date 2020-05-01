@@ -281,7 +281,7 @@ namespace ns3 {
     }
 
     void
-    Ipv4ArbiterRouting::SetArbiter (Arbiter* arbiter) {
+    Ipv4ArbiterRouting::SetArbiter (Ptr<Arbiter> arbiter) {
         m_arbiter = arbiter;
     }
 

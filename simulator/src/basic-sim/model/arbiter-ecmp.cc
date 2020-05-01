@@ -1,6 +1,17 @@
 #include "arbiter-ecmp.h"
 
-using namespace ns3;
+namespace ns3 {
+
+//NS_LOG_COMPONENT_DEFINE ("ArbiterEcmp");
+NS_OBJECT_ENSURE_REGISTERED (ArbiterEcmp);
+TypeId ArbiterEcmp::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::ArbiterEcmp")
+            .SetParent<ArbiterPtop> ()
+            .SetGroupName("BasicSim")
+    ;
+    return tid;
+}
 
 ArbiterEcmp::ArbiterEcmp(
         Ptr<Node> this_node,
@@ -107,15 +118,15 @@ uint64_t
 ArbiterEcmp::ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers)
 {
     std::memcpy(&m_hash_input_buff[0], &node_id, 4);
-    
+
     // Source IP address
     uint32_t src_ip = header.GetSource().Get();
     std::memcpy(&m_hash_input_buff[4], &src_ip, 4);
-    
+
     // Destination IP address
     uint32_t dst_ip = header.GetDestination().Get();
     std::memcpy(&m_hash_input_buff[8], &dst_ip, 4);
-    
+
     // Protocol
     uint8_t protocol = header.GetProtocol();
     std::memcpy(&m_hash_input_buff[12], &protocol, 1);
@@ -180,4 +191,6 @@ std::string ArbiterEcmp::StringReprOfForwardingState() {
         res << "}" << std::endl;
     }
     return res.str();
+}
+
 }

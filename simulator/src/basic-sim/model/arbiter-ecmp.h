@@ -8,7 +8,7 @@
 #include "ns3/udp-header.h"
 #include "ns3/tcp-header.h"
 
-using namespace ns3;
+namespace ns3 {
 
 const uint8_t TCP_PROT_NUMBER = 6;
 const uint8_t UDP_PROT_NUMBER = 17;
@@ -16,6 +16,7 @@ const uint8_t UDP_PROT_NUMBER = 17;
 class ArbiterEcmp : public ArbiterPtop
 {
 public:
+    static TypeId GetTypeId (void);
 
     // Constructor for ECMP forwarding state
     ArbiterEcmp(
@@ -45,5 +46,7 @@ private:
     ns3::Hasher m_hasher;
 
 };
+
+}
 
 #endif //ARBITER_ECMP_H

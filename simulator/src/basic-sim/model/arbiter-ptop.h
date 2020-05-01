@@ -19,10 +19,13 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/arbiter.h"
 
+namespace ns3 {
+
 class ArbiterPtop : public Arbiter
 {
 
 public:
+    static TypeId GetTypeId (void);
     ArbiterPtop(Ptr<Node> this_node, NodeContainer nodes, Topology* topology, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges);
     virtual ~ArbiterPtop();
 
@@ -65,5 +68,7 @@ protected:
     uint32_t* m_neighbor_node_id_to_if_idx;
 
 };
+
+}
 
 #endif //ARBITER_PTOP_H

@@ -1,6 +1,17 @@
 #include "ns3/arbiter-ptop.h"
 
-using namespace ns3;
+namespace ns3 {
+
+//NS_LOG_COMPONENT_DEFINE ("ArbiterPtop");
+NS_OBJECT_ENSURE_REGISTERED (ArbiterPtop);
+TypeId ArbiterPtop::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::ArbiterPtop")
+            .SetParent<Arbiter> ()
+            .SetGroupName("BasicSim")
+    ;
+    return tid;
+}
 
 ArbiterPtop::ArbiterPtop(
         Ptr<Node> this_node,
@@ -70,5 +81,7 @@ ArbiterResult ArbiterPtop::Decide(
     } else {
         return ArbiterResult(true, 0, 0); // Failed = no route (means either drop, or socket fails)
     }
+
+}
 
 }
