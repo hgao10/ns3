@@ -16,17 +16,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <vector>
-#include "ns3/log.h"
-#include "ns3/ptr.h"
-#include "ns3/names.h"
-#include "ns3/node.h"
-#include "ns3/ipv4.h"
-#include "ns3/ipv4-route.h"
-#include "ns3/ipv4-list-routing.h"
-#include "ns3/assert.h"
-#include "ns3/ipv4-address.h"
-#include "ns3/ipv4-routing-protocol.h"
 #include "ipv4-arbiter-routing-helper.h"
 
 namespace ns3 {
@@ -48,7 +37,5 @@ Ipv4ArbiterRoutingHelper* Ipv4ArbiterRoutingHelper::Copy (void) const {
 Ptr<Ipv4RoutingProtocol> Ipv4ArbiterRoutingHelper::Create (Ptr<Node> node) const {
   return CreateObject<Ipv4ArbiterRouting> ();
 }
-
-
 
 } // namespace ns3
