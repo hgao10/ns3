@@ -64,7 +64,12 @@ namespace ns3 {
      * @return Valid Ipv4 route
      */
     Ptr<Ipv4Route>
-    Ipv4ArbiterRouting::LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif) {
+    Ipv4ArbiterRouting::LookupArbiter (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif) {
+
+        // Arbiter must be set
+        if (m_arbiter == 0) {
+            throw std::runtime_error("Arbiter has not been set");
+        }
 
         // Multi-cast not supported
         if (dest.IsLocalMulticast()) {
@@ -145,7 +150,7 @@ namespace ns3 {
         // Info: If no route is found for a packet with the header with source IP = 102.102.102.102,
         //       the TCP socket will conclude there is no route and not even send out SYNs (any real packet).
         //       If source IP is set already, it just gets dropped and the TCP socket sees it as a normal loss somewhere in the network.
-        Ptr<Ipv4Route> route = LookupStatic(destination, header, p, oif);
+        Ptr<Ipv4Route> route = LookupArbiter(destination, header, p, oif);
         if (route == 0) {
             sockerr = Socket::ERROR_NOROUTETOHOST;
         } else {
@@ -189,7 +194,7 @@ namespace ns3 {
         }
 
         // Uni-cast delivery
-        Ptr<Ipv4Route> route = LookupStatic(ipHeader.GetDestination(), ipHeader, p);
+        Ptr<Ipv4Route> route = LookupArbiter(ipHeader.GetDestination(), ipHeader, p);
         if (route == 0) {
 
             // Lookup failed, so we did not find a route

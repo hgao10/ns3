@@ -101,7 +101,7 @@ public:
 
 private:
     Ptr<Ipv4> m_ipv4;
-    Ptr<Ipv4Route> LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif = 0);
+    Ptr<Ipv4Route> LookupArbiter (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif = 0);
     Ptr<Arbiter> m_arbiter = 0;
     Ipv4Address m_nodeSingleIpAddress;
     Ipv4Mask loopbackMask = Ipv4Mask("255.0.0.0");
