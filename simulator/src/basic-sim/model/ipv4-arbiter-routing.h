@@ -43,13 +43,13 @@ class Ipv4Address;
 class Ipv4Header;
 class Node;
 
-class Ipv4ArbitraryRouting : public Ipv4RoutingProtocol
+class Ipv4ArbiterRouting : public Ipv4RoutingProtocol
 {
 public:
   static TypeId GetTypeId (void);
 
-  Ipv4ArbitraryRouting ();
-  virtual ~Ipv4ArbitraryRouting ();
+  Ipv4ArbiterRouting ();
+  virtual ~Ipv4ArbiterRouting ();
 
   /**
    * Used by the transport-layer to output.

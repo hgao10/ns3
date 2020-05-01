@@ -12,7 +12,7 @@ NodeContainer create_nodes(Topology& topology) {
     NodeContainer nodes;
     nodes.Create(topology.num_nodes);
     InternetStackHelper internet;
-    Ipv4ArbitraryRoutingHelper arbitraryRoutingHelper;
+    Ipv4ArbiterRoutingHelper arbitraryRoutingHelper;
     internet.SetRoutingHelper (arbitraryRoutingHelper);
     internet.Install(nodes);
     return nodes;
@@ -301,10 +301,10 @@ public:
         RoutingArbiterEcmp routingArbiterEcmp = RoutingArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
 
         for (int i = 0; i < topology.num_nodes; i++) {
-            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->SetRoutingArbiter(&routingArbiterEcmp);
+            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetRoutingArbiter(&routingArbiterEcmp);
             std::ostringstream res;
             OutputStreamWrapper out_stream = OutputStreamWrapper(&res);
-            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbitraryRouting>()->PrintRoutingTable(&out_stream);
+            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->PrintRoutingTable(&out_stream);
             std::ostringstream expected;
             if (i == 0) {
                 expected << "ECMP state of node 0" << std::endl;

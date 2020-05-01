@@ -27,26 +27,26 @@
 #include "ns3/assert.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-routing-protocol.h"
-#include "ipv4-arbitrary-routing-helper.h"
+#include "ipv4-arbiter-routing-helper.h"
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("Ipv4ArbitraryRoutingHelper");
+NS_LOG_COMPONENT_DEFINE ("Ipv4ArbiterRoutingHelper");
 
-Ipv4ArbitraryRoutingHelper::Ipv4ArbitraryRoutingHelper() {
+Ipv4ArbiterRoutingHelper::Ipv4ArbiterRoutingHelper() {
     // Left empty intentionally
 }
 
-Ipv4ArbitraryRoutingHelper::Ipv4ArbitraryRoutingHelper (const Ipv4ArbitraryRoutingHelper &o) {
+Ipv4ArbiterRoutingHelper::Ipv4ArbiterRoutingHelper (const Ipv4ArbiterRoutingHelper &o) {
     // Left empty intentionally
 }
 
-Ipv4ArbitraryRoutingHelper* Ipv4ArbitraryRoutingHelper::Copy (void) const {
-  return new Ipv4ArbitraryRoutingHelper (*this);
+Ipv4ArbiterRoutingHelper* Ipv4ArbiterRoutingHelper::Copy (void) const {
+  return new Ipv4ArbiterRoutingHelper (*this);
 }
 
-Ptr<Ipv4RoutingProtocol> Ipv4ArbitraryRoutingHelper::Create (Ptr<Node> node) const {
-  return CreateObject<Ipv4ArbitraryRouting> ();
+Ptr<Ipv4RoutingProtocol> Ipv4ArbiterRoutingHelper::Create (Ptr<Node> node) const {
+  return CreateObject<Ipv4ArbiterRouting> ();
 }
 
 

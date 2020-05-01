@@ -31,24 +31,24 @@
 #include "ns3/simulator.h"
 #include "ns3/ipv4-route.h"
 #include "ns3/output-stream-wrapper.h"
-#include "ipv4-arbitrary-routing.h"
+#include "ipv4-arbiter-routing.h"
 
 namespace ns3 {
 
-    NS_LOG_COMPONENT_DEFINE ("Ipv4ArbitraryRouting");
+    NS_LOG_COMPONENT_DEFINE ("Ipv4ArbiterRouting");
 
-    NS_OBJECT_ENSURE_REGISTERED (Ipv4ArbitraryRouting);
+    NS_OBJECT_ENSURE_REGISTERED (Ipv4ArbiterRouting);
 
     TypeId
-    Ipv4ArbitraryRouting::GetTypeId(void) {
-        static TypeId tid = TypeId("ns3::Ipv4ArbitraryRouting")
+    Ipv4ArbiterRouting::GetTypeId(void) {
+        static TypeId tid = TypeId("ns3::Ipv4ArbiterRouting")
                 .SetParent<Ipv4RoutingProtocol>()
                 .SetGroupName("Internet")
-                .AddConstructor<Ipv4ArbitraryRouting>();
+                .AddConstructor<Ipv4ArbiterRouting>();
         return tid;
     }
 
-    Ipv4ArbitraryRouting::Ipv4ArbitraryRouting() : m_ipv4(0) {
+    Ipv4ArbiterRouting::Ipv4ArbiterRouting() : m_ipv4(0) {
         NS_LOG_FUNCTION(this);
     }
 
@@ -64,7 +64,7 @@ namespace ns3 {
      * @return Valid Ipv4 route
      */
     Ptr<Ipv4Route>
-    Ipv4ArbitraryRouting::LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif) {
+    Ipv4ArbiterRouting::LookupStatic (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif) {
 
         // Multi-cast not supported
         if (dest.IsLocalMulticast()) {
@@ -132,7 +132,7 @@ namespace ns3 {
      * @return IPv4 route
      */
     Ptr <Ipv4Route>
-    Ipv4ArbitraryRouting::RouteOutput(Ptr <Packet> p, const Ipv4Header &header, Ptr <NetDevice> oif, Socket::SocketErrno &sockerr) {
+    Ipv4ArbiterRouting::RouteOutput(Ptr <Packet> p, const Ipv4Header &header, Ptr <NetDevice> oif, Socket::SocketErrno &sockerr) {
         NS_LOG_FUNCTION(this << p << header << oif << sockerr);
         Ipv4Address destination = header.GetDestination();
 
@@ -156,7 +156,7 @@ namespace ns3 {
     }
 
     bool
-    Ipv4ArbitraryRouting::RouteInput(Ptr<const Packet> p, const Ipv4Header &ipHeader, Ptr<const NetDevice> idev,
+    Ipv4ArbiterRouting::RouteInput(Ptr<const Packet> p, const Ipv4Header &ipHeader, Ptr<const NetDevice> idev,
                                           UnicastForwardCallback ucb, MulticastForwardCallback mcb,
                                           LocalDeliverCallback lcb, ErrorCallback ecb) {
         NS_ASSERT(m_ipv4 != 0);
@@ -207,12 +207,12 @@ namespace ns3 {
 
     }
 
-    Ipv4ArbitraryRouting::~Ipv4ArbitraryRouting() {
+    Ipv4ArbiterRouting::~Ipv4ArbiterRouting() {
         NS_LOG_FUNCTION(this);
     }
 
     void
-    Ipv4ArbitraryRouting::NotifyInterfaceUp(uint32_t i) {
+    Ipv4ArbiterRouting::NotifyInterfaceUp(uint32_t i) {
 
         // One IP address per interface
         if (m_ipv4->GetNAddresses(i) != 1) {
@@ -241,26 +241,26 @@ namespace ns3 {
     }
 
     void
-    Ipv4ArbitraryRouting::NotifyInterfaceDown(uint32_t i) {
+    Ipv4ArbiterRouting::NotifyInterfaceDown(uint32_t i) {
         throw std::runtime_error("Interfaces are not permitted to go down.");
     }
 
     void
-    Ipv4ArbitraryRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address) {
+    Ipv4ArbiterRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address) {
         if (m_ipv4->IsUp(interface)) {
             throw std::runtime_error("Not permitted to add IP addresses after the interface has gone up.");
         }
     }
 
     void
-    Ipv4ArbitraryRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address) {
+    Ipv4ArbiterRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address) {
         if (m_ipv4->IsUp(interface)) {
             throw std::runtime_error("Not permitted to remove IP addresses after the interface has gone up.");
         }
     }
 
     void
-    Ipv4ArbitraryRouting::SetIpv4(Ptr <Ipv4> ipv4) {
+    Ipv4ArbiterRouting::SetIpv4(Ptr <Ipv4> ipv4) {
         NS_LOG_FUNCTION(this << ipv4);
         NS_ASSERT(m_ipv4 == 0 && ipv4 != 0);
         m_ipv4 = ipv4;
@@ -275,13 +275,13 @@ namespace ns3 {
     }
 
     void 
-    Ipv4ArbitraryRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const {
+    Ipv4ArbiterRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const {
         std::ostream* os = stream->GetStream ();
         *os << m_routingArbiter->StringReprOfForwardingState();
     }
 
     void
-    Ipv4ArbitraryRouting::SetRoutingArbiter (RoutingArbiter* routingArbiter) {
+    Ipv4ArbiterRouting::SetRoutingArbiter (RoutingArbiter* routingArbiter) {
         m_routingArbiter = routingArbiter;
     }
 

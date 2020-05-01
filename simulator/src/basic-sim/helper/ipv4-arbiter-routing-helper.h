@@ -28,7 +28,7 @@
 #include "ns3/ipv4-routing-helper.h"
 #include "ns3/node-container.h"
 #include "ns3/net-device-container.h"
-#include "ns3/ipv4-arbitrary-routing.h"
+#include "ns3/ipv4-arbiter-routing.h"
 
 namespace ns3 {
 
@@ -40,28 +40,28 @@ namespace ns3 {
  * This class is expected to be used in conjunction with 
  * ns3::InternetStackHelper::SetRoutingHelper
  */
-class Ipv4ArbitraryRoutingHelper : public Ipv4RoutingHelper
+class Ipv4ArbiterRoutingHelper : public Ipv4RoutingHelper
 {
 public:
   /*
-   * Construct an Ipv4ArbitraryRoutingHelper object, used to make configuration
+   * Construct an Ipv4ArbiterRoutingHelper object, used to make configuration
    * of static routing easier.
    */
-  Ipv4ArbitraryRoutingHelper ();
+  Ipv4ArbiterRoutingHelper ();
 
   /**
-   * \brief Construct an Ipv4ArbitraryRoutingHelper from another previously 
+   * \brief Construct an Ipv4ArbiterRoutingHelper from another previously
    * initialized instance (Copy Constructor).
    */
-  Ipv4ArbitraryRoutingHelper (const Ipv4ArbitraryRoutingHelper &);
+  Ipv4ArbiterRoutingHelper (const Ipv4ArbiterRoutingHelper &);
 
   /**
-   * \returns pointer to clone of this Ipv4ArbitraryRoutingHelper
+   * \returns pointer to clone of this Ipv4ArbiterRoutingHelper
    *
    * This method is mainly for internal use by the other helpers;
    * clients are expected to free the dynamic memory allocated by this method
    */
-  Ipv4ArbitraryRoutingHelper* Copy (void) const;
+  Ipv4ArbiterRoutingHelper* Copy (void) const;
 
   /**
    * \param node the node on which the routing protocol will run
@@ -77,7 +77,7 @@ private:
    * assignment and prevent the compiler from happily inserting its own.
    * \returns
    */
-  Ipv4ArbitraryRoutingHelper &operator = (const Ipv4ArbitraryRoutingHelper &);
+  Ipv4ArbiterRoutingHelper &operator = (const Ipv4ArbiterRoutingHelper &);
 };
 
 } // namespace ns3

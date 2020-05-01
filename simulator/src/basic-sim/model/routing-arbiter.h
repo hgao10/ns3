@@ -52,7 +52,7 @@ public:
     uint32_t ResolveNodeIdFromIp(uint32_t ip);
 
     /**
-     * Base decide how to forward. Directly called by ipv4-arbitrary-routing.
+     * Base decide how to forward. Directly called by ipv4-arbiter-routing.
      * It does some nice pre-processing and checking and calls Decide() of the
      * subclass to actually make the decision.
      *
