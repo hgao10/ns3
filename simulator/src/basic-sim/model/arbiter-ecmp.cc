@@ -16,10 +16,9 @@ ArbiterEcmp::ArbiterEcmp(
         Ptr<Node> this_node,
         NodeContainer nodes,
         Ptr<TopologyPtop> topology,
-        const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges,
         std::vector<std::vector<uint32_t>> candidate_list
-) : ArbiterPtop(this_node, nodes, topology, interface_idxs_for_edges
-) {
+) : ArbiterPtop(this_node, nodes, topology)
+{
     m_candidate_list = candidate_list;
 }
 
@@ -38,7 +37,7 @@ int32_t ArbiterEcmp::TopologyPtopDecide(int32_t source_node_id, int32_t target_n
  * @param p                    Packet
  * @param node_id              Node identifier
  * @param no_other_headers     True iff there are no other headers outside of the IPv4 one,
- *                             irrespective of what the protocol field claims
+ *                             irrespective of what the IP protocol field claims
  *
  * @return Hash value
  */

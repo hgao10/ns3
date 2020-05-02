@@ -23,7 +23,6 @@ public:
             Ptr<Node> this_node,
             NodeContainer nodes,
             Ptr<TopologyPtop> topology,
-            const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges,
             std::vector<std::vector<uint32_t>> candidate_list
     );
 

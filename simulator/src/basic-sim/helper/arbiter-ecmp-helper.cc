@@ -14,7 +14,7 @@ void ArbiterEcmpHelper::InstallArbiters (Ptr<BasicSimulation> basicSimulation, P
 
     std::cout << "  > Setting the routing arbiter on each node" << std::endl;
     for (int i = 0; i < topology->GetNumNodes(); i++) {
-        Ptr<ArbiterEcmp> arbiterEcmp = CreateObject<ArbiterEcmp>(nodes.Get(i), nodes, topology, topology->GetInterfaceIdxsForEdges(), global_ecmp_state[i]);
+        Ptr<ArbiterEcmp> arbiterEcmp = CreateObject<ArbiterEcmp>(nodes.Get(i), nodes, topology, global_ecmp_state[i]);
         nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(arbiterEcmp);
     }
     basicSimulation->RegisterTimestamp("Setup routing arbiter on each node");
