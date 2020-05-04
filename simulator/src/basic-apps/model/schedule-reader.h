@@ -25,7 +25,7 @@ struct schedule_entry_t {
     std::string metadata;
 };
 
-std::vector<schedule_entry_t> read_schedule(const std::string& filename, Topology& topology, const int64_t simulation_end_time_ns);
+std::vector<schedule_entry_t> read_schedule(const std::string& filename, Ptr<Topology> topology, const int64_t simulation_end_time_ns);
 
 }
 

@@ -1,9 +1,14 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "ns3/basic-simulation.h"
-#include "ns3/pingmesh-scheduler.h"
 #include <iostream>
 #include <fstream>
+
+#include "ns3/basic-simulation.h"
+#include "ns3/pingmesh-scheduler.h"
+#include "ns3/topology-ptop.h"
+#include "ns3/tcp-optimizer.h"
+#include "ns3/arbiter-ecmp-helper.h"
+#include "ns3/ipv4-arbiter-routing-helper.h"
 
 using namespace ns3;
 
@@ -41,13 +46,25 @@ int main(int argc, char *argv[]) {
     topology_file << "undirected_edges=set(0-1)" << std::endl;
     topology_file.close();
 
-    // Run the basic simulation
-    BasicSimulation simulation(example_dir);
-    PingmeshScheduler pingmeshScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+    // Load basic simulation environment
+    Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(example_dir);
+
+    // Read point-to-point topology, and install routing arbiters
+    Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+    ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
+
+    // Schedule pings
+    PingmeshScheduler pingmeshScheduler(basicSimulation, topology); // Requires pingmesh_interval_ns to be present in the configuration
     pingmeshScheduler.Schedule();
-    simulation.Run();
+
+    // Run simulation
+    basicSimulation->Run();
+
+    // Write results
     pingmeshScheduler.WriteResults();
-    simulation.Finalize();
+
+    // Finalize the simulation
+    basicSimulation->Finalize();
 
     return 0;
 }

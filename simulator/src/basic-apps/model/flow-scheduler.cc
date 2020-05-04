@@ -14,7 +14,7 @@ FlowScheduler::FlowScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Topology>
     // Read schedule
     m_schedule = read_schedule(
             m_basicSimulation->GetRunDir() + "/" + m_basicSimulation->GetConfigParamOrFail("filename_schedule"),
-            *m_topology,
+            m_topology,
             m_simulation_end_time_ns
     );
     m_basicSimulation->RegisterTimestamp("Read schedule");

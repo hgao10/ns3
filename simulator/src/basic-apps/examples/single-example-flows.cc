@@ -1,9 +1,14 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "ns3/basic-simulation.h"
-#include "ns3/flow-scheduler.h"
 #include <iostream>
 #include <fstream>
+
+#include "ns3/basic-simulation.h"
+#include "ns3/flow-scheduler.h"
+#include "ns3/topology-ptop.h"
+#include "ns3/tcp-optimizer.h"
+#include "ns3/arbiter-ecmp-helper.h"
+#include "ns3/ipv4-arbiter-routing-helper.h"
 
 using namespace ns3;
 
@@ -47,13 +52,28 @@ int main(int argc, char *argv[]) {
     schedule_file << "0,0,1,100000,0,," << std::endl; // Flow 0 from node 0 to node 1 of size 100000 bytes starting at t=0
     schedule_file.close();
 
-    // Run the basic simulation
-    BasicSimulation simulation(example_dir);
-    FlowScheduler flowScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+    // Load basic simulation environment
+    Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(example_dir);
+
+    // Read point-to-point topology, and install routing arbiters
+    Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+    ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
+
+    // Optimize TCP
+    TcpOptimizer::OptimizeUsingWorstCaseRtt(basicSimulation, topology->GetWorstCaseRttEstimateNs());
+
+    // Schedule flows
+    FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
     flowScheduler.Schedule();
-    simulation.Run();
+
+    // Run simulation
+    basicSimulation->Run();
+
+    // Write result
     flowScheduler.WriteResults();
-    simulation.Finalize();
+
+    // Finalize the simulation
+    basicSimulation->Finalize();
 
     return 0;
 }
