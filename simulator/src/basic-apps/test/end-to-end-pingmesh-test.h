@@ -2,6 +2,8 @@
 
 #include "ns3/basic-simulation.h"
 #include "ns3/flow-scheduler.h"
+#include "ns3/tcp-optimizer.h"
+#include "ns3/arbiter-ecmp-helper.h"
 #include "ns3/test.h"
 #include "test-helpers.h"
 #include <iostream>
@@ -64,12 +66,14 @@ public:
         remove_file_if_exists(temp_dir + "/logs_ns3/pingmesh.csv");
 
         // Perform basic simulation
-        BasicSimulation simulation(temp_dir);
-        PingmeshScheduler pingmeshScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(temp_dir);
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+        ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
+        PingmeshScheduler pingmeshScheduler(basicSimulation, topology); // Requires pingmesh_interval_ns to be present in the configuration
         pingmeshScheduler.Schedule();
-        simulation.Run();
+        basicSimulation->Run();
         pingmeshScheduler.WriteResults();
-        simulation.Finalize();
+        basicSimulation->Finalize();
 
         // Check finished.txt
         std::vector<std::string> finished_lines = read_file_direct(temp_dir + "/logs_ns3/finished.txt");
@@ -105,8 +109,8 @@ public:
             } else {
                 ASSERT_TRUE(false);
             }
-            ASSERT_TRUE(simulation.GetTopology()->is_valid_endpoint(from));
-            ASSERT_TRUE(simulation.GetTopology()->is_valid_endpoint(to));
+            ASSERT_TRUE(topology->IsValidEndpoint(from));
+            ASSERT_TRUE(topology->IsValidEndpoint(to));
             ASSERT_TRUE(i >= 0);
             ASSERT_TRUE(sent >= 0);
             if (arrived) {

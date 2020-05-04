@@ -2,6 +2,8 @@
 
 #include "ns3/basic-simulation.h"
 #include "ns3/flow-scheduler.h"
+#include "ns3/tcp-optimizer.h"
+#include "ns3/arbiter-ecmp-helper.h"
 #include "ns3/test.h"
 #include "test-helpers.h"
 #include <iostream>
@@ -75,12 +77,15 @@ public:
         schedule_file.close();
 
         // Perform basic simulation
-        BasicSimulation simulation(temp_dir);
-        FlowScheduler flowScheduler(&simulation); // Requires filename_schedule to be present in the configuration
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(temp_dir);
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+        ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
+        TcpOptimizer::OptimizeUsingWorstCaseRtt(basicSimulation, topology->GetWorstCaseRttEstimateNs());
+        FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
         flowScheduler.Schedule();
-        simulation.Run();
+        basicSimulation->Run();
         flowScheduler.WriteResults();
-        simulation.Finalize();
+        basicSimulation->Finalize();
 
         // Check finished.txt
         std::vector<std::string> finished_lines = read_file_direct(temp_dir + "/logs_ns3/finished.txt");
