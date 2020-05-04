@@ -98,6 +98,7 @@ public:
   virtual void PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit = Time::S) const;
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
   void SetArbiter (Ptr<Arbiter> arbiter);
+  Ptr<Arbiter> GetArbiter ();
 
 private:
     Ptr<Ipv4> m_ipv4;

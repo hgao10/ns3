@@ -290,4 +290,9 @@ namespace ns3 {
         m_arbiter = arbiter;
     }
 
+    Ptr<Arbiter>
+    Ipv4ArbiterRouting::GetArbiter () {
+        return m_arbiter;
+    }
+
 } // namespace ns3

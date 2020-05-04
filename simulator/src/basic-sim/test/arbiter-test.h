@@ -1,37 +1,24 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "ns3/basic-simulation.h"
+#include "ns3/arbiter-ecmp.h"
+#include "ns3/arbiter-ecmp-helper.h"
 #include "ns3/test.h"
 #include "test-helpers.h"
 
 using namespace ns3;
 
-////////////////////////////////////////////////////////////////////////////////////////
-
-NodeContainer create_nodes(Topology& topology) {
-    NodeContainer nodes;
-    nodes.Create(topology.num_nodes);
-    InternetStackHelper internet;
-    Ipv4ArbiterRoutingHelper arbitraryRoutingHelper;
-    internet.SetRoutingHelper (arbitraryRoutingHelper);
-    internet.Install(nodes);
-    return nodes;
-}
-
-std::vector<std::pair<uint32_t, uint32_t>> setup_links(NodeContainer nodes, Topology& topology) {
-    Ipv4AddressHelper address;
-    address.SetBase("10.0.0.0", "255.255.255.0"); // Each link is a network on its own
-    PointToPointHelper p2p;
-    p2p.SetDeviceAttribute("DataRate", StringValue(std::to_string(100) + "Mbps"));
-    p2p.SetChannelAttribute("Delay", TimeValue(NanoSeconds(1000)));
-    std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges;
-    for (std::pair<int64_t, int64_t> link : topology.undirected_edges) {
-        NetDeviceContainer container = p2p.Install(nodes.Get(link.first), nodes.Get(link.second));
-        address.Assign(container);
-        address.NewNetwork();
-        interface_idxs_for_edges.push_back(std::make_pair(container.Get(0)->GetIfIndex(),container.Get(1)->GetIfIndex()));
-    }
-    return interface_idxs_for_edges;
+void write_arbiter_base_config() {
+    std::ofstream config_file("config_ns3.properties");
+    config_file << "filename_topology=\"topology.properties.temp\"" << std::endl;
+    config_file << "simulation_end_time_ns=10000000000" << std::endl;
+    config_file << "simulation_seed=123456789" << std::endl;
+    config_file << "link_data_rate_megabit_per_s=100.0" << std::endl;
+    config_file << "link_delay_ns=10000" << std::endl;
+    config_file << "link_max_queue_size_pkts=100" << std::endl;
+    config_file << "disable_qdisc_endpoint_tors_xor_servers=true" << std::endl;
+    config_file << "disable_qdisc_non_endpoint_switches=true" << std::endl;
+    config_file.close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -50,32 +37,37 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
         topology_file.close();
-        Topology topology = Topology("topology.properties.temp");
+
+        // Create topology
+        write_arbiter_base_config();
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links and create arbiter
-        NodeContainer nodes = create_nodes(topology);
-        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ArbiterEcmp routingArbiter = ArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+        NodeContainer nodes = topology->GetNodes();
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = topology->GetInterfaceIdxsForEdges();
+        ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
 
         // Test valid IPs
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.0.1").Get()), 0);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.0.2").Get()), 1);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.1.1").Get()), 0);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.1.2").Get()), 3);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.2.1").Get()), 1);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.2.2").Get()), 2);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.3.1").Get()), 2);
-        ASSERT_EQUAL(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.3.2").Get()), 3);
+        Ptr<Arbiter> arbiter = nodes.Get(0)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->GetArbiter();
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.0.1").Get()), 0);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.0.2").Get()), 1);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.1.1").Get()), 0);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.1.2").Get()), 3);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.2.1").Get()), 1);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.2.2").Get()), 2);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.3.1").Get()), 2);
+        ASSERT_EQUAL(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.3.2").Get()), 3);
 
         // All other should be invalid, a few examples
-        ASSERT_EXCEPTION(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.0.0").Get()));
-        ASSERT_EXCEPTION(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.1.3").Get()));
-        ASSERT_EXCEPTION(routingArbiter.resolve_node_id_from_ip(Ipv4Address("10.0.4.1").Get()));
+        ASSERT_EXCEPTION(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.0.0").Get()));
+        ASSERT_EXCEPTION(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.1.3").Get()));
+        ASSERT_EXCEPTION(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.4.1").Get()));
 
         // Clean up topology file
         remove_file_if_exists("topology.properties.temp");
 
-        Simulator::Destroy();
+        basicSimulation->Finalize();
 
     }
 };
@@ -135,12 +127,19 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
         topology_file.close();
-        Topology topology = Topology("topology.properties.temp");
+
+        // Create topology
+        write_arbiter_base_config();
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links and create arbiter
-        NodeContainer nodes = create_nodes(topology);
-        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ArbiterEcmp routingArbiterEcmp = ArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+        NodeContainer nodes = topology->GetNodes();
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = topology->GetInterfaceIdxsForEdges();
+        ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
+
+        // One example ECMP arbiter
+        Ptr<ArbiterEcmp> routingArbiterEcmp = nodes.Get(0)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->GetArbiter()->GetObject<ArbiterEcmp>();
 
         ///////
         // All hashes should be different if any of the 5 values are different
@@ -171,7 +170,7 @@ public:
             create_headered_packet(p, e);
             Ipv4Header ipHeader;
             p->RemoveHeader(ipHeader);
-            hash_results.push_back(routingArbiterEcmp.ComputeFiveTupleHash(ipHeader, p, e.node_id, false));
+            hash_results.push_back(routingArbiterEcmp->ComputeFiveTupleHash(ipHeader, p, e.node_id, false));
         }
         for (int i = 0; i < num_cases; i++) {
             for (int j = i + 1; j < num_cases; j++) {
@@ -193,8 +192,8 @@ public:
         Ipv4Header p2header;
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 6666, false),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 6666, false)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 6666, false),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 6666, false)
         );
 
         // Same UDP for same 5-tuple
@@ -205,8 +204,8 @@ public:
         create_headered_packet(p2, {123456, 32543526, 937383, false, true, 1234, 6737});
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 123456, false),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 123456, false)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 123456, false),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 123456, false)
         );
 
         // Same not TCP/UDP for same 3-tuple
@@ -217,8 +216,8 @@ public:
         create_headered_packet(p2, {7, 3626, 22, false, false, 44, 7777});
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, false),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, false)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 7, false),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 7, false)
         );
 
         // TCP: Different source and destination port, so hash should also be different
@@ -229,8 +228,8 @@ public:
         create_headered_packet(p2, {7, 3626, 22, true, false, 44, 7777});
         p2->RemoveHeader(p2header);
         ASSERT_NOT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, false),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, false)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 7, false),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 7, false)
         );
 
         // TCP: If the protocol field is to be ignored because the other headers are said to be not there explicitly
@@ -241,8 +240,8 @@ public:
         create_headered_packet(p2, {7, 3626, 22, true, false, 44, 7777});
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, true),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, true)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 7, true),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 7, true)
         );
 
         // UDP: Different source and destination port, so hash should also be different
@@ -253,8 +252,8 @@ public:
         create_headered_packet(p2, {7, 3626, 22, false, true, 44, 7777});
         p2->RemoveHeader(p2header);
         ASSERT_NOT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, false),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, false)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 7, false),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 7, false)
         );
 
         // UDP: If the protocol field is to be ignored because the other headers are said to be not there explicitly
@@ -265,14 +264,14 @@ public:
         create_headered_packet(p2, {7, 3626, 22, false, true, 44, 7777});
         p2->RemoveHeader(p2header);
         ASSERT_EQUAL(
-                routingArbiterEcmp.ComputeFiveTupleHash(p1header, p1, 7, true),
-                routingArbiterEcmp.ComputeFiveTupleHash(p2header, p2, 7, true)
+                routingArbiterEcmp->ComputeFiveTupleHash(p1header, p1, 7, true),
+                routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 7, true)
         );
 
         // Clean up topology file
         remove_file_if_exists("topology.properties.temp");
 
-        Simulator::Destroy();
+        basicSimulation->Finalize();
 
     }
 };
@@ -293,15 +292,18 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
         topology_file.close();
-        Topology topology = Topology("topology.properties.temp");
+
+        // Create topology
+        write_arbiter_base_config();
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links and create arbiter
-        NodeContainer nodes = create_nodes(topology);
-        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ArbiterEcmp routingArbiterEcmp = ArbiterEcmp(&topology, nodes, interface_idxs_for_edges);
+        NodeContainer nodes = topology->GetNodes();
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = topology->GetInterfaceIdxsForEdges();
+        ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
 
-        for (int i = 0; i < topology.num_nodes; i++) {
-            nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(&routingArbiterEcmp);
+        for (int i = 0; i < topology->GetNumNodes(); i++) {
             std::ostringstream res;
             OutputStreamWrapper out_stream = OutputStreamWrapper(&res);
             nodes.Get(i)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->PrintRoutingTable(&out_stream);
@@ -342,35 +344,42 @@ public:
         // Clean up topology file
         remove_file_if_exists("topology.properties.temp");
 
-        Simulator::Destroy();
+        basicSimulation->Finalize();
 
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
-class ArbiterBad: public Arbiter
+class ArbiterBad: public ArbiterPtop
 {
 public:
 
-    ArbiterBad(Ptr<Topology> topology, NodeContainer nodes, const std::vector<std::pair<uint32_t, uint32_t>>& interface_idxs_for_edges) : Arbiter(topology, nodes, interface_idxs_for_edges) {
+    ArbiterBad(Ptr<Node> this_node, NodeContainer nodes, Ptr<TopologyPtop> topology) : ArbiterPtop(this_node, nodes, topology) {
         // Left empty intentionally
     }
 
-    void set_decision(int32_t val) {
-        this->next_decision = val;
+    int32_t TopologyPtopDecide(
+        int32_t source_node_id,
+        int32_t target_node_id,
+        const std::set<int64_t>& neighbor_node_ids,
+        ns3::Ptr<const ns3::Packet> pkt,
+        ns3::Ipv4Header const &ipHeader,
+        bool is_socket_request_for_source_ip
+    ) {
+        return m_next_decision;
     }
 
-    int32_t decide_next_node_id(int32_t current_node, int32_t source_node_id, int32_t target_node_id, std::set<int64_t>& neighbor_node_ids, Ptr<const Packet> pkt, Ipv4Header const &ipHeader, bool is_request_for_source_ip_so_no_next_header) {
-        return this->next_decision;
+    void SetDecision(int32_t val) {
+        m_next_decision = val;
     }
 
-    std::string string_repr_of_routing_table(int32_t node_id) {
+    std::string StringReprOfForwardingState() {
         return "";
     }
 
 private:
-    int32_t next_decision = -1;
+    int32_t m_next_decision = -1;
 
 };
 
@@ -388,41 +397,52 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
         topology_file.close();
-        Topology topology = Topology("topology.properties.temp");
 
-        // Create nodes, setup links and create arbiter
-        NodeContainer nodes = create_nodes(topology); // Only nodes to create
-        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ArbiterBad arbiterBad = ArbiterBad(&topology, nodes, interface_idxs_for_edges);
+        // Create topology
+        write_arbiter_base_config();
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+
+        // Create nodes, setup links
+        NodeContainer nodes = topology->GetNodes();
+        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = topology->GetInterfaceIdxsForEdges();
+        ArbiterBad arbiterBad = ArbiterBad(nodes.Get(1), nodes, topology);
 
         // This should be fine
-        arbiterBad.set_decision(2);
+        arbiterBad.SetDecision(2);
         Ptr<Packet> p1 = Create<Packet>(555);
         create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
         Ipv4Header p1header;
         p1->RemoveHeader(p1header);
-        ASSERT_EQUAL(2, arbiterBad.decide_next_interface(1, p1, p1header));
+        ASSERT_EQUAL(2, arbiterBad.BaseDecide(p1, p1header).GetOutIfIdx()); // Should also be interface 2
+
+        // This should also be fine = drop
+        arbiterBad.SetDecision(-1);
+        p1 = Create<Packet>(555);
+        create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
+        p1->RemoveHeader(p1header);
+        ASSERT_TRUE(arbiterBad.BaseDecide(p1, p1header).Failed());
 
         // Not a neighbor
-        arbiterBad.set_decision(3);
+        arbiterBad.SetDecision(3);
         p1 = Create<Packet>(555);
         create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
         p1->RemoveHeader(p1header);
-        ASSERT_EXCEPTION(arbiterBad.decide_next_interface(1, p1, p1header));
+        ASSERT_EXCEPTION(arbiterBad.BaseDecide(p1, p1header));
 
         // Out of range <
-        arbiterBad.set_decision(-1);
+        arbiterBad.SetDecision(-2);
         p1 = Create<Packet>(555);
         create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
         p1->RemoveHeader(p1header);
-        ASSERT_EXCEPTION(arbiterBad.decide_next_interface(1, p1, p1header));
+        ASSERT_EXCEPTION(arbiterBad.BaseDecide(p1, p1header));
 
         // Out of range >
-        arbiterBad.set_decision(4);
+        arbiterBad.SetDecision(4);
         p1 = Create<Packet>(555);
         create_headered_packet(p1, {1, Ipv4Address("10.0.2.1").Get(), Ipv4Address("10.0.3.2").Get(), true, false, 4663, 8888});
         p1->RemoveHeader(p1header);
-        ASSERT_EXCEPTION(arbiterBad.decide_next_interface(1, p1, p1header));
+        ASSERT_EXCEPTION(arbiterBad.BaseDecide(p1, p1header));
 
         // Clean up
         remove_file_if_exists("topology.properties.temp");
@@ -456,16 +476,16 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set()" << std::endl;
         topology_file.close();
-        Topology topology = Topology("topology.properties.temp");
 
-        // Create nodes, setup links and create arbiter
-        NodeContainer nodes = create_nodes(topology); // Only nodes to create
-        std::vector<std::pair<uint32_t, uint32_t>> interface_idxs_for_edges = setup_links(nodes, topology);
-        ASSERT_EXCEPTION(ArbiterEcmp(&topology, nodes, interface_idxs_for_edges)); // > 40000 nodes is not allowed
+        // Create topology
+        write_arbiter_base_config();
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+        ASSERT_EXCEPTION(ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology)); // > 40000 nodes is not allowed
 
         remove_file_if_exists("topology.properties.temp");
 
-        Simulator::Destroy();
+        basicSimulation->Finalize();
 
     }
 };

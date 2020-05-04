@@ -4,7 +4,7 @@
 #include "ns3/test.h"
 #include "exp-util-test.h"
 #include "topology-ptop-test.h"
-//#include "arbiter-test.h"
+#include "arbiter-test.h"
 
 using namespace ns3;
 
@@ -23,10 +23,10 @@ public:
         AddTestCase(new TopologyLeafSpineTestCase, TestCase::QUICK);
         AddTestCase(new TopologyRingTestCase, TestCase::QUICK);
         AddTestCase(new TopologyInvalidTestCase, TestCase::QUICK);
-//        AddTestCase(new ArbiterIpResolutionTestCase, TestCase::QUICK);
-//        AddTestCase(new ArbiterEcmpHashTestCase, TestCase::QUICK);
-//        AddTestCase(new ArbiterEcmpStringReprTestCase, TestCase::QUICK);
-//        AddTestCase(new ArbiterBadImplTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterIpResolutionTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterEcmpHashTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterEcmpStringReprTestCase, TestCase::QUICK);
+        AddTestCase(new ArbiterBadImplTestCase, TestCase::QUICK);
         // Disabled because it takes too long for a quick test:
         // AddTestCase(new ArbiterEcmpTooBigFailTestCase, TestCase::QUICK);
     }
