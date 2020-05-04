@@ -272,7 +272,7 @@ public:
         // File system: dir
         mkdir_if_not_exists("temp.dir");
         ASSERT_TRUE(dir_exists("temp.dir"));
-        ASSERT_NOT_EQUAL(rmdir("temp.dir"), -1);
+        remove_dir_if_exists("temp.dir");
         ASSERT_FALSE(dir_exists("temp.dir"));
 
     }

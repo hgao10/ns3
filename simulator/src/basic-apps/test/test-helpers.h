@@ -10,11 +10,11 @@
 #define ASSERT_EQUAL_APPROX(a, b, c) NS_TEST_ASSERT_MSG_EQ_TOL(a, b, c, "")
 #define ASSERT_EXCEPTION(a) do { bool caught = false; try { a; } catch (std::exception& e) { caught = true; } ASSERT_TRUE(caught); } while(0)
 
-bool set_int64_contains(std::set<int64_t>& s, int64_t value) {
+bool set_int64_contains(const std::set<int64_t>& s, const int64_t value) {
     return s.find(value) != s.end();
 }
 
-bool set_pair_int64_contains(std::set<std::pair<int64_t, int64_t>>& s, std::pair<int64_t, int64_t> value) {
+bool set_pair_int64_contains(const std::set<std::pair<int64_t, int64_t>>& s, const std::pair<int64_t, int64_t> value) {
     return s.find(value) != s.end();
 }
 

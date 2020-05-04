@@ -508,6 +508,19 @@ bool dir_exists(std::string dirname) {
 }
 
 /**
+ * Remove a directory if it exists.
+ *
+ * @param dirname   Directory name
+ */
+void remove_dir_if_exists(std::string dirname) {
+    if (dir_exists(dirname)) {
+        if (rmdir(dirname.c_str()) == -1) {
+            throw std::runtime_error(format_string("Directory %s could not be removed.\n", dirname.c_str()));
+        }
+    }
+}
+
+/**
  * Creates a directory if it does not exist.
  *
  * @param dirname  Directory name
