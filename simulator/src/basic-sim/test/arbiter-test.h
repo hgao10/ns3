@@ -8,8 +8,12 @@
 
 using namespace ns3;
 
-void write_arbiter_base_config() {
-    std::ofstream config_file("config_ns3.properties");
+const std::string arbiter_test_dir = ".tmp-arbiter-test";
+
+void prepare_arbiter_test_config() {
+    mkdir_if_not_exists(arbiter_test_dir);
+
+    std::ofstream config_file(arbiter_test_dir + "/config_ns3.properties");
     config_file << "filename_topology=\"topology.properties.temp\"" << std::endl;
     config_file << "simulation_end_time_ns=10000000000" << std::endl;
     config_file << "simulation_seed=123456789" << std::endl;
@@ -21,6 +25,32 @@ void write_arbiter_base_config() {
     config_file.close();
 }
 
+void prepare_arbiter_test_default_topology() {
+    std::ofstream topology_file;
+    topology_file.open (arbiter_test_dir + "/topology.properties.temp");
+    topology_file << "num_nodes=4" << std::endl;
+    topology_file << "num_undirected_edges=4" << std::endl;
+    topology_file << "switches=set(0,1,2,3)" << std::endl;
+    topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
+    topology_file << "servers=set()" << std::endl;
+    topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
+    topology_file.close();
+}
+
+void prepare_arbiter_test() {
+    prepare_arbiter_test_config();
+    prepare_arbiter_test_default_topology();
+}
+
+void cleanup_arbiter_test() {
+    remove_file_if_exists(arbiter_test_dir + "/config_ns3.properties");
+    remove_file_if_exists(arbiter_test_dir + "/topology.properties.temp");
+    remove_file_if_exists(arbiter_test_dir + "/logs_ns3/finished.txt");
+    remove_file_if_exists(arbiter_test_dir + "/logs_ns3/timing_results.txt");
+    remove_dir_if_exists(arbiter_test_dir + "/logs_ns3");
+    remove_dir_if_exists(arbiter_test_dir);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
 
 class ArbiterIpResolutionTestCase : public TestCase
@@ -28,19 +58,10 @@ class ArbiterIpResolutionTestCase : public TestCase
 public:
     ArbiterIpResolutionTestCase () : TestCase ("routing-arbiter basic") {};
     void DoRun () {
-        std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
-        topology_file << "num_nodes=4" << std::endl;
-        topology_file << "num_undirected_edges=4" << std::endl;
-        topology_file << "switches=set(0,1,2,3)" << std::endl;
-        topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
-        topology_file << "servers=set()" << std::endl;
-        topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
-        topology_file.close();
+        prepare_arbiter_test();
 
         // Create topology
-        write_arbiter_base_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(arbiter_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links and create arbiter
@@ -64,10 +85,8 @@ public:
         ASSERT_EXCEPTION(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.1.3").Get()));
         ASSERT_EXCEPTION(arbiter->ResolveNodeIdFromIp(Ipv4Address("10.0.4.1").Get()));
 
-        // Clean up topology file
-        remove_file_if_exists("topology.properties.temp");
-
         basicSimulation->Finalize();
+        cleanup_arbiter_test();
 
     }
 };
@@ -118,19 +137,11 @@ class ArbiterEcmpHashTestCase : public TestCase
 public:
     ArbiterEcmpHashTestCase () : TestCase ("routing-arbiter-ecmp hash") {};
     void DoRun () {
-        std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
-        topology_file << "num_nodes=4" << std::endl;
-        topology_file << "num_undirected_edges=4" << std::endl;
-        topology_file << "switches=set(0,1,2,3)" << std::endl;
-        topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
-        topology_file << "servers=set()" << std::endl;
-        topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
-        topology_file.close();
+        prepare_arbiter_test();
 
         // Create topology
-        write_arbiter_base_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        prepare_arbiter_test_config();
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(arbiter_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links and create arbiter
@@ -268,10 +279,9 @@ public:
                 routingArbiterEcmp->ComputeFiveTupleHash(p2header, p2, 7, true)
         );
 
-        // Clean up topology file
-        remove_file_if_exists("topology.properties.temp");
-
+        // Clean-up
         basicSimulation->Finalize();
+        cleanup_arbiter_test();
 
     }
 };
@@ -283,19 +293,10 @@ class ArbiterEcmpStringReprTestCase : public TestCase
 public:
     ArbiterEcmpStringReprTestCase () : TestCase ("routing-arbiter-ecmp string-repr") {};
     void DoRun () {
-        std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
-        topology_file << "num_nodes=4" << std::endl;
-        topology_file << "num_undirected_edges=4" << std::endl;
-        topology_file << "switches=set(0,1,2,3)" << std::endl;
-        topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
-        topology_file << "servers=set()" << std::endl;
-        topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
-        topology_file.close();
+        prepare_arbiter_test();
 
         // Create topology
-        write_arbiter_base_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(arbiter_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links and create arbiter
@@ -341,10 +342,9 @@ public:
             }
         }
 
-        // Clean up topology file
-        remove_file_if_exists("topology.properties.temp");
-
+        // Clean-up
         basicSimulation->Finalize();
+        cleanup_arbiter_test();
 
     }
 };
@@ -388,19 +388,10 @@ class ArbiterBadImplTestCase : public TestCase
 public:
     ArbiterBadImplTestCase () : TestCase ("routing-arbiter bad-impl") {};
     void DoRun () {
-        std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
-        topology_file << "num_nodes=4" << std::endl;
-        topology_file << "num_undirected_edges=4" << std::endl;
-        topology_file << "switches=set(0,1,2,3)" << std::endl;
-        topology_file << "switches_which_are_tors=set(0,1,2,3)" << std::endl;
-        topology_file << "servers=set()" << std::endl;
-        topology_file << "undirected_edges=set(0-1,1-2,2-3,0-3)" << std::endl;
-        topology_file.close();
+        prepare_arbiter_test();
 
         // Create topology
-        write_arbiter_base_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(arbiter_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
 
         // Create nodes, setup links
@@ -444,9 +435,9 @@ public:
         p1->RemoveHeader(p1header);
         ASSERT_EXCEPTION(arbiterBad.BaseDecide(p1, p1header));
 
-        // Clean up
-        remove_file_if_exists("topology.properties.temp");
-        Simulator::Destroy();
+        // Clean-up
+        basicSimulation->Finalize();
+        cleanup_arbiter_test();
 
     }
 };
@@ -459,8 +450,10 @@ class ArbiterEcmpTooBigFailTestCase : public TestCase
 public:
     ArbiterEcmpTooBigFailTestCase () : TestCase ("routing-arbiter-ecmp too-big-fail") {};
     void DoRun () {
+        prepare_arbiter_test_config();
+
         std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (arbiter_test_dir + "topology.properties.temp");
         topology_file << "num_nodes=40001" << std::endl;
         topology_file << "num_undirected_edges=0" << std::endl;
         topology_file << "switches=set(";
@@ -478,14 +471,13 @@ public:
         topology_file.close();
 
         // Create topology
-        write_arbiter_base_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(arbiter_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
         ASSERT_EXCEPTION(ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology)); // > 40000 nodes is not allowed
 
-        remove_file_if_exists("topology.properties.temp");
-
+        // Clean-up
         basicSimulation->Finalize();
+        cleanup_arbiter_test();
 
     }
 };

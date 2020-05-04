@@ -8,8 +8,12 @@
 
 using namespace ns3;
 
-void write_config() {
-    std::ofstream config_file("config_ns3.properties");
+const std::string topology_ptop_test_dir = ".tmp-topology-ptop-test";
+
+void prepare_topology_ptop_test_config() {
+    mkdir_if_not_exists(topology_ptop_test_dir);
+
+    std::ofstream config_file(topology_ptop_test_dir + "/config_ns3.properties");
     config_file << "filename_topology=\"topology.properties.temp\"" << std::endl;
     config_file << "simulation_end_time_ns=10000000000" << std::endl;
     config_file << "simulation_seed=123456789" << std::endl;
@@ -21,6 +25,15 @@ void write_config() {
     config_file.close();
 }
 
+void cleanup_topology_ptop_test() {
+    remove_file_if_exists(topology_ptop_test_dir + "/config_ns3.properties");
+    remove_file_if_exists(topology_ptop_test_dir + "/topology.properties.temp");
+    remove_file_if_exists(topology_ptop_test_dir + "/logs_ns3/finished.txt");
+    remove_file_if_exists(topology_ptop_test_dir + "/logs_ns3/timing_results.txt");
+    remove_dir_if_exists(topology_ptop_test_dir + "/logs_ns3");
+    remove_dir_if_exists(topology_ptop_test_dir);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
 
 class TopologyEmptyTestCase : public TestCase
@@ -28,8 +41,10 @@ class TopologyEmptyTestCase : public TestCase
 public:
     TopologyEmptyTestCase () : TestCase ("topology empty") {};
     void DoRun () {
+        prepare_topology_ptop_test_config();
+        
         std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=0" << std::endl;
         topology_file << "num_undirected_edges=0" << std::endl;
         topology_file << "switches=set()" << std::endl;
@@ -37,9 +52,10 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set()" << std::endl;
         topology_file.close();
-        write_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(topology_ptop_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
+        
         ASSERT_EQUAL(topology->GetNumNodes(), 0);
         ASSERT_EQUAL(topology->GetNumUndirectedEdges(), 0);
         ASSERT_EQUAL(topology->GetSwitches().size(), 0);
@@ -49,8 +65,9 @@ public:
         ASSERT_EQUAL(topology->GetUndirectedEdgesSet().size(), 0);
         ASSERT_EQUAL(topology->GetAllAdjacencyLists().size(), 0);
         ASSERT_EQUAL(topology->GetEndpoints().size(), 0);
-        remove_file_if_exists("topology.properties.temp");
+        
         basicSimulation->Finalize();
+        cleanup_topology_ptop_test();
     }
 };
 
@@ -59,9 +76,10 @@ class TopologySingleTestCase : public TestCase
 public:
     TopologySingleTestCase () : TestCase ("topology single") {};
     void DoRun () {
+        prepare_topology_ptop_test_config();
 
         std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=2" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -69,11 +87,9 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set(1-0)" << std::endl;
         topology_file.close();
-        write_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(topology_ptop_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
-        remove_file_if_exists("topology.properties.temp");
-        basicSimulation->Finalize();
 
         // Basic sizes
         ASSERT_EQUAL(topology->GetNumNodes(), 2);
@@ -104,6 +120,9 @@ public:
         ASSERT_TRUE(set_int64_contains(endpoints, 0));
         ASSERT_TRUE(set_int64_contains(endpoints, 1));
 
+        basicSimulation->Finalize();
+        cleanup_topology_ptop_test();
+
     }
 };
 
@@ -112,9 +131,10 @@ class TopologyTorTestCase : public TestCase
 public:
     TopologyTorTestCase () : TestCase ("topology tor") {};
     void DoRun () {
-
+        prepare_topology_ptop_test_config();
+        
         std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=8" << std::endl;
         topology_file << "num_undirected_edges=7" << std::endl;
         topology_file << "switches=set(4)" << std::endl;
@@ -122,11 +142,9 @@ public:
         topology_file << "servers=set(0,1,2,3,5,6,7)" << std::endl;
         topology_file << "undirected_edges=set(0-4,1-4,2-4,3-4,4-5,4-6,7-4)" << std::endl;
         topology_file.close();
-        write_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(topology_ptop_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
-        remove_file_if_exists("topology.properties.temp");
-        basicSimulation->Finalize();
 
         // Basic sizes
         ASSERT_EQUAL(topology->GetNumNodes(), 8);
@@ -168,6 +186,9 @@ public:
             }
         }
 
+        basicSimulation->Finalize();
+        cleanup_topology_ptop_test();
+
     }
 };
 
@@ -176,9 +197,10 @@ class TopologyLeafSpineTestCase : public TestCase
 public:
     TopologyLeafSpineTestCase () : TestCase ("topology leaf-spine") {};
     void DoRun () {
+        prepare_topology_ptop_test_config();
 
         std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=49" << std::endl;
         topology_file << "num_undirected_edges=72" << std::endl;
         topology_file << "switches=set(0,1,2,3,4,5,6,7,8,9,10,11,12)" << std::endl;
@@ -186,11 +208,9 @@ public:
         topology_file << "servers=set(13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48)" << std::endl;
         topology_file << "undirected_edges=set(4-0,4-1,4-2,4-3,5-0,5-1,5-2,5-3,6-0,6-1,6-2,6-3,7-0,7-1,7-2,7-3,8-0,8-1,8-2,8-3,9-0,9-1,9-2,9-3,10-0,10-1,10-2,10-3,11-0,11-1,11-2,11-3,12-0,12-1,12-2,12-3,13-4,14-4,15-4,16-4,17-5,18-5,19-5,20-5,21-6,22-6,23-6,24-6,25-7,26-7,27-7,28-7,29-8,30-8,31-8,32-8,33-9,34-9,35-9,36-9,37-10,38-10,39-10,40-10,41-11,42-11,43-11,44-11,45-12,46-12,47-12,48-12)" << std::endl;
         topology_file.close();
-        write_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(topology_ptop_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
-        remove_file_if_exists("topology.properties.temp");
-        basicSimulation->Finalize();
 
         // Basic values
         uint32_t num_spines = 4;
@@ -243,6 +263,9 @@ public:
             ASSERT_TRUE(set_pair_int64_contains(topology->GetUndirectedEdgesSet(), std::make_pair<int64_t, int64_t>(tor, i)));
         }
 
+        basicSimulation->Finalize();
+        cleanup_topology_ptop_test();
+
     }
 };
 
@@ -251,9 +274,10 @@ class TopologyRingTestCase : public TestCase
 public:
     TopologyRingTestCase () : TestCase ("topology ring") {};
     void DoRun () {
+        prepare_topology_ptop_test_config();
 
         std::ofstream topology_file;
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=4" << std::endl;
         topology_file << "switches=set(0,1,2,3)" << std::endl;
@@ -261,11 +285,9 @@ public:
         topology_file << "servers=set()" << std::endl;
         topology_file << "undirected_edges=set(0-1,1-3,0-2,2-3)" << std::endl;
         topology_file.close();
-        write_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(topology_ptop_test_dir);
         Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
-        remove_file_if_exists("topology.properties.temp");
-        basicSimulation->Finalize();
 
         // Basic sizes
         ASSERT_EQUAL(topology->GetNumNodes(), 4);
@@ -309,6 +331,8 @@ public:
         ASSERT_FALSE(set_pair_int64_contains(topology->GetUndirectedEdgesSet(), std::make_pair<int64_t, int64_t>(3, 1)));
         ASSERT_FALSE(set_pair_int64_contains(topology->GetUndirectedEdgesSet(), std::make_pair<int64_t, int64_t>(3, 2)));
 
+        basicSimulation->Finalize();
+        cleanup_topology_ptop_test();
     }
 };
 
@@ -317,14 +341,14 @@ class TopologyInvalidTestCase : public TestCase
 public:
     TopologyInvalidTestCase () : TestCase ("topology invalid") {};
     void DoRun () {
+        prepare_topology_ptop_test_config();
         
-        write_config();
-        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>("./");
+        Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(topology_ptop_test_dir);
         
         std::ofstream topology_file;
 
         // Incorrect number of nodes
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=1" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -333,10 +357,10 @@ public:
         topology_file << "undirected_edges=set(1-0)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Incorrect number of edges
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=3" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1,2)" << std::endl;
@@ -345,10 +369,10 @@ public:
         topology_file << "undirected_edges=set(1-0,1-2)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Non-existent node id
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=2" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -357,10 +381,10 @@ public:
         topology_file << "undirected_edges=set(1-0)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Not all node ids are covered
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=3" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -369,10 +393,10 @@ public:
         topology_file << "undirected_edges=set(1-0)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Duplicate edge
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=2" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -381,10 +405,10 @@ public:
         topology_file << "undirected_edges=set(1-0,0-1)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Duplicate node id
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=2" << std::endl;
         topology_file << "num_undirected_edges=1" << std::endl;
         topology_file << "switches=set(0,1,1)" << std::endl;
@@ -393,10 +417,10 @@ public:
         topology_file << "undirected_edges=set(1-0)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Edge between server and non-ToR switch
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -405,10 +429,10 @@ public:
         topology_file << "undirected_edges=set(1-0,2-1,3-0)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Edge between server and server
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(0,1)" << std::endl;
@@ -417,10 +441,10 @@ public:
         topology_file << "undirected_edges=set(1-0,2-1,2-3)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Server marked as ToR
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(1,2)" << std::endl;
@@ -429,10 +453,10 @@ public:
         topology_file << "undirected_edges=set(0-1,1-2,2-3)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Servers and switches not distinct
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(1,2)" << std::endl;
@@ -441,10 +465,10 @@ public:
         topology_file << "undirected_edges=set(0-1,1-2,2-3)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Edge to itself
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(1,2)" << std::endl;
@@ -453,10 +477,10 @@ public:
         topology_file << "undirected_edges=set(0-1,1-2,2-2)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Edge left out of bound
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(1,2)" << std::endl;
@@ -465,10 +489,10 @@ public:
         topology_file << "undirected_edges=set(0-1,1-2,2-4)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Edge right out of bound
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=3" << std::endl;
         topology_file << "switches=set(1,2)" << std::endl;
@@ -477,10 +501,10 @@ public:
         topology_file << "undirected_edges=set(0-1,1-2,4-3)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         // Duplicate edges
-        topology_file.open ("topology.properties.temp");
+        topology_file.open (topology_ptop_test_dir + "/topology.properties.temp");
         topology_file << "num_nodes=4" << std::endl;
         topology_file << "num_undirected_edges=4" << std::endl;
         topology_file << "switches=set(1,2)" << std::endl;
@@ -489,7 +513,7 @@ public:
         topology_file << "undirected_edges=set(0-1,1-2,2-3,2 -3)" << std::endl;
         topology_file.close();
         ASSERT_EXCEPTION(CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper()));
-        remove_file_if_exists("topology.properties.temp");
+        cleanup_topology_ptop_test();
 
         basicSimulation->Finalize();
 
