@@ -39,17 +39,6 @@ public:
     // ECMP routing table
     std::string StringReprOfForwardingState();
 
-    /**
-     * Calculate the global state, which can then be used to initialize ArbiterEcmp instances without having
-     * to calculate that separately for each instance.
-     *
-     * @param   topology    TopologyPtop instance
-     *
-     * @return Global candidate list:
-     *         for each current node id, to each target node, a list of candidate next-hop node ids
-     */
-    static std::vector<std::vector<std::vector<uint32_t>>> CalculateGlobalState(Ptr<TopologyPtop> topology);
-
     // Made public for testing
     uint64_t ComputeFiveTupleHash(const Ipv4Header &header, Ptr<const Packet> p, int32_t node_id, bool no_other_headers);
 
