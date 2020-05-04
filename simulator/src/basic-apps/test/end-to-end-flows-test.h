@@ -28,7 +28,7 @@ public:
 class EndToEndFlowsTestCase : public TestCase {
 public:
     EndToEndFlowsTestCase(std::string s) : TestCase(s) {};
-    const std::string temp_dir = ".testtmpdir";
+    const std::string temp_dir = ".tmp-end-to-end-flows-test";
 
     void prepare_test_dir() {
         mkdir_if_not_exists(temp_dir);
@@ -173,6 +173,15 @@ public:
         remove_file_if_exists(temp_dir + "/config_ns3.properties");
         remove_file_if_exists(temp_dir + "/topology.properties");
         remove_file_if_exists(temp_dir + "/schedule.csv");
+        remove_file_if_exists(temp_dir + "/logs_ns3/finished.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/timing_results.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flows.csv");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flows.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flow_0_cwnd.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flow_0_progress.txt");
+        remove_file_if_exists(temp_dir + "/logs_ns3/flow_0_rtt.txt");
+        remove_dir_if_exists(temp_dir + "/logs_ns3");
+        remove_dir_if_exists(temp_dir);
 
     }
 
