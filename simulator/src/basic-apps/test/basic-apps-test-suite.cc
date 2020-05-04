@@ -13,14 +13,15 @@ public:
     BasicAppsTestSuite() : TestSuite("basic-apps", UNIT) {
         AddTestCase(new ScheduleReaderNormalTestCase, TestCase::QUICK);
         AddTestCase(new ScheduleReaderInvalidTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndOneToOneEqualStartTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndOneToOneSimpleStartTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndOneToOneApartStartTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndEcmpSimpleTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndEcmpRemainTestCase, TestCase::QUICK);
-        AddTestCase(new EndToEndNonExistentRunDirTestCase, TestCase::QUICK);
-        AddTestCase(new PingmeshNineAllTestCase, TestCase::QUICK);
-        AddTestCase(new PingmeshNinePairsTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsOneToOneEqualStartTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsOneToOneSimpleStartTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsOneToOneApartStartTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsEcmpSimpleTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsEcmpRemainTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsNonExistentRunDirTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndFlowsOneDropOneNotTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndPingmeshNineAllTestCase, TestCase::QUICK);
+        AddTestCase(new EndToEndPingmeshNinePairsTestCase, TestCase::QUICK);
     }
 };
 static BasicAppsTestSuite basicAppsTestSuite;

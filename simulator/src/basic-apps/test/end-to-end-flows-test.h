@@ -11,11 +11,23 @@
 
 using namespace ns3;
 
+class BeforeRunOperation {
+public:
+    virtual void operation(Ptr<TopologyPtop> topology) = 0;
+};
+
+class BeforeRunOperationNothing : public BeforeRunOperation {
+public:
+    void operation(Ptr<TopologyPtop> topology) {
+        // Nothing
+    }
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class EndToEndTestCase : public TestCase {
+class EndToEndFlowsTestCase : public TestCase {
 public:
-    EndToEndTestCase(std::string s) : TestCase(s) {};
+    EndToEndFlowsTestCase(std::string s) : TestCase(s) {};
     const std::string temp_dir = ".testtmpdir";
 
     void prepare_test_dir() {
@@ -53,7 +65,7 @@ public:
         topology_file.close();
     }
 
-    void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, std::vector<schedule_entry_t> write_schedule, std::vector<int64_t>& end_time_ns_list, std::vector<int64_t>& sent_byte_list) {
+    void test_run_and_simple_validate(int64_t simulation_end_time_ns, std::string temp_dir, std::vector<schedule_entry_t> write_schedule, std::vector<int64_t>& end_time_ns_list, std::vector<int64_t>& sent_byte_list, BeforeRunOperation* beforeRunOperation) {
 
         // Make sure these are removed
         remove_file_if_exists(temp_dir + "/logs_ns3/finished.txt");
@@ -83,6 +95,7 @@ public:
         TcpOptimizer::OptimizeUsingWorstCaseRtt(basicSimulation, topology->GetWorstCaseRttEstimateNs());
         FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
         flowScheduler.Schedule();
+        beforeRunOperation->operation(topology);
         basicSimulation->Run();
         flowScheduler.WriteResults();
         basicSimulation->Finalize();
@@ -165,10 +178,10 @@ public:
 
 };
 
-class EndToEndOneToOneEqualStartTestCase : public EndToEndTestCase
+class EndToEndFlowsOneToOneEqualStartTestCase : public EndToEndFlowsTestCase
 {
 public:
-    EndToEndOneToOneEqualStartTestCase () : EndToEndTestCase ("end-to-end 1-to-1 equal-start") {};
+    EndToEndFlowsOneToOneEqualStartTestCase () : EndToEndFlowsTestCase ("end-to-end-flows 1-to-1 equal-start") {};
 
     void DoRun () {
         prepare_test_dir();
@@ -187,7 +200,8 @@ public:
         // Perform the run
         std::vector<int64_t> end_time_ns_list;
         std::vector<int64_t> sent_byte_list;
-        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+        BeforeRunOperationNothing op;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list, &op);
 
         // As they are started at the same point and should have the same behavior, progress should be equal
         ASSERT_EQUAL(end_time_ns_list[0], end_time_ns_list[1]);
@@ -196,10 +210,10 @@ public:
     }
 };
 
-class EndToEndOneToOneSimpleStartTestCase : public EndToEndTestCase
+class EndToEndFlowsOneToOneSimpleStartTestCase : public EndToEndFlowsTestCase
 {
 public:
-    EndToEndOneToOneSimpleStartTestCase () : EndToEndTestCase ("end-to-end 1-to-1 simple") {};
+    EndToEndFlowsOneToOneSimpleStartTestCase () : EndToEndFlowsTestCase ("end-to-end-flows 1-to-1 simple") {};
 
     void DoRun () {
         prepare_test_dir();
@@ -217,7 +231,9 @@ public:
         // Perform the run
         std::vector<int64_t> end_time_ns_list;
         std::vector<int64_t> sent_byte_list;
-        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+
+        BeforeRunOperationNothing op;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list, &op);
 
         // As they are started at the same point and should have the same behavior, progress should be equal
         int expected_end_time_ns = 0;
@@ -235,10 +251,10 @@ public:
     }
 };
 
-class EndToEndOneToOneApartStartTestCase : public EndToEndTestCase
+class EndToEndFlowsOneToOneApartStartTestCase : public EndToEndFlowsTestCase
 {
 public:
-    EndToEndOneToOneApartStartTestCase () : EndToEndTestCase ("end-to-end 1-to-1 apart-start") {};
+    EndToEndFlowsOneToOneApartStartTestCase () : EndToEndFlowsTestCase ("end-to-end-flows 1-to-1 apart-start") {};
 
     void DoRun () {
         prepare_test_dir();
@@ -257,7 +273,8 @@ public:
         // Perform the run
         std::vector<int64_t> end_time_ns_list;
         std::vector<int64_t> sent_byte_list;
-        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+        BeforeRunOperationNothing op;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list, &op);
 
         // As they are started without any interference, should have same completion
         ASSERT_EQUAL(end_time_ns_list[0], end_time_ns_list[1] - 5000000000);
@@ -266,10 +283,10 @@ public:
     }
 };
 
-class EndToEndEcmpSimpleTestCase : public EndToEndTestCase
+class EndToEndFlowsEcmpSimpleTestCase : public EndToEndFlowsTestCase
 {
 public:
-    EndToEndEcmpSimpleTestCase () : EndToEndTestCase ("end-to-end ecmp-simple") {};
+    EndToEndFlowsEcmpSimpleTestCase () : EndToEndFlowsTestCase ("end-to-end-flows ecmp-simple") {};
 
     void DoRun () {
         prepare_test_dir();
@@ -297,7 +314,8 @@ public:
         // Perform the run
         std::vector<int64_t> end_time_ns_list;
         std::vector<int64_t> sent_byte_list;
-        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+        BeforeRunOperationNothing op;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list, &op);
 
         // All are too large to end, and they must consume bandwidth of both links
         int64_t byte_sum = 0;
@@ -310,10 +328,10 @@ public:
     }
 };
 
-class EndToEndEcmpRemainTestCase : public EndToEndTestCase
+class EndToEndFlowsEcmpRemainTestCase : public EndToEndFlowsTestCase
 {
 public:
-    EndToEndEcmpRemainTestCase () : EndToEndTestCase ("end-to-end ecmp-remain") {};
+    EndToEndFlowsEcmpRemainTestCase () : EndToEndFlowsTestCase ("end-to-end-flows ecmp-remain") {};
 
     void DoRun () {
         prepare_test_dir();
@@ -339,7 +357,8 @@ public:
         // Perform the run
         std::vector<int64_t> end_time_ns_list;
         std::vector<int64_t> sent_byte_list;
-        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list);
+        BeforeRunOperationNothing op;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list, &op);
 
         // Can only consume the bandwidth of one path, the one it is hashed to
         ASSERT_EQUAL(end_time_ns_list[0], simulation_end_time_ns);
@@ -349,10 +368,96 @@ public:
     }
 };
 
-class EndToEndNonExistentRunDirTestCase : public TestCase
+class ArbiterSpecificDrop: public ArbiterPtop
 {
 public:
-    EndToEndNonExistentRunDirTestCase () : TestCase ("end-to-end non-existent-run-dir") {};
+
+    ArbiterSpecificDrop(Ptr<Node> this_node, NodeContainer nodes, Ptr<TopologyPtop> topology) : ArbiterPtop(this_node, nodes, topology) {
+        // Empty
+    }
+
+    int32_t TopologyPtopDecide(
+            int32_t source_node_id,
+            int32_t target_node_id,
+            const std::set<int64_t>& neighbor_node_ids,
+            ns3::Ptr<const ns3::Packet> pkt,
+            ns3::Ipv4Header const &ipHeader,
+            bool is_socket_request_for_source_ip
+    ) {
+        if (source_node_id == 1) {
+            return -1;
+        } else {
+            if (source_node_id == 0 && target_node_id == 3) {
+                return 3;
+            } else if (source_node_id == 3 && target_node_id == 0) {
+                return 0;
+            } else {
+                throw std::runtime_error("Not possible");
+            }
+        }
+    }
+
+    std::string StringReprOfForwardingState() {
+        return "";
+    }
+
+};
+
+class BeforeRunOperationDropper : public BeforeRunOperation {
+public:
+    void operation(Ptr<TopologyPtop> topology) {
+        Ptr<ArbiterSpecificDrop> dropper = CreateObject<ArbiterSpecificDrop>(topology->GetNodes().Get(2), topology->GetNodes(), topology);
+        topology->GetNodes().Get(2)->GetObject<Ipv4>()->GetRoutingProtocol()->GetObject<Ipv4ArbiterRouting>()->SetArbiter(dropper);
+    }
+};
+
+class EndToEndFlowsOneDropOneNotTestCase : public EndToEndFlowsTestCase
+{
+public:
+    EndToEndFlowsOneDropOneNotTestCase () : EndToEndFlowsTestCase ("end-to-end-flows one-drop-one-not") {};
+
+    void DoRun () {
+        prepare_test_dir();
+
+        int64_t simulation_end_time_ns = 100000000;
+
+        // One-to-one, 5s, 30.0 Mbit/s, 200 microsec delay
+        write_basic_config(simulation_end_time_ns, 123456, 30.0, 200000);
+        std::ofstream topology_file;
+        topology_file.open (temp_dir + "/topology.properties");
+        topology_file << "num_nodes=4" << std::endl;
+        topology_file << "num_undirected_edges=3" << std::endl;
+        topology_file << "switches=set(2)" << std::endl;
+        topology_file << "switches_which_are_tors=set(2)" << std::endl;
+        topology_file << "servers=set(0, 1, 3)" << std::endl;
+        topology_file << "undirected_edges=set(0-2,1-2,2-3)" << std::endl;
+        topology_file.close();
+
+        // Two flows
+        std::vector<schedule_entry_t> schedule;
+        schedule.push_back({0, 0, 3, 1000000000, 0, "", ""});
+        schedule.push_back({1, 1, 3, 1000000000, 0, "", ""});
+
+        // Perform the run
+        std::vector<int64_t> end_time_ns_list;
+        std::vector<int64_t> sent_byte_list;
+        BeforeRunOperationDropper op;
+        test_run_and_simple_validate(simulation_end_time_ns, temp_dir, schedule, end_time_ns_list, sent_byte_list, &op);
+
+        // Can only consume the bandwidth of one path, the one it is hashed to
+        ASSERT_EQUAL(end_time_ns_list[0], simulation_end_time_ns);
+        ASSERT_EQUAL(end_time_ns_list[1], simulation_end_time_ns);
+        double rate_Mbps = byte_to_megabit(sent_byte_list[0]) / nanosec_to_sec(end_time_ns_list[0]);
+        ASSERT_TRUE(rate_Mbps >= 25.0 && rate_Mbps <= 30.0); // Somewhere between 25 and 30
+        ASSERT_EQUAL(sent_byte_list[1], 0);
+
+    }
+};
+
+class EndToEndFlowsNonExistentRunDirTestCase : public TestCase
+{
+public:
+    EndToEndFlowsNonExistentRunDirTestCase () : TestCase ("end-to-end-flows non-existent-run-dir") {};
 
     void DoRun () {
         ASSERT_EXCEPTION(BasicSimulation simulation("path/to/non/existent/run/dir"));

@@ -14,9 +14,9 @@ using namespace ns3;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-class PingmeshTestCase : public TestCase {
+class EndToEndPingmeshTestCase : public TestCase {
 public:
-    PingmeshTestCase(std::string s) : TestCase(s) {};
+    EndToEndPingmeshTestCase(std::string s) : TestCase(s) {};
     const std::string temp_dir = ".testtmpdir";
 
     void prepare_test_dir() {
@@ -142,10 +142,10 @@ public:
 
 };
 
-class PingmeshNineAllTestCase : public PingmeshTestCase
+class EndToEndPingmeshNineAllTestCase : public EndToEndPingmeshTestCase
 {
 public:
-    PingmeshNineAllTestCase () : PingmeshTestCase ("pingmesh nine-all") {};
+    EndToEndPingmeshNineAllTestCase () : EndToEndPingmeshTestCase ("pingmesh nine-all") {};
 
     void DoRun () {
         prepare_test_dir();
@@ -181,10 +181,10 @@ public:
     }
 };
 
-class PingmeshNinePairsTestCase : public PingmeshTestCase
+class EndToEndPingmeshNinePairsTestCase : public EndToEndPingmeshTestCase
 {
 public:
-    PingmeshNinePairsTestCase () : PingmeshTestCase ("pingmesh nine-pairs") {};
+    EndToEndPingmeshNinePairsTestCase () : EndToEndPingmeshTestCase ("pingmesh nine-pairs") {};
 
     void DoRun () {
         prepare_test_dir();
