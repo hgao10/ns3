@@ -47,6 +47,19 @@ void TcpOptimizer::CommonSense() {
     printf("  > Timestamp option........... %s\n", opt_timestamp_enabled ? "enabled" : "disabled");
     Config::SetDefault("ns3::TcpSocketBase::Timestamp", BooleanValue(opt_timestamp_enabled));
 
+    // SACK option
+    bool opt_sack_enabled = true;  // Default: true.
+    // Selective acknowledgment improves TCP performance, however can
+    // be time-consuming to simulate because set operations and merges have
+    // to be performed.
+    printf("  > SACK option................ %s\n", opt_sack_enabled ? "enabled" : "disabled");
+    Config::SetDefault("ns3::TcpSocketBase::Sack", BooleanValue(opt_sack_enabled));
+
+    // Window scaling option
+    bool opt_win_scaling_enabled = true;  // Default: true.
+    printf("  > Window scaling option...... %s\n", opt_win_scaling_enabled ? "enabled" : "disabled");
+    Config::SetDefault("ns3::TcpSocketBase::WindowScaling", BooleanValue(opt_win_scaling_enabled));
+
 }
 
 void TcpOptimizer::OptimizeBasic(Ptr<BasicSimulation> basicSimulation) {
