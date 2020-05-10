@@ -39,7 +39,8 @@ std::vector<std::vector<std::vector<uint32_t>>> ArbiterEcmpHelper::CalculateGlob
     }
 
     // Initialize with 0 distance to itself, and infinite distance to all others
-    int32_t* dist = new int32_t[n * n];
+    int32_t x = n*n;
+    int32_t* dist = new int32_t[x];
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             if (i == j) {
