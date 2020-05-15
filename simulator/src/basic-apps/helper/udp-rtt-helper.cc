@@ -126,7 +126,7 @@ UdpRttClientHelper::Install (NodeContainer c) const
 Ptr<Application>
 UdpRttClientHelper::InstallPriv (Ptr<Node> node) const
 {
-  Ptr<Application> app = m_factory.Create<UdpRttClient> ();
+Ptr<Application> app = m_factory.Create<UdpRttClient> ();
   node->AddApplication (app);
 
   return app;

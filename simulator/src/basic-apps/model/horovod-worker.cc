@@ -84,11 +84,6 @@ HorovodWorker::GetTypeId(void) {
                           TypeIdValue(TcpSocketFactory::GetTypeId()),
                           MakeTypeIdAccessor(&HorovodWorker::m_tid),
                           MakeTypeIdChecker())
-            .AddAttribute("EnableFlowLoggingToFile",
-                          "True iff you want to track some aspects (progress, CWND, RTT) of the flow over time.",
-                          BooleanValue(true),
-                          MakeBooleanAccessor(&HorovodWorker::m_enableFlowLoggingToFile),
-                          MakeBooleanChecker())
             .AddAttribute ("BaseLogsDir",
                            "Base logging directory (flow logging will be placed here, i.e. logs_dir/flow_[flow id]_{progress, cwnd, rtt}.txt",
                            StringValue (""),
@@ -102,8 +97,8 @@ HorovodWorker::GetTypeId(void) {
 
 
 HorovodWorker::HorovodWorker()
-        : m_send_socket(0),
-          m_receive_socket(0),
+        : m_receive_socket(0),
+          m_send_socket(0),
           m_connected(false),
           m_totBytes(0),
           m_completionTimeNs(-1),
@@ -138,6 +133,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
     // Create the socket if not already
     if (!m_send_socket) {
         m_send_socket = Socket::CreateSocket(GetNode(), m_tid);
+        printf("created send socket \n");
 
         // Must be TCP basically
         if (m_send_socket->GetSocketType() != Socket::NS3_SOCK_STREAM &&
@@ -150,40 +146,32 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
         // Bind socket
         if (Inet6SocketAddress::IsMatchingType(m_peer)) {
             if (m_send_socket->Bind6() == -1) {
+                printf("failed to bind6 socket\n");
                 NS_FATAL_ERROR("Failed to bind socket");
             }
         } else if (InetSocketAddress::IsMatchingType(m_peer)) {
             if (m_send_socket->Bind() == -1) {
+                printf("failed to bind socket\n");
                 NS_FATAL_ERROR("Failed to bind socket");
             }
         }
 
-        // Connect, no receiver
-        m_send_socket->Connect(m_peer);
-        m_send_socket->ShutdownRecv();
+        // // Connect, no receiver
+        // m_send_socket->Connect(m_peer);
+        // m_send_socket->ShutdownRecv();
 
         // Callbacks
         m_send_socket->SetConnectCallback(
                 MakeCallback(&HorovodWorker::ConnectionSucceeded, this),
                 MakeCallback(&HorovodWorker::ConnectionFailed, this)
         );
-        m_send_socket->SetSendCallback(MakeCallback(&HorovodWorker::DataSend, this));
+        
+        m_send_socket->SetSendCallback(MakeCallback(&HorovodWorker::SendData, this));
         m_send_socket->SetCloseCallbacks(
                 MakeCallback(&HorovodWorker::SocketClosedNormal, this),
                 MakeCallback(&HorovodWorker::SocketClosedError, this)
         );
-        if (m_enableFlowLoggingToFile) {
-            std::ofstream ofs;
-            ofs.open(m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_progress.txt", m_flowId));
-            ofs.close();
-            // m_socket->TraceConnectWithoutContext ("HighestRxAck", MakeCallback (&HorovodWorker::HighestRxAckChange, this));
-            // ofs.open(m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_cwnd.txt", m_flowId));
-            // ofs.close();
-            // m_socket->TraceConnectWithoutContext ("CongestionWindow", MakeCallback (&HorovodWorker::CwndChange, this));
-            // ofs.open(m_baseLogsDir + "/" + format_string("flow_%" PRIu64 "_rtt.txt", m_flowId));
-            // ofs.close();
-            // m_socket->TraceConnectWithoutContext ("RTT", MakeCallback (&HorovodWorker::RttChange, this));
-        }
+
     }
 
     // Create a socket which is always in LISTEN state
@@ -192,6 +180,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
     // keeps the accept and close callbacks
     if (!m_receive_socket) {
         m_receive_socket = Socket::CreateSocket(GetNode(), m_tid);
+        printf("created receive socket\n");
         if (m_receive_socket->Bind(m_local) == -1) {
             NS_FATAL_ERROR("Failed to bind socket");
         }
@@ -209,9 +198,10 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
             MakeCallback(&HorovodWorker::HandleAccept, this)
     );
 
-    if (m_connected) {
-        SendData(1000);
-    }
+    // Connect, no receiver
+    m_send_socket->Connect(m_peer);
+    m_send_socket->ShutdownRecv();
+
 
 }
 
@@ -292,63 +282,106 @@ void HorovodWorker::CleanUp(Ptr<Socket> socket) {
     }
 }
 
-void HorovodWorker::SendData(uint32_t tosend) {
+
+void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     NS_LOG_FUNCTION(this);
-    while (m_maxBytes == 0 || m_totBytes < m_maxBytes) { // Time to send more
 
-        // uint64_t to allow the comparison later.
-        // the result is in a uint32_t range anyway, because
-        // m_sendSize is uint32_t.
-        uint64_t toSend = tosend;
-        // Make sure we don't send too many
-        if (m_maxBytes > 0) {
-            toSend = std::min(toSend, m_maxBytes - m_totBytes);
-        }
+    //readytosend = [layer1_p2, layer2_p1, layer2_p2];
+    //if (socket->BufferSize() > 4kb) {
+        // check again in 1ms
+        // wait for buffer to be sent, then schedule SendData again
+    //    return;
+    //}
 
+    while(m_curr_send_data_bytes[m_tx_layer_idx] < m_layer_size_bytes[m_tx_layer_idx]){
+        uint64_t left = m_layer_size_bytes[m_tx_layer_idx] - m_curr_send_data_bytes[m_tx_layer_idx];
         NS_LOG_LOGIC("sending packet at " << Simulator::Now());
-        Ptr <Packet> packet = Create<Packet>(toSend);
+        Ptr <Packet> packet = Create<Packet>(left);
         int actual = m_send_socket->Send(packet);
         if (actual > 0) {
-            m_totBytes += actual;
+            m_curr_send_data_bytes[m_tx_layer_idx] += actual;
             m_txTrace(packet);
         }
-        // We exit this loop when actual < toSend as the send side
+        // We exit this loop when actual < left as the send side
         // buffer is full. The "DataSent" callback will pop when
         // some buffer space has freed up.
-        if ((unsigned) actual != toSend) {
+        if ((unsigned) actual != left) {
             break;
         }
     }
-    // Check if time to close (all sent)
-    if (m_totBytes == m_maxBytes && m_connected) {
-        m_send_socket->Close();
-        m_connected = false;
+
+    if(m_curr_send_data_bytes[m_tx_layer_idx] == m_layer_size_bytes[m_tx_layer_idx]){
+        // completed sending all data from current layer
+        m_curr_send_data_bytes[m_tx_layer_idx] = 0;
+        printf("Completed sending gradients for layer %d", m_tx_layer_idx);
     }
+
+}
+
+void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
+    NS_LOG_FUNCTION(this);
+
+    if (layer_idx ==0 || (layer_idx > 0 && m_backprop_layer_compute_finished[layer_idx-1]))
+    {
+        NS_LOG_LOGIC("HorovodWorker BackPropagation started");
+        int64_t curr_timestamp = Simulator::Now().GetMilliSeconds();
+        int64_t compute_time_ms = m_backprop_layer_computation_time_ms[m_layer_idx];
+        m_timeline["Start_BP"].push_back(curr_timestamp);
+        m_bp_compute = Simulator::Schedule(MilliSeconds(compute_time_ms), &HorovodWorker::BackPropagationDone, this, layer_idx);        
+        
+    }
+}
+
+void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
+    NS_LOG_FUNCTION(this);
+    NS_ASSERT(m_bp_compute.IsExpired());
+
+    if(layer_idx > 0){
+        m_backprop_layer_compute_finished[layer_idx-1] = false; 
+    }
+
+    if(layer_idx != m_num_layers -1){
+        
+        BackPropagationStart(layer_idx+1);
+        // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::BackPropagationStart, this, layer_idx+1);
+    }
+
+    SendGradients(layer_idx);
+    // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::SendGradients, this, layer_idx);
+
+}
+
+void HorovodWorker::SendGradients(uint32_t layer_idx){
+    m_timeline["Start_TX_Grad"].push_back(Simulator::Now().GetMilliSeconds());
+    m_tx_layer_idx = layer_idx;
+    // Todo handle multiple concurrent send requesets multiple m_tx_layer_idx
+    SendData(m_send_socket, 0);
 }
 
 void HorovodWorker::ConnectionSucceeded(Ptr <Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
     NS_LOG_LOGIC("HorovodWorker Connection succeeded");
+    printf("HorovodWorker Connection succeeded\n");
+
     m_connected = true;
-    SendData(1000);
+    if(m_backprop_layer_compute_finished[0] == false)
+    {
+        // start first layer of backprop
+        BackPropagationStart(0);
+    }
 }
 
 void HorovodWorker::ConnectionFailed(Ptr <Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
     NS_LOG_LOGIC("HorovodWorker, Connection Failed");
+    printf("HorovodWorker Connection failed\n");
+
     m_connFailed = true;
     m_closedByError = false;
     m_closedNormally = false;
     m_ackedBytes = 0;
     m_isCompleted = false;
     m_send_socket = 0;
-}
-
-void HorovodWorker::DataSend(Ptr <Socket>, uint32_t tosend) {
-    NS_LOG_FUNCTION(this);
-    if (m_connected) { // Only send new data if the connection has completed
-        SendData(tosend);
-    }
 }
 
 int64_t HorovodWorker::GetAckedBytes() {

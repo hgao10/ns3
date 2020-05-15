@@ -28,12 +28,14 @@
 #include "ns3/ptr.h"
 #include "ns3/traced-callback.h"
 #include "ns3/address.h"
+#include "ns3/socket.h"
+#include <map>
 
 namespace ns3 {
 
-class Address;
-class Socket;
-class Packet;
+//class Address;
+//class Socket;
+//class Packet;
 
 class HorovodWorker : public Application 
 {
@@ -74,7 +76,7 @@ private:
     /**
    * Send data until the L4 transmission buffer is full.
    */
-  void SendData (uint32_t tosend);
+  void SendData (Ptr <Socket>, uint32_t);
 
   Ptr<Socket>     m_send_socket;       //!< Associated socket
   Address         m_peer;         //!< Peer address
@@ -94,10 +96,25 @@ private:
   bool            m_isCompleted;      //!< True iff the flow is completed fully AND closed normally
 
   // Flow logging
-  bool m_enableFlowLoggingToFile;          //!< True iff you want to write flow logs
+  // bool m_enableFlowLoggingToFile;          //!< True iff you want to write flow logs
   std::string m_baseLogsDir;               //!< Where the flow logs will be written to:
                                            //!<   logs_dir/flow-[id]-{progress, cwnd, rtt}.txt
   TracedCallback<Ptr<const Packet> > m_txTrace;
+
+  // horovod ML specific
+  std::map<int, uint64_t>          m_layer_size_bytes{{0,1000}, {1,2000}};
+  std::map<int, float>        m_backprop_layer_computation_time_ms{{0, 5}, {1, 10}};
+  std::map<int, bool>         m_backprop_layer_compute_finished{{0, false}, {1, false}};
+  uint32_t                    m_iteration_idx;
+  uint32_t                    m_layer_idx;
+  uint32_t                    m_num_layers = 2;
+  EventId                     m_bp_compute;
+  uint32_t                    m_tx_layer_idx;
+  std::vector<uint64_t>                    m_curr_send_data_bytes {0, 0};
+
+  // TODO <int, vector<event class>> with layer and size information
+  std::map<std::string, std::vector<int64_t>>     m_timeline; //timeline to record invents and their stamps
+
 
 private:
   void ConnectionSucceeded (Ptr<Socket> socket);
@@ -111,7 +128,10 @@ private:
 //   void CwndChange(uint32_t oldCwnd, uint32_t newCwnd);
 //   void HighestRxAckChange(SequenceNumber<unsigned int, int> oldHighestRxAck, SequenceNumber<unsigned int, int> newHighestRxAck);
 
-
+// horovod ml specific
+ void BackPropagationStart(uint32_t layer_idx);
+ void BackPropagationDone(uint32_t layer_idx);
+ void SendGradients(uint32_t layer_idx);
 };
 
 } // namespace ns3

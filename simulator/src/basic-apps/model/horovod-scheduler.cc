@@ -1,4 +1,5 @@
 #include "horovod-scheduler.h"
+#include "string.h"
 
 namespace ns3 {
 
@@ -8,83 +9,51 @@ HorovodScheduler::HorovodScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Top
 
     // Properties we will use often
     m_nodes = m_topology->GetNodes();
-    m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
+    for (int64_t endpoint : m_topology->GetEndpoints()) {
+        std::string ipv4 = "10.0.0." + std::to_string(endpoint);
+        const char* ipv4_add = ipv4.c_str();
+        m_ipv4_addr_self[endpoint] = std::shared_ptr<InetSocketAddress>(new InetSocketAddress(Ipv4Address(ipv4_add), 1024));
+    }
+
+    for (int64_t endpoint : m_topology->GetEndpoints()) {
+        m_ipv4_addr_remote[endpoint] = std::shared_ptr<InetSocketAddress>((endpoint != int64_t(m_topology->GetEndpoints().size()-1))? m_ipv4_addr_self[endpoint+1]: m_ipv4_addr_self[0]);
+    }
+    
+
+    // m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
 
     // TODO remove or modify? 
-    m_enableFlowLoggingToFileForFlowIds = parse_set_positive_int64(m_basicSimulation->GetConfigParamOrDefault("enable_flow_logging_to_file_for_flow_ids", "set()"));
-
-    // // Read schedule
-    // m_schedule = read_schedule(
-    //         m_basicSimulation->GetRunDir() + "/" + m_basicSimulation->GetConfigParamOrFail("filename_schedule"),
-    //         m_topology,
-    //         m_simulation_end_time_ns
-    // );
-    // m_basicSimulation->RegisterTimestamp("Read schedule");
+    // m_enableFlowLoggingToFileForFlowIds = parse_set_positive_int64(m_basicSimulation->GetConfigParamOrDefault("enable_flow_logging_to_file_for_flow_ids", "set()"));
 
     printf("HOROVOD SCHEDULE\n");
-    // printf("  > Read schedule (total flow start events: %lu)\n", m_schedule.size());
-    // remove_file_if_exists(m_basicSimulation->GetLogsDir() + "/flows.csv");
-    // remove_file_if_exists(m_basicSimulation->GetLogsDir() + "/flows.txt");
-    // printf("  > Removed previous flow log files if present\n");
-
     // std::cout << std::endl;
 
 }
 
-void HorovodScheduler::StartNextFlow(int i) {
-
-    // // Fetch the flow to start
-    // schedule_entry_t& entry = m_schedule[i];
-    int64_t now_ns = Simulator::Now().GetNanoSeconds();
-    // if (now_ns != entry.start_time_ns) {
-    //     throw std::runtime_error("Scheduling start of a flow went horribly wrong");
-    // }
-
-    // Helper to install the source application
-    FlowSendHelper source(
-            "ns3::TcpSocketFactory",
-            InetSocketAddress(m_nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
-            entry.size_byte,
-            entry.flow_id,
-            m_enableFlowLoggingToFileForFlowIds.find(entry.flow_id) != m_enableFlowLoggingToFileForFlowIds.end(),
-            m_basicSimulation->GetLogsDir()
-    );
-
-    // Install it on the node and start it right now
-    ApplicationContainer app = source.Install(m_nodes.Get(entry.from_node_id));
-    app.Start(NanoSeconds(0));
-    m_apps.push_back(app);
-
-    // If there is a next flow to start, schedule its start
-    if (i + 1 != (int) m_schedule.size()) {
-        int64_t next_flow_ns = m_schedule[i + 1].start_time_ns;
-        Simulator::Schedule(NanoSeconds(next_flow_ns - now_ns), &HorovodScheduler::StartNextFlow, this, i + 1);
-    }
-
-}
 
 void HorovodScheduler::Schedule() {
-    std::cout << "SCHEDULING FLOW APPLICATIONS" << std::endl;
+    std::cout << "SCHEDULING HOROVOD" << std::endl;
 
     // Install sink on each endpoint node
-    std::cout << "  > Setting up sinks" << std::endl;
+    std::cout << "  > Setting horovodworker" << std::endl;
+    printf("total endpoints: %ld \n", m_topology->GetEndpoints().size());
     for (int64_t endpoint : m_topology->GetEndpoints()) {
-        FlowSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), 1024));
-        ApplicationContainer app = sink.Install(m_nodes.Get(endpoint));
-        app.Start(Seconds(0.0));
+        printf("endpoint: %ld \n", endpoint);
+        m_ipv4_addr_self[endpoint]->GetIpv4().Print(std::cout);
+        std::cout<<std::endl;
+        // printf("addr: %s \n", m_ipv4_addr_self[endpoint]->GetIpv4().print(std::cout));
+        HorovodWorkerHelper horovodworker(
+                "ns3::TcpSocketFactory", 
+                *m_ipv4_addr_self[endpoint], //Local addr
+                *m_ipv4_addr_remote[endpoint] // Remote addr 
+                );
+        ApplicationContainer app = horovodworker.Install(m_nodes.Get(endpoint));
+        app.Start(MilliSeconds(0.0));
     }
-    m_basicSimulation->RegisterTimestamp("Setup traffic sinks");
-
-    // Setup all source applications
-    std::cout << "  > Setting up traffic flow starter" << std::endl;
-    if (m_schedule.size() > 0) {
-        Simulator::Schedule(NanoSeconds(m_schedule[0].start_time_ns), &HorovodScheduler::StartNextFlow, this, 0);
-    }
-
-    std::cout << std::endl;
-    m_basicSimulation->RegisterTimestamp("Setup traffic flow starter");
+    m_basicSimulation->RegisterTimestamp("Setup horovodworker");
 }
 
+/*
 void HorovodScheduler::WriteResults() {
     std::cout << "STORE FLOW RESULTS" << std::endl;
 
@@ -157,10 +126,10 @@ void HorovodScheduler::WriteResults() {
     fclose(file_csv);
     fclose(file_txt);
 
-    std::cout << "  > Flow log files have been written" << std::endl;
+    std::cout << "  > horovodworker log files have been written" << std::endl;
     std::cout << std::endl;
 
     m_basicSimulation->RegisterTimestamp("Write flow log files");
-}
+} */
 
 }

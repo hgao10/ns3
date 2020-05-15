@@ -19,6 +19,9 @@ def build(bld):
         'model/udp-rtt-client.cc',
         'model/udp-rtt-server.cc',
         'helper/udp-rtt-helper.cc',
+        'model/horovod-worker.cc',
+        'model/horovod-scheduler.cc',
+        'helper/horovod-worker-helper.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-apps')
@@ -39,6 +42,9 @@ def build(bld):
         'model/udp-rtt-client.h',
         'model/udp-rtt-server.h',
         'helper/udp-rtt-helper.h',
+        'model/horovod-worker.h',
+        'model/horovod-scheduler.h',
+        'helper/horovod-worker-helper.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:

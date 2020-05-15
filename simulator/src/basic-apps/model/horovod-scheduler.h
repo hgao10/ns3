@@ -28,6 +28,7 @@
 #include "ns3/basic-simulation.h"
 #include "ns3/exp-util.h"
 #include "ns3/topology.h"
+#include "ns3/horovod-worker-helper.h"
 
 
 using namespace ns3;
@@ -43,7 +44,6 @@ public:
     void WriteResults();
 
 protected:
-    void StartNextFlow(int i);
     Ptr<BasicSimulation> m_basicSimulation;
     int64_t m_simulation_end_time_ns;
     Ptr<Topology> m_topology = nullptr;
@@ -53,6 +53,8 @@ protected:
     std::set<int64_t> m_enableFlowLoggingToFileForFlowIds;
     int64_t m_interval_ns;
     std::vector<std::vector<int64_t>> m_horovod_neighbors; // [left_nei, node, right_nei]
+    std::map<int, std::shared_ptr<InetSocketAddress>> m_ipv4_addr_self; //Local addr
+    std::map<int, std::shared_ptr<InetSocketAddress>> m_ipv4_addr_remote; //Remote addr
 
 };
 
