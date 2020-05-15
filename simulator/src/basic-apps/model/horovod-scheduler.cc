@@ -1,6 +1,6 @@
 #include "horovod-scheduler.h"
 #include "string.h"
-
+#include "horovod-worker.h"
 namespace ns3 {
 
 HorovodScheduler::HorovodScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Topology> topology) {
@@ -9,15 +9,17 @@ HorovodScheduler::HorovodScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Top
 
     // Properties we will use often
     m_nodes = m_topology->GetNodes();
-    for (int64_t endpoint : m_topology->GetEndpoints()) {
-        std::string ipv4 = "10.0.0." + std::to_string(endpoint);
-        const char* ipv4_add = ipv4.c_str();
-        m_ipv4_addr_self[endpoint] = std::shared_ptr<InetSocketAddress>(new InetSocketAddress(Ipv4Address(ipv4_add), 1024));
-    }
+//     for (int64_t endpoint : m_topology->GetEndpoints()) {
+//         std::string ipv4 = "10.0.0." + std::to_string(endpoint);
+//         const char* ipv4_add = ipv4.c_str();
+//         m_ipv4_addr_self[endpoint] = std::shared_ptr<InetSocketAddress>(new InetSocketAddress(Ipv4Address(ipv4_add), 1024));
+//         m_ipv4_addr_self[endpoint] =  InetSocketAddress(m_nodes.Get(entry.to_node_id)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024),
+// ;
+//     }
 
-    for (int64_t endpoint : m_topology->GetEndpoints()) {
-        m_ipv4_addr_remote[endpoint] = std::shared_ptr<InetSocketAddress>((endpoint != int64_t(m_topology->GetEndpoints().size()-1))? m_ipv4_addr_self[endpoint+1]: m_ipv4_addr_self[0]);
-    }
+//     for (int64_t endpoint : m_topology->GetEndpoints()) {
+//         m_ipv4_addr_remote[endpoint] = std::shared_ptr<InetSocketAddress>((endpoint != int64_t(m_topology->GetEndpoints().size()-1))? m_ipv4_addr_self[endpoint+1]: m_ipv4_addr_self[0]);
+//     }
     
 
     // m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
@@ -36,20 +38,32 @@ void HorovodScheduler::Schedule() {
 
     // Install sink on each endpoint node
     std::cout << "  > Setting horovodworker" << std::endl;
-    printf("total endpoints: %ld \n", m_topology->GetEndpoints().size());
-    for (int64_t endpoint : m_topology->GetEndpoints()) {
-        printf("endpoint: %ld \n", endpoint);
-        m_ipv4_addr_self[endpoint]->GetIpv4().Print(std::cout);
-        std::cout<<std::endl;
-        // printf("addr: %s \n", m_ipv4_addr_self[endpoint]->GetIpv4().print(std::cout));
-        HorovodWorkerHelper horovodworker(
-                "ns3::TcpSocketFactory", 
-                *m_ipv4_addr_self[endpoint], //Local addr
-                *m_ipv4_addr_remote[endpoint] // Remote addr 
-                );
-        ApplicationContainer app = horovodworker.Install(m_nodes.Get(endpoint));
-        app.Start(MilliSeconds(0.0));
-    }
+    HorovodWorkerHelper horovodworker(
+            "ns3::TcpSocketFactory",
+            InetSocketAddress(Ipv4Address::GetAny(), 1024), 
+            InetSocketAddress(m_nodes.Get(1)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024)
+            );
+    ApplicationContainer app = horovodworker.Install(m_nodes.Get(0));
+    app.Start(Seconds(0)); // *seconds only takes integers!
+    HorovodWorkerHelper horovodworker1(
+            "ns3::TcpSocketFactory",
+            InetSocketAddress(Ipv4Address::GetAny(), 1024), 
+            InetSocketAddress(m_nodes.Get(2)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024)
+            );
+    ApplicationContainer app1 = horovodworker1.Install(m_nodes.Get(1));
+    app1.Start(Seconds(0));
+    HorovodWorkerHelper horovodworker2(
+            "ns3::TcpSocketFactory",
+            InetSocketAddress(Ipv4Address::GetAny(), 1024), 
+            InetSocketAddress(m_nodes.Get(0)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 1024)
+            );
+    ApplicationContainer app2 = horovodworker2.Install(m_nodes.Get(2));
+    app2.Get(0)->GetObject<HorovodWorker>()->SetLeftNeighbor(app1.Get(0)->GetObject<HorovodWorker>());
+    app1.Get(0)->GetObject<HorovodWorker>()->SetLeftNeighbor(app.Get(0)->GetObject<HorovodWorker>());
+    app.Get(0)->GetObject<HorovodWorker>()->SetLeftNeighbor(app2.Get(0)->GetObject<HorovodWorker>());
+
+    app2.Start(Seconds(0));  
+
     m_basicSimulation->RegisterTimestamp("Setup horovodworker");
 }
 

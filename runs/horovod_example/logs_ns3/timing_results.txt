@@ -1,0 +1,11 @@
+[    0.0 -     0.0] (0.0 s) :: Configure run directory
+[    0.0 -     0.0] (0.0 s) :: Configure simulator
+[    0.0 -     0.0] (0.0 s) :: Read topology
+[    0.0 -     0.0] (0.0 s) :: Create and install nodes
+[    0.0 -     0.0] (0.0 s) :: Create links and edge-to-interface-index mapping
+[    0.0 -     0.0] (0.0 s) :: Calculate ECMP routing state
+[    0.0 -     0.0] (0.0 s) :: Setup routing arbiter on each node
+[    0.0 -     0.0] (0.0 s) :: Setup TCP parameters
+[    0.0 -     0.0] (0.0 s) :: Setup horovodworker
+[    0.0 -     0.2] (0.1 s) :: Run simulation
+[    0.2 -     0.2] (0.0 s) :: Destroy simulator

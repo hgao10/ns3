@@ -156,9 +156,9 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
             }
         }
 
-        // // Connect, no receiver
-        // m_send_socket->Connect(m_peer);
-        // m_send_socket->ShutdownRecv();
+        // Connect, no receiver
+        m_send_socket->Connect(m_peer);
+        m_send_socket->ShutdownRecv();
 
         // Callbacks
         m_send_socket->SetConnectCallback(
@@ -198,9 +198,6 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
             MakeCallback(&HorovodWorker::HandleAccept, this)
     );
 
-    // Connect, no receiver
-    m_send_socket->Connect(m_peer);
-    m_send_socket->ShutdownRecv();
 
 
 }
@@ -246,7 +243,7 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
             break;
         }
         m_totalRx += packet->GetSize ();
-
+        std::cout<<"Received up to "<< m_totalRx<<"\n";
         // Other fields that could be useful here if actually did something:
         // Size: packet->GetSize()
         // Source IP: InetSocketAddress::ConvertFrom(from).GetIpv4 ()
@@ -254,6 +251,7 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         // Our own IP / port: Address localAddress; socket->GetSockName (localAddress);
 
     }
+
 }
 
 void HorovodWorker::HandlePeerClose(Ptr<Socket> socket) {
@@ -283,39 +281,81 @@ void HorovodWorker::CleanUp(Ptr<Socket> socket) {
 }
 
 
+// void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
+    // NS_LOG_FUNCTION(this);
+
+    // //readytosend = [layer1_p2, layer2_p1, layer2_p2];
+    // //if (socket->BufferSize() > 4kb) {
+    //     // check again in 1ms
+    //     // wait for buffer to be sent, then schedule SendData again
+    // //    return;
+    // //}
+
+    // while(m_curr_send_data_bytes[m_tx_layer_idx] < m_layer_size_bytes[m_tx_layer_idx]){
+    //     uint64_t left = m_layer_size_bytes[m_tx_layer_idx] - m_curr_send_data_bytes[m_tx_layer_idx];
+    //     NS_LOG_LOGIC("sending packet at " << Simulator::Now());
+    //     Ptr <Packet> packet = Create<Packet>(left);
+    //     int actual = m_send_socket->Send(packet);
+    //     if (actual > 0) {
+    //         m_curr_send_data_bytes[m_tx_layer_idx] += actual;
+    //         m_txTrace(packet);
+    //     }
+    //     // We exit this loop when actual < left as the send side
+    //     // buffer is full. The "DataSent" callback will pop when
+    //     // some buffer space has freed up.
+    //     if ((unsigned) actual != left) {
+    //         break;
+    //     }
+    // }
+
+    // if(m_curr_send_data_bytes[m_tx_layer_idx] == m_layer_size_bytes[m_tx_layer_idx]){
+    //     // completed sending all data from current layer
+    //     m_curr_send_data_bytes[m_tx_layer_idx] = 0;
+    //     printf("Completed sending gradients for layer %d", m_tx_layer_idx);
+    // }
+
+    
+
+// }
+
+ void HorovodWorker::SetLeftNeighbor(Ptr<HorovodWorker> leftneighbor){
+     m_leftneighbor = leftneighbor;
+ }
+
+
 void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     NS_LOG_FUNCTION(this);
+    m_maxBytes = 10000;
+    while (m_maxBytes == 0 || m_totBytes < m_maxBytes) { // Time to send more
 
-    //readytosend = [layer1_p2, layer2_p1, layer2_p2];
-    //if (socket->BufferSize() > 4kb) {
-        // check again in 1ms
-        // wait for buffer to be sent, then schedule SendData again
-    //    return;
-    //}
+        // uint64_t to allow the comparison later.
+        // the result is in a uint32_t range anyway, because
+        // m_sendSize is uint32_t.
+        uint64_t toSend = 10000;
+        // Make sure we don't send too many
+        if (m_maxBytes > 0) {
+            toSend = std::min(toSend, m_maxBytes - m_totBytes);
+        }
 
-    while(m_curr_send_data_bytes[m_tx_layer_idx] < m_layer_size_bytes[m_tx_layer_idx]){
-        uint64_t left = m_layer_size_bytes[m_tx_layer_idx] - m_curr_send_data_bytes[m_tx_layer_idx];
         NS_LOG_LOGIC("sending packet at " << Simulator::Now());
-        Ptr <Packet> packet = Create<Packet>(left);
+        Ptr <Packet> packet = Create<Packet>(toSend);
         int actual = m_send_socket->Send(packet);
         if (actual > 0) {
-            m_curr_send_data_bytes[m_tx_layer_idx] += actual;
+            m_totBytes += actual;
             m_txTrace(packet);
         }
-        // We exit this loop when actual < left as the send side
+        // We exit this loop when actual < toSend as the send side
         // buffer is full. The "DataSent" callback will pop when
         // some buffer space has freed up.
-        if ((unsigned) actual != left) {
+        if ((unsigned) actual != toSend) {
             break;
         }
     }
-
-    if(m_curr_send_data_bytes[m_tx_layer_idx] == m_layer_size_bytes[m_tx_layer_idx]){
-        // completed sending all data from current layer
-        m_curr_send_data_bytes[m_tx_layer_idx] = 0;
-        printf("Completed sending gradients for layer %d", m_tx_layer_idx);
+    // Check if time to close (all sent)
+    if (m_totBytes == m_maxBytes && m_connected) {
+        m_send_socket->Close();
+        m_connected = false;
     }
-
 }
 
 void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
@@ -349,6 +389,13 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
     SendGradients(layer_idx);
     // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::SendGradients, this, layer_idx);
 
+    //ToDo ringallreduce
+    // uint32_t ringallreduce_idx = m_ringallreduce_layer_map[layer_idx];
+    // m_ringallreduce_populate[ringallreduce_idx][layer_idx] = true;
+    // if(m_ringallreduce_ready(ringallreduce_idx)){
+    //     m_send_queue.push_back(m_ringallreduce[ringallreduce_idx]);
+    // }
+
 }
 
 void HorovodWorker::SendGradients(uint32_t layer_idx){
@@ -364,11 +411,12 @@ void HorovodWorker::ConnectionSucceeded(Ptr <Socket> socket) {
     printf("HorovodWorker Connection succeeded\n");
 
     m_connected = true;
-    if(m_backprop_layer_compute_finished[0] == false)
-    {
-        // start first layer of backprop
-        BackPropagationStart(0);
-    }
+    SendData(m_send_socket, 0);
+    // if(m_backprop_layer_compute_finished[0] == false)
+    // {
+    //     // start first layer of backprop
+    //     BackPropagationStart(0);
+    // }
 }
 
 void HorovodWorker::ConnectionFailed(Ptr <Socket> socket) {

@@ -51,6 +51,8 @@ public:
   bool IsClosedByError();  // TODO removed later if not needed
   bool IsClosedNormally(); // TODO removed later if not needed
  
+ void SetLeftNeighbor(Ptr<HorovodWorker>);
+
 protected:
   virtual void DoDispose (void);
 
@@ -70,7 +72,7 @@ private:
 
   Address m_local;        //!< Local address to bind to
   TypeId  m_tid;          //!< Protocol TypeId
-  uint64_t m_totalRx;     //!< Total bytes received
+  uint64_t m_totalRx = 0;     //!< Total bytes received
 
 
     /**
@@ -132,6 +134,8 @@ private:
  void BackPropagationStart(uint32_t layer_idx);
  void BackPropagationDone(uint32_t layer_idx);
  void SendGradients(uint32_t layer_idx);
+
+ Ptr<HorovodWorker> m_leftneighbor;
 };
 
 } // namespace ns3
