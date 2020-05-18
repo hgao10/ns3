@@ -7,5 +7,5 @@
 [    0.0 -     0.0] (0.0 s) :: Setup routing arbiter on each node
 [    0.0 -     0.0] (0.0 s) :: Setup TCP parameters
 [    0.0 -     0.0] (0.0 s) :: Setup horovodworker
-[    0.0 -     0.2] (0.1 s) :: Run simulation
+[    0.0 -     0.2] (0.2 s) :: Run simulation
 [    0.2 -     0.2] (0.0 s) :: Destroy simulator

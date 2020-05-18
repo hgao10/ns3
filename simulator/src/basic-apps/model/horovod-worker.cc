@@ -47,6 +47,7 @@ NS_LOG_COMPONENT_DEFINE ("HorovodWorker");
 
 NS_OBJECT_ENSURE_REGISTERED (HorovodWorker);
 
+
 TypeId
 HorovodWorker::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::HorovodWorker")
@@ -113,6 +114,20 @@ HorovodWorker::HorovodWorker()
 HorovodWorker::~HorovodWorker() {
     NS_LOG_FUNCTION(this);
 }
+
+RingAllReduce::RingAllReduce(uint32_t size){
+    r_size_bytes = size;
+}
+
+RingAllReduce::~RingAllReduce(){
+    NS_LOG_FUNCTION(this);
+}
+
+uint32_t RingAllReduce::GetSize(){
+    NS_LOG_FUNCTION(this);
+    return r_size_bytes;
+}
+
 
 void
 HorovodWorker::DoDispose(void) {
@@ -244,6 +259,7 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         }
         m_totalRx += packet->GetSize ();
         std::cout<<"Received up to "<< m_totalRx<<"\n";
+        std::cout<<"Curr time: "<< Simulator::Now()<<std::endl;
         // Other fields that could be useful here if actually did something:
         // Size: packet->GetSize()
         // Source IP: InetSocketAddress::ConvertFrom(from).GetIpv4 ()
@@ -325,19 +341,62 @@ void HorovodWorker::CleanUp(Ptr<Socket> socket) {
 
 void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     NS_LOG_FUNCTION(this);
-    m_maxBytes = 10000;
-    while (m_maxBytes == 0 || m_totBytes < m_maxBytes) { // Time to send more
+    if (m_fifo_transmission_queue.empty()){
+        std::cout<<"fifo transmission queue empty \n";
+        // sendData otherwise is always called right after connection is established
+        return;
+    }
+    
 
+    // while (m_maxBytes == 0 || m_totBytes < m_maxBytes || m_fifo_transmission_queue.empty() == false) { // Time to send more
+
+    //     // uint64_t to allow the comparison later.
+    //     // the result is in a uint32_t range anyway, because
+    //     // m_sendSize is uint32_t.
+    //     uint64_t toSend = 100000;
+    //     // Make sure we don't send too many
+    //     if (m_maxBytes > 0) {
+    //         toSend = std::min(toSend, m_maxBytes - m_totBytes);
+    //     }
+
+    //     NS_LOG_LOGIC("sending packet at " << Simulator::Now());
+    //     uint64_t txbuffersize = m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+    //     std::cout <<"tosend: "<<toSend<<" txbuffer: "<<txbuffersize << std::endl;
+    //     Ptr <Packet> packet = Create<Packet>(toSend);
+    //     int actual = m_send_socket->Send(packet);
+    //     if (actual > 0) {
+    //         m_totBytes += actual;
+    //         m_txTrace(packet);
+    //     }
+    //     // We exit this loop when actual < toSend as the send side
+    //     // buffer is full. The "DataSent" callback will pop when
+    //     // some buffer space has freed up.
+    //     if ((unsigned) actual != toSend) {
+    //         std::cout<<"Break from sendData, actual: "<<actual <<" toSend: "<<toSend<<std::endl;
+    //         std::cout<<"curr time in nana: "<< Simulator::Now()<<std::endl;
+    //         break;
+    //     }
+    // }
+    // // Check if time to close (all sent)
+    // if (m_totBytes == m_maxBytes && m_connected) {
+    //     m_send_socket->Close();
+    //     m_connected = false;
+    // }
+    m_maxBytes = m_fifo_transmission_queue.front()->GetSize();
+    
+    while (m_fifo_transmission_queue.empty() == false) { // Time to send more
         // uint64_t to allow the comparison later.
         // the result is in a uint32_t range anyway, because
         // m_sendSize is uint32_t.
-        uint64_t toSend = 10000;
+        uint64_t toSend = 100000;
         // Make sure we don't send too many
         if (m_maxBytes > 0) {
             toSend = std::min(toSend, m_maxBytes - m_totBytes);
         }
 
         NS_LOG_LOGIC("sending packet at " << Simulator::Now());
+        uint64_t txbuffersize = m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
+        std::cout <<"tosend: "<<toSend<<" txbuffer: "<<txbuffersize << std::endl;
         Ptr <Packet> packet = Create<Packet>(toSend);
         int actual = m_send_socket->Send(packet);
         if (actual > 0) {
@@ -348,6 +407,8 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         // buffer is full. The "DataSent" callback will pop when
         // some buffer space has freed up.
         if ((unsigned) actual != toSend) {
+            std::cout<<"Break from sendData, actual: "<<actual <<" toSend: "<<toSend<<std::endl;
+            std::cout<<"curr time in nana: "<< Simulator::Now()<<std::endl;
             break;
         }
     }
@@ -356,6 +417,7 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         m_send_socket->Close();
         m_connected = false;
     }
+
 }
 
 void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
@@ -364,10 +426,12 @@ void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
     if (layer_idx ==0 || (layer_idx > 0 && m_backprop_layer_compute_finished[layer_idx-1]))
     {
         NS_LOG_LOGIC("HorovodWorker BackPropagation started");
-        int64_t curr_timestamp = Simulator::Now().GetMilliSeconds();
-        int64_t compute_time_ms = m_backprop_layer_computation_time_ms[m_layer_idx];
+        int64_t curr_timestamp = Simulator::Now().GetNanoSeconds();
+        int64_t compute_time_ms = m_backprop_layer_computation_time_ms[layer_idx];
         m_timeline["Start_BP"].push_back(curr_timestamp);
-        m_bp_compute = Simulator::Schedule(MilliSeconds(compute_time_ms), &HorovodWorker::BackPropagationDone, this, layer_idx);        
+        std::cout <<"Start_BP "<<m_timeline["Start_BP"].back()<<"\n";
+        std::cout << "compute_time_ms: "<<compute_time_ms<<"\n";
+        m_bp_compute = Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
         
     }
 }
@@ -375,7 +439,7 @@ void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
 void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
     NS_LOG_FUNCTION(this);
     NS_ASSERT(m_bp_compute.IsExpired());
-
+    std::cout<<"Done_BP "<<Simulator::Now().GetNanoSeconds() <<"\n";
     if(layer_idx > 0){
         m_backprop_layer_compute_finished[layer_idx-1] = false; 
     }
@@ -385,7 +449,7 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
         BackPropagationStart(layer_idx+1);
         // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::BackPropagationStart, this, layer_idx+1);
     }
-
+    
     SendGradients(layer_idx);
     // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::SendGradients, this, layer_idx);
 
@@ -399,9 +463,14 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
 }
 
 void HorovodWorker::SendGradients(uint32_t layer_idx){
-    m_timeline["Start_TX_Grad"].push_back(Simulator::Now().GetMilliSeconds());
+    m_timeline["Start_TX_Grad"].push_back(Simulator::Now().GetNanoSeconds());
+    std::cout <<"Start_TX_Grad "<< m_timeline["Start_TX_Grad"].back()<<"\n";
     m_tx_layer_idx = layer_idx;
     // Todo handle multiple concurrent send requesets multiple m_tx_layer_idx
+    // Ptr <Packet> packet = Create<Packet>(m_layer_size_bytes[layer_idx]);
+    RingAllReduce ringallreduce(m_layer_size_bytes[layer_idx]);
+    m_fifo_transmission_queue.push(ringallreduce);
+
     SendData(m_send_socket, 0);
 }
 
@@ -411,7 +480,9 @@ void HorovodWorker::ConnectionSucceeded(Ptr <Socket> socket) {
     printf("HorovodWorker Connection succeeded\n");
 
     m_connected = true;
-    SendData(m_send_socket, 0);
+    // SendData(m_send_socket, 0);
+
+    BackPropagationStart(0);
     // if(m_backprop_layer_compute_finished[0] == false)
     // {
     //     // start first layer of backprop

@@ -30,12 +30,25 @@
 #include "ns3/address.h"
 #include "ns3/socket.h"
 #include <map>
+#include <queue>
 
 namespace ns3 {
 
 //class Address;
 //class Socket;
 //class Packet;
+
+class RingAllReduce 
+{
+  public:
+    RingAllReduce (uint32_t size);
+    virtual ~RingAllReduce ();
+    uint32_t GetSize();
+
+  private:
+    uint32_t r_size_bytes = 0;
+
+};
 
 class HorovodWorker : public Application 
 {
@@ -113,7 +126,8 @@ private:
   EventId                     m_bp_compute;
   uint32_t                    m_tx_layer_idx;
   std::vector<uint64_t>                    m_curr_send_data_bytes {0, 0};
-
+  
+  std::queue<RingAllReduce>     m_fifo_transmission_queue;
   // TODO <int, vector<event class>> with layer and size information
   std::map<std::string, std::vector<int64_t>>     m_timeline; //timeline to record invents and their stamps
 

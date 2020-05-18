@@ -4,3 +4,4 @@ ns-3.30.1
 CMakeLists.txt
 cmake-build-debug
 .vscode/settings.json
+runs/horovod_example/simulation_logs*
