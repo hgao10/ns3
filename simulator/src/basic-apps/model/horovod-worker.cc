@@ -68,6 +68,10 @@ HorovodWorker::GetTypeId(void) {
                           AddressValue(),
                           MakeAddressAccessor(&HorovodWorker::m_peer),
                           MakeAddressChecker())
+            .AddAttribute("Rank", "The Rank of horovodworker",
+                            UintegerValue(), 
+                            MakeUintegerAccessor(&HorovodWorker::m_worker_id),
+                            MakeUintegerChecker<uint64_t>())
             .AddAttribute("MaxBytes",
                           "The total number of bytes to send. "
                           "Once these bytes are sent, "
@@ -115,19 +119,16 @@ HorovodWorker::~HorovodWorker() {
     NS_LOG_FUNCTION(this);
 }
 
-RingAllReduce::RingAllReduce(uint32_t size){
-    r_size_bytes = size;
+RingAllReduce::RingAllReduce()
+    :   r_size_bytes(0),
+        r_partition_bytes(0),
+        r_priority(0){
+    NS_LOG_FUNCTION(this);
 }
 
 RingAllReduce::~RingAllReduce(){
     NS_LOG_FUNCTION(this);
 }
-
-uint32_t RingAllReduce::GetSize(){
-    NS_LOG_FUNCTION(this);
-    return r_size_bytes;
-}
-
 
 void
 HorovodWorker::DoDispose(void) {
@@ -144,7 +145,7 @@ HorovodWorker::DoDispose(void) {
 
 void HorovodWorker::StartApplication(void) { // Called at time specified by Start
     NS_LOG_FUNCTION(this);
-
+    InitializeRingAllReduceMap();
     // Create the socket if not already
     if (!m_send_socket) {
         m_send_socket = Socket::CreateSocket(GetNode(), m_tid);
@@ -213,8 +214,6 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
             MakeCallback(&HorovodWorker::HandleAccept, this)
     );
 
-
-
 }
 
 void HorovodWorker::StopApplication(void) { // Called at time specified by Stop
@@ -260,11 +259,29 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         m_totalRx += packet->GetSize ();
         std::cout<<"Received up to "<< m_totalRx<<"\n";
         std::cout<<"Curr time: "<< Simulator::Now()<<std::endl;
-        // Other fields that could be useful here if actually did something:
-        // Size: packet->GetSize()
-        // Source IP: InetSocketAddress::ConvertFrom(from).GetIpv4 ()
-        // Source port: InetSocketAddress::ConvertFrom (from).GetPort ()
-        // Our own IP / port: Address localAddress; socket->GetSockName (localAddress);
+        if (m_totalRx == m_inflight_allreduce->GetPartitionSize()){
+            //received partition from neighbor
+            //initiate next send 
+            if(m_inflight_allreduce->r_communication_times < 2 * (m_num_workers-1))
+            {
+                m_maxBytes += m_inflight_allreduce->GetPartitionSize();
+                m_inflight_allreduce->r_communication_times += 1;
+                std::cout<<"left neighbor send: "<<m_leftneighbor
+                m_inflight_partition_idx = m_leftneighbor->m_inflight_partition_idx;
+                std::cout<<"Received partition send new partition idx "<< m_inflight_partition_idx <<"\n";
+                std::cout<<"Pending communication time: "<< 2 * (m_num_workers-1) - m_inflight_allreduce->r_communication_times <<"\n";
+            }
+            else{
+                //all partitions have been sent
+                m_ringallreduce_inflight_status = false;
+                // UpdateGradientsReceived(m_inflight_allreduce->GetPriority()); //set gradients ready for layers included in the ringallreduce
+                std::cout<<"RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
+                m_fifo_transmission_queue.pop();
+                
+            }
+
+            SendData(m_send_socket, 0);
+        }
 
     }
 
@@ -296,44 +313,6 @@ void HorovodWorker::CleanUp(Ptr<Socket> socket) {
     }
 }
 
-
-// void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
-    // NS_LOG_FUNCTION(this);
-
-    // //readytosend = [layer1_p2, layer2_p1, layer2_p2];
-    // //if (socket->BufferSize() > 4kb) {
-    //     // check again in 1ms
-    //     // wait for buffer to be sent, then schedule SendData again
-    // //    return;
-    // //}
-
-    // while(m_curr_send_data_bytes[m_tx_layer_idx] < m_layer_size_bytes[m_tx_layer_idx]){
-    //     uint64_t left = m_layer_size_bytes[m_tx_layer_idx] - m_curr_send_data_bytes[m_tx_layer_idx];
-    //     NS_LOG_LOGIC("sending packet at " << Simulator::Now());
-    //     Ptr <Packet> packet = Create<Packet>(left);
-    //     int actual = m_send_socket->Send(packet);
-    //     if (actual > 0) {
-    //         m_curr_send_data_bytes[m_tx_layer_idx] += actual;
-    //         m_txTrace(packet);
-    //     }
-    //     // We exit this loop when actual < left as the send side
-    //     // buffer is full. The "DataSent" callback will pop when
-    //     // some buffer space has freed up.
-    //     if ((unsigned) actual != left) {
-    //         break;
-    //     }
-    // }
-
-    // if(m_curr_send_data_bytes[m_tx_layer_idx] == m_layer_size_bytes[m_tx_layer_idx]){
-    //     // completed sending all data from current layer
-    //     m_curr_send_data_bytes[m_tx_layer_idx] = 0;
-    //     printf("Completed sending gradients for layer %d", m_tx_layer_idx);
-    // }
-
-    
-
-// }
-
  void HorovodWorker::SetLeftNeighbor(Ptr<HorovodWorker> leftneighbor){
      m_leftneighbor = leftneighbor;
  }
@@ -347,7 +326,6 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         return;
     }
     
-
     // while (m_maxBytes == 0 || m_totBytes < m_maxBytes || m_fifo_transmission_queue.empty() == false) { // Time to send more
 
     //     // uint64_t to allow the comparison later.
@@ -382,17 +360,38 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     //     m_send_socket->Close();
     //     m_connected = false;
     // }
-    m_maxBytes = m_fifo_transmission_queue.front()->GetSize();
+    // m_maxBytes = m_fifo_transmission_queue.front()->GetSize();
+
+    // if(m_ringallreduce_inflight_status== true && m_send_partition_inflight != true){
+    //     if(m_inflight_allreduce->r_communication_times < 2 * (m_num_workers-1))
+    //     {
+    //         m_maxBytes = m_inflight_allreduce->GetPartitionSize();
+    //         m_inflight_allreduce->r_communication_times += 1;
+    //         std::cout<<"increment ringreduce communication times: "<< m_inflight_allreduce->r_communication_times <<"\n";
+    //     }
+    //     else{
+    //         //all partitions have been sent
+    //         m_ringallreduce_inflight_status = false;
+    //         // UpdateGradientsReceived(m_inflight_allreduce->GetPriority()); //set gradients ready for layers included in the ringallreduce
+    //         m_fifo_transmission_queue.pop();
+    //     }
+    // }
+
+    if(m_ringallreduce_inflight_status == false and m_fifo_transmission_queue.empty() == false){
+        m_inflight_allreduce = m_fifo_transmission_queue.front();
+        // m_fifo_transmission_queue.pop(); //pop it after the ringallreduce is completed 
+        m_ringallreduce_inflight_status = true;
+        m_maxBytes = m_inflight_allreduce->GetPartitionSize();
+        m_send_partition_inflight = true;
+        m_inflight_partition_idx = m_worker_id; //Initially rank x would send partition x to start
+        std::cout<<"new ringallreduce, partition_id: "<< m_inflight_partition_idx<<"\n";
+        m_inflight_allreduce->r_communication_times += 1;
+    }
     
-    while (m_fifo_transmission_queue.empty() == false) { // Time to send more
-        // uint64_t to allow the comparison later.
-        // the result is in a uint32_t range anyway, because
-        // m_sendSize is uint32_t.
-        uint64_t toSend = 100000;
+    while (m_maxBytes) { // Time to send more
         // Make sure we don't send too many
-        if (m_maxBytes > 0) {
-            toSend = std::min(toSend, m_maxBytes - m_totBytes);
-        }
+        uint64_t toSend = 100000;
+        toSend = std::min(m_maxBytes, toSend);
 
         NS_LOG_LOGIC("sending packet at " << Simulator::Now());
         uint64_t txbuffersize = m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size();
@@ -400,22 +399,18 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         Ptr <Packet> packet = Create<Packet>(toSend);
         int actual = m_send_socket->Send(packet);
         if (actual > 0) {
-            m_totBytes += actual;
+            // m_totBytes += actual;
+            m_maxBytes -= actual;
             m_txTrace(packet);
         }
         // We exit this loop when actual < toSend as the send side
         // buffer is full. The "DataSent" callback will pop when
         // some buffer space has freed up.
-        if ((unsigned) actual != toSend) {
+        if ( actual == -1) {
             std::cout<<"Break from sendData, actual: "<<actual <<" toSend: "<<toSend<<std::endl;
             std::cout<<"curr time in nana: "<< Simulator::Now()<<std::endl;
             break;
         }
-    }
-    // Check if time to close (all sent)
-    if (m_totBytes == m_maxBytes && m_connected) {
-        m_send_socket->Close();
-        m_connected = false;
     }
 
 }
@@ -436,6 +431,68 @@ void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
     }
 }
 
+void RingAllReduce::AddTensor(uint32_t layer_idx, uint32_t size){
+    r_tensors.push_back(layer_idx);
+    r_size_bytes += size;
+}
+
+uint32_t RingAllReduce::GetSize(){
+    return r_size_bytes;
+}
+
+void RingAllReduce::SetPriority(){
+    if(r_tensors.size() > 0){
+        r_priority = r_tensors[0];
+    }
+    else{
+        NS_LOG_ERROR("Ringallreduce contains no tensors");
+    }
+    return;
+}
+uint32_t RingAllReduce::GetPriority(){
+    return r_priority;
+}
+
+void RingAllReduce::SetPartition(uint32_t num_workers){
+    r_partition_bytes = uint32_t(r_size_bytes/num_workers);
+    std::cout <<"Partition size: "<<r_partition_bytes<<"\n";
+}
+
+void HorovodWorker::InitializeRingAllReduceMap(){
+    RingAllReduce *ringallreduce = new RingAllReduce();
+    for(int i=0; i < m_layer_size_bytes.size(); ++i){
+        if(ringallreduce->GetSize() + m_layer_size_bytes[i] <= m_fused_tensor_size_bytes){
+            std::cout<<"add tensor: "<<i <<" size: "<<m_layer_size_bytes[i]<<"\n";
+            ringallreduce->AddTensor(i, m_layer_size_bytes[i]);
+        }
+
+        else if(ringallreduce->GetSize() + m_layer_size_bytes[i] > m_fused_tensor_size_bytes || i == m_layer_size_bytes.size()-1 ){
+            //ringallreduce is filled with tensors
+            ringallreduce->SetPriority();
+            uint32_t pri = ringallreduce->GetPriority();
+            ringallreduce->SetPartition(m_num_workers);
+            std::cout<<"set priority: "<<pri<<"\n";
+            m_ringallreduce_map[pri] = ringallreduce;
+            if(i != m_layer_size_bytes.size()-1)
+            {
+                ringallreduce = new RingAllReduce();
+            }
+        }
+    }
+ }
+
+void HorovodWorker::StartRingAllReduce(uint32_t layer_idx){
+    if(m_ringallreduce_map.find(layer_idx) != m_ringallreduce_map.end())
+    {
+        m_fifo_transmission_queue.push(m_ringallreduce_map[layer_idx]);
+        SendData(m_send_socket, 0);
+    }
+    
+    // otherwise ringallreduce that contains that layer has unfinished computation
+    return;
+}
+
+
 void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
     NS_LOG_FUNCTION(this);
     NS_ASSERT(m_bp_compute.IsExpired());
@@ -445,20 +502,10 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
     }
 
     if(layer_idx != m_num_layers -1){
-        
         BackPropagationStart(layer_idx+1);
-        // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::BackPropagationStart, this, layer_idx+1);
     }
-    
-    SendGradients(layer_idx);
-    // Simulator::Schedule(MilliSeconds(0), &HorovodWorker::SendGradients, this, layer_idx);
-
-    //ToDo ringallreduce
-    // uint32_t ringallreduce_idx = m_ringallreduce_layer_map[layer_idx];
-    // m_ringallreduce_populate[ringallreduce_idx][layer_idx] = true;
-    // if(m_ringallreduce_ready(ringallreduce_idx)){
-    //     m_send_queue.push_back(m_ringallreduce[ringallreduce_idx]);
-    // }
+    // only checks the lowest layer idx in a ringallreduce since computation happens sequentially
+    StartRingAllReduce(layer_idx);
 
 }
 
@@ -466,10 +513,6 @@ void HorovodWorker::SendGradients(uint32_t layer_idx){
     m_timeline["Start_TX_Grad"].push_back(Simulator::Now().GetNanoSeconds());
     std::cout <<"Start_TX_Grad "<< m_timeline["Start_TX_Grad"].back()<<"\n";
     m_tx_layer_idx = layer_idx;
-    // Todo handle multiple concurrent send requesets multiple m_tx_layer_idx
-    // Ptr <Packet> packet = Create<Packet>(m_layer_size_bytes[layer_idx]);
-    RingAllReduce ringallreduce(m_layer_size_bytes[layer_idx]);
-    m_fifo_transmission_queue.push(ringallreduce);
 
     SendData(m_send_socket, 0);
 }

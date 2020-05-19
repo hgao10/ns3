@@ -41,12 +41,21 @@ namespace ns3 {
 class RingAllReduce 
 {
   public:
-    RingAllReduce (uint32_t size);
+    RingAllReduce();
     virtual ~RingAllReduce ();
     uint32_t GetSize();
+    void AddTensor(uint32_t layer_idx, uint32_t size);
+    void SetPriority();
+    void SetPartition(uint32_t num_workers);
+    uint32_t GetPartitionSize(){return r_partition_bytes;};
+    uint32_t GetPriority();
+    uint32_t r_communication_times = 0; //Todo implement getter/setter instead
 
   private:
     uint32_t r_size_bytes = 0;
+    uint32_t r_partition_bytes = 0;
+    uint32_t r_priority = 0;
+    std::vector<uint32_t>  r_tensors;
 
 };
 
@@ -64,7 +73,9 @@ public:
   bool IsClosedByError();  // TODO removed later if not needed
   bool IsClosedNormally(); // TODO removed later if not needed
  
- void SetLeftNeighbor(Ptr<HorovodWorker>);
+  void SetLeftNeighbor(Ptr<HorovodWorker>);
+  uint32_t                    m_inflight_partition_idx;
+
 
 protected:
   virtual void DoDispose (void);
@@ -117,21 +128,27 @@ private:
   TracedCallback<Ptr<const Packet> > m_txTrace;
 
   // horovod ML specific
-  std::map<int, uint64_t>          m_layer_size_bytes{{0,1000}, {1,2000}};
+  std::map<int, uint64_t>          m_layer_size_bytes{{0,1000000}, {1,2000000}};
   std::map<int, float>        m_backprop_layer_computation_time_ms{{0, 5}, {1, 10}};
   std::map<int, bool>         m_backprop_layer_compute_finished{{0, false}, {1, false}};
   uint32_t                    m_iteration_idx;
   uint32_t                    m_layer_idx;
   uint32_t                    m_num_layers = 2;
+  uint32_t                    m_num_workers = 3;
   EventId                     m_bp_compute;
   uint32_t                    m_tx_layer_idx;
+  uint32_t                    m_fused_tensor_size_bytes = 2000000;
   std::vector<uint64_t>                    m_curr_send_data_bytes {0, 0};
+  uint32_t                    m_worker_id;
+  std::queue<RingAllReduce*>     m_fifo_transmission_queue;
   
-  std::queue<RingAllReduce>     m_fifo_transmission_queue;
   // TODO <int, vector<event class>> with layer and size information
   std::map<std::string, std::vector<int64_t>>     m_timeline; //timeline to record invents and their stamps
-
-
+  std::map<uint32_t, RingAllReduce*>               m_ringallreduce_map;
+  bool                        m_ringallreduce_inflight_status = false;
+  bool                        m_send_partition_inflight = false;
+  RingAllReduce*              m_inflight_allreduce;      
+  // uint32_t                    m_inflight_partition_idx;
 private:
   void ConnectionSucceeded (Ptr<Socket> socket);
   void ConnectionFailed (Ptr<Socket> socket);
@@ -148,7 +165,8 @@ private:
  void BackPropagationStart(uint32_t layer_idx);
  void BackPropagationDone(uint32_t layer_idx);
  void SendGradients(uint32_t layer_idx);
-
+ void StartRingAllReduce(uint32_t layer_idx);
+ void InitializeRingAllReduceMap();
  Ptr<HorovodWorker> m_leftneighbor;
 };
 
