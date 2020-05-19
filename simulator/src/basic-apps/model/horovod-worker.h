@@ -31,6 +31,8 @@
 #include "ns3/socket.h"
 #include <map>
 #include <queue>
+#include <stdint.h>
+
 
 namespace ns3 {
 
@@ -74,9 +76,16 @@ public:
   bool IsClosedNormally(); // TODO removed later if not needed
  
   void SetLeftNeighbor(Ptr<HorovodWorker>);
-  uint32_t                    m_inflight_partition_idx;
-
-
+  uint32_t GetPartitionIdx(){
+    if(m_inflight_partition_idx.empty() == false)
+    {
+      uint32_t idx = m_inflight_partition_idx.front();
+      m_inflight_partition_idx.pop();
+      return idx;
+    }
+    return UINT32_MAX;
+  };
+  void AddPartitionIdx(uint32_t idx) {m_inflight_partition_idx.push(idx);};
 protected:
   virtual void DoDispose (void);
 
@@ -148,7 +157,8 @@ private:
   bool                        m_ringallreduce_inflight_status = false;
   bool                        m_send_partition_inflight = false;
   RingAllReduce*              m_inflight_allreduce;      
-  // uint32_t                    m_inflight_partition_idx;
+  std::queue<uint32_t>        m_inflight_partition_idx;
+
 private:
   void ConnectionSucceeded (Ptr<Socket> socket);
   void ConnectionFailed (Ptr<Socket> socket);
@@ -164,7 +174,6 @@ private:
 // horovod ml specific
  void BackPropagationStart(uint32_t layer_idx);
  void BackPropagationDone(uint32_t layer_idx);
- void SendGradients(uint32_t layer_idx);
  void StartRingAllReduce(uint32_t layer_idx);
  void InitializeRingAllReduceMap();
  Ptr<HorovodWorker> m_leftneighbor;
