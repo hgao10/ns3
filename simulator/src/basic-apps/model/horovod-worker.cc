@@ -141,9 +141,11 @@ HorovodWorker::DoDispose(void) {
 
 void HorovodWorker::StartApplication(void) { // Called at time specified by Start
     NS_LOG_FUNCTION(this);
-    InitializeRingAllReduceMap();
     InitializeLayerWeight();
+    InitializeRingAllReduceMap();
     InitializeComputeTime();
+    
+    
     // Create the socket if not already
     if (!m_send_socket) {
         m_send_socket = Socket::CreateSocket(GetNode(), m_tid);
@@ -270,7 +272,10 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
             //received partition from neighbor
             //initiate next send 
             for(auto layer: m_inflight_allreduce->GetTensors()){
-                RecordEvent(layer, format_string("Received_Partition_%" PRIu32 , m_inflight_partition_idx.front()));
+                if(!m_inflight_partition_idx.empty()){
+                    std::cout<<" DEBUG Received_Partition_"<<m_inflight_partition_idx.front() << std::endl;
+                    RecordEvent(layer, format_string("Received_Partition_%" PRIu32, m_inflight_partition_idx.front()));
+                }
             }
 
             // if( (m_iteration_idx == 1) && (m_inflight_partition_idx.front() == 0)){
@@ -436,23 +441,19 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
             break;
         }
     }
-
 }
 
 void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
     NS_LOG_FUNCTION(this);
-    {
-        NS_LOG_LOGIC("HorovodWorker BackPropagation started");
-        int64_t curr_timestamp = Simulator::Now().GetNanoSeconds();
-        int64_t compute_time_ms = m_bp_layer_compute_time_ms[layer_idx];
-        m_timeline["Start_BP"].push_back(curr_timestamp);
-        RecordEvent(layer_idx, "BP_Start");
-        std::cout <<"  > Start_BP "<<m_timeline["Start_BP"].back()<<"\n";
-        std::cout <<"    > compute_time_ms: "<<compute_time_ms<<"\n";
-        // m_bp_compute = Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
-        Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
-
-    }
+    NS_LOG_LOGIC("HorovodWorker BackPropagation started");
+    int64_t curr_timestamp = Simulator::Now().GetNanoSeconds();
+    int64_t compute_time_ms = m_bp_layer_compute_time_ms[layer_idx];
+    m_timeline["Start_BP"].push_back(curr_timestamp);
+    RecordEvent(layer_idx, "BP_Start");
+    std::cout <<"  > Start_BP "<<m_timeline["Start_BP"].back()<<"\n";
+    std::cout <<"    > compute_time_ms: "<<compute_time_ms<<"\n";
+    // m_bp_compute = Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
+    Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
 }
 
 void HorovodWorker::ForwardPropagationStart(uint32_t layer_idx){
@@ -495,6 +496,8 @@ void HorovodWorker::ForwardPropagationDone(uint32_t layer_idx){
         else
         {
             m_iteration_idx += 1;
+
+            Debug(format_string("FP Done, start BP for iter: " PRIu32, m_iteration_idx));
             std::cout<<"    > FP Done, start BP for iter: "<< m_iteration_idx<<std::endl;
             BackPropagationStart(m_num_layers-1);
         }
@@ -531,9 +534,72 @@ void RingAllReduce::SetPartition(uint32_t num_workers){
     std::cout <<"  > Partition size: "<<r_partition_bytes<<"\n";
 }
 
+void HorovodWorker::SetFusionBufferSize(uint32_t size){
+    m_fused_tensor_size_bytes =size;
+}
+
+uint32_t HorovodWorker::GetPartitionIdx(){
+    if(m_inflight_partition_idx.empty() == false)
+    {
+        uint32_t idx = m_inflight_partition_idx.front();
+        m_inflight_partition_idx.pop_front();
+        return idx;
+    }
+    return UINT32_MAX;
+}
+
+void HorovodWorker::InitializeLayerWeight(){
+    uint32_t model_size_bytes = 100 * 1000000;
+    uint32_t min_layer_size_bytes = uint32_t(2 * model_size_bytes / (9 * m_num_layers));
+    std::cout << "Min layer size " << min_layer_size_bytes<<std::endl;
+    for(uint32_t i=0; i< m_num_layers; ++i){
+        if(i < uint32_t(m_num_layers/2)){
+            std::cout <<"i < layer/2 "<< uint32_t(m_num_layers/2) << std::endl;
+            m_layer_size_bytes[i] = min_layer_size_bytes;
+            std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
+        }
+        else if( (i >= uint32_t(m_num_layers/2)) && (i < uint32_t(3* m_num_layers/4))){
+            m_layer_size_bytes[i] = 4* min_layer_size_bytes;
+            std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
+        }
+        else {
+            m_layer_size_bytes[i] = 12 * min_layer_size_bytes;
+            std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
+        }
+    }
+    // set fusionbuffer size to be slightly larger than the maximum layer size
+    SetFusionBufferSize(m_layer_size_bytes[m_num_layers-1]+1);
+}
+
+void HorovodWorker::InitializeComputeTime(){
+    float compute_time_per_iteration_ms = 900;
+    float fp_total_time_ms = (float(1)/float(3)) * compute_time_per_iteration_ms;
+    std::cout<<"fp_total_time_ms "<<fp_total_time_ms<<std::endl;
+    float bp_total_time_ms = (2.0/3.0) * compute_time_per_iteration_ms;
+    std::cout<<"bp_total_time_ms "<<bp_total_time_ms<<std::endl;
+    //  To simplify computation time in FP: assum each layer takes less then d ms to compute than previous layer and the last layer takes 0 ms
+    float fp_diff_per_layer_ms = 2.0 * fp_total_time_ms / (float(m_num_layers) * (float(m_num_layers)-1.0)); // (self.config.num_layers * (self.config.num_layers-1))
+    std::cout<<"fp_diff_per_layer_ms "<<fp_diff_per_layer_ms<<std::endl;
+    float fp_first_layer_ms = 2.0 * fp_total_time_ms / float(m_num_layers); // self.config.num_layers
+    // Same simplification applies to BP except its in ascending order
+    float bp_diff_per_layer_ms = 2.0 * bp_total_time_ms / (float(m_num_layers) * (float(m_num_layers)-1.0)); // (self.config.num_layers * (self.config.num_layers-1))
+    std::cout<<"bp_diff_per_layer_ms "<<bp_diff_per_layer_ms<<std::endl;
+    for(uint32_t i =0; i< m_num_layers; ++i){
+    m_fp_layer_compute_time_ms[i] = fp_first_layer_ms - i * fp_diff_per_layer_ms;
+    m_fp_layer_compute_time_ms[m_num_layers-1] = fp_diff_per_layer_ms;
+    std::cout <<"fp layer compute time "<< i<<" : " <<m_fp_layer_compute_time_ms[i]<<std::endl;
+    m_bp_layer_compute_time_ms[i] = i * bp_diff_per_layer_ms;
+    m_bp_layer_compute_time_ms[0] = bp_diff_per_layer_ms;
+    std::cout <<"bp layer compute time "<< i<<" : " <<m_bp_layer_compute_time_ms[i]<<std::endl;
+    }
+
+}
+
+
 void HorovodWorker::InitializeRingAllReduceMap(){
     WORKER;
     RingAllReduce *ringallreduce = new RingAllReduce();
+    // Todo Optimize 
     for(int i= m_layer_size_bytes.size()-1; i > -1 ; --i){
         if(ringallreduce->GetSize() + m_layer_size_bytes[i] <= m_fused_tensor_size_bytes){
             std::cout<<"  > add tensor: "<<i <<" size: "<<m_layer_size_bytes[i]<<"\n";
@@ -541,12 +607,14 @@ void HorovodWorker::InitializeRingAllReduceMap(){
         }
 
         else if(ringallreduce->GetSize() + m_layer_size_bytes[i] > m_fused_tensor_size_bytes  ){
-            //ringallreduce is filled with tensors
-            ringallreduce->SetPriority();
-            uint32_t pri = ringallreduce->GetPriority();
-            ringallreduce->SetPartition(m_num_workers);
-            std::cout<<"  > set priority: "<<pri<<"\n";
-            m_ringallreduce_map[pri] = ringallreduce;
+            // Edge case: a single tensor is too large to fit in user defined fusion buffer
+            if(ringallreduce->GetSize() > 0 ){
+                ringallreduce->SetPriority();
+                uint32_t pri = ringallreduce->GetPriority();
+                ringallreduce->SetPartition(m_num_workers);
+                std::cout<<"  > set priority: "<<pri<<"\n";
+                m_ringallreduce_map[pri] = ringallreduce;
+            }
             ringallreduce = new RingAllReduce();
             std::cout<<"  > add tensor: "<<i <<" size: "<<m_layer_size_bytes[i]<<"\n";
             ringallreduce->AddTensor(i, m_layer_size_bytes[i]);  
@@ -588,6 +656,7 @@ void HorovodWorker::StartRingAllReduce(uint32_t layer_idx){
     if(m_ringallreduce_map.find(layer_idx) != m_ringallreduce_map.end())
     {
         std::cout<<"  > add to fifo queue a new ringallreduce"<<"\n";
+        //Todo: send updates to worker 0 and worker 0 will broadcast to all workers when its ready to start ringallreduce
         EnqueTransmission(m_ringallreduce_map[layer_idx]);
         SendData(m_send_socket, 0);
     }
