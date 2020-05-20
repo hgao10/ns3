@@ -160,7 +160,7 @@ private:
   std::map<uint32_t, float>        m_bp_layer_compute_time_ms{{0, 5}, {1, 10}};
   std::map<uint32_t, float>        m_fp_layer_compute_time_ms{{0, 6}, {1, 4}};
   uint32_t                    m_layer_idx;
-  uint32_t                    m_num_layers = 2;
+  uint32_t                    m_num_layers = 4;
   uint32_t                    m_num_workers = 3;
   EventId                     m_bp_compute;
   uint32_t                    m_tx_layer_idx;
@@ -183,7 +183,7 @@ private:
   std::map<uint32_t, bool>    m_fp_finished_status{{0, false}, {1,false}}; // Records fp computation status per layer
   uint32_t                    m_iteration_idx =0;
   uint32_t                    m_max_iteration = 2;
-
+  
 private:
   void ConnectionSucceeded (Ptr<Socket> socket);
   void ConnectionFailed (Ptr<Socket> socket);
@@ -210,6 +210,50 @@ private:
   RingAllReduce* QueuePeek();
   void RecordEvent( uint32_t layer_idx, std::string event);
   void Debug(std::string event);
+  void InitializeLayerWeight(){
+      uint32_t model_size_bytes = 100 * 1000000;
+      uint32_t min_layer_size_bytes = uint32_t(2 * model_size_bytes / (9 * m_num_layers));
+      std::cout << "Min layer size " << min_layer_size_bytes<<std::endl;
+      for(uint32_t i=0; i< m_num_layers; ++i){
+        if(i < uint32_t(m_num_layers/2)){
+          std::cout <<"i < layer/2 "<< uint32_t(m_num_layers/2) << std::endl;
+          m_layer_size_bytes[i] = min_layer_size_bytes;
+          std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
+        }
+        else if( (i >= uint32_t(m_num_layers/2)) && (i < uint32_t(3* m_num_layers/4))){
+          m_layer_size_bytes[i] = 4* min_layer_size_bytes;
+          std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
+        }
+        else {
+          m_layer_size_bytes[i] = 12 * min_layer_size_bytes;
+          std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
+        }
+      }
+  };
+  void InitializeComputeTime(){
+      float compute_time_per_iteration_ms = 900;
+      float fp_total_time_ms = (float(1)/float(3)) * compute_time_per_iteration_ms;
+      std::cout<<"fp_total_time_ms "<<fp_total_time_ms<<std::endl;
+      float bp_total_time_ms = (2.0/3.0) * compute_time_per_iteration_ms;
+      std::cout<<"bp_total_time_ms "<<bp_total_time_ms<<std::endl;
+      //  To simplify computation time in FP: assum each layer takes less then d ms to compute than previous layer and the last layer takes 0 ms
+      float fp_diff_per_layer_ms = 2.0 * fp_total_time_ms / (float(m_num_layers) * (float(m_num_layers)-1.0)); // (self.config.num_layers * (self.config.num_layers-1))
+      std::cout<<"fp_diff_per_layer_ms "<<fp_diff_per_layer_ms<<std::endl;
+      float fp_first_layer_ms = 2.0 * fp_total_time_ms / float(m_num_layers); // self.config.num_layers
+      // Same simplification applies to BP except its in ascending order
+      float bp_diff_per_layer_ms = 2.0 * bp_total_time_ms / (float(m_num_layers) * (float(m_num_layers)-1.0)); // (self.config.num_layers * (self.config.num_layers-1))
+      std::cout<<"bp_diff_per_layer_ms "<<bp_diff_per_layer_ms<<std::endl;
+      for(uint32_t i =0; i< m_num_layers; ++i){
+        m_fp_layer_compute_time_ms[i] = fp_first_layer_ms - i * fp_diff_per_layer_ms;
+        m_fp_layer_compute_time_ms[m_num_layers-1] = fp_diff_per_layer_ms;
+        std::cout <<"fp layer compute time "<< i<<" : " <<m_fp_layer_compute_time_ms[i]<<std::endl;
+        m_bp_layer_compute_time_ms[i] = i * bp_diff_per_layer_ms;
+        m_bp_layer_compute_time_ms[0] = bp_diff_per_layer_ms;
+        std::cout <<"bp layer compute time "<< i<<" : " <<m_bp_layer_compute_time_ms[i]<<std::endl;
+      }
+
+  };
+  
 
 };
 

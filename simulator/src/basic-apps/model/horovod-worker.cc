@@ -142,6 +142,8 @@ HorovodWorker::DoDispose(void) {
 void HorovodWorker::StartApplication(void) { // Called at time specified by Start
     NS_LOG_FUNCTION(this);
     InitializeRingAllReduceMap();
+    InitializeLayerWeight();
+    InitializeComputeTime();
     // Create the socket if not already
     if (!m_send_socket) {
         m_send_socket = Socket::CreateSocket(GetNode(), m_tid);
@@ -321,8 +323,8 @@ void HorovodWorker::DequeTransmission(){
     if(m_qdisc == PERFECTPRIORITY){
         m_perfectpriority_queue.pop();
     }
-
 }
+
 bool HorovodWorker::ReceivedAllGradients(){
     for(auto i = m_gradients_received.begin(); i != m_gradients_received.end(); ++i){
         if(i->second == false){
