@@ -45,7 +45,7 @@ public:
    *
    * \param port The port the server will wait on for incoming packets
    */
-  HorovodWorkerHelper (std::string protocol, Address local_address, Address remote_address, uint32_t rank);
+  HorovodWorkerHelper (std::string protocol, Address local_address, Address remote_address, uint32_t rank, std::string baseLogsDir);
 
   /**
    * Record an attribute to be set in each Application after it is is created.

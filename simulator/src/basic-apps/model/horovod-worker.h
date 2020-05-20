@@ -97,13 +97,14 @@ public:
     if(m_inflight_partition_idx.empty() == false)
     {
       uint32_t idx = m_inflight_partition_idx.front();
-      m_inflight_partition_idx.pop();
+      m_inflight_partition_idx.pop_front();
       return idx;
     }
     return UINT32_MAX;
   };
 
-  void AddPartitionIdx(uint32_t idx) {m_inflight_partition_idx.push(idx);};
+  void AddPartitionIdx(uint32_t idx) {m_inflight_partition_idx.push_back(idx);};
+
 protected:
   virtual void DoDispose (void);
 
@@ -176,7 +177,7 @@ private:
   bool                        m_ringallreduce_inflight_status = false;
   bool                        m_send_partition_inflight = false;
   RingAllReduce*              m_inflight_allreduce;      
-  std::queue<uint32_t>        m_inflight_partition_idx;
+  std::deque<uint32_t>        m_inflight_partition_idx; // Use deque instead of queue to use clear()
   Ptr<HorovodWorker>          m_leftneighbor;
   std::map<uint32_t, bool>    m_gradients_received{{0, false}, {1,false}}; // Records status for each layer on whether the tensors have been received
   std::map<uint32_t, bool>    m_fp_finished_status{{0, false}, {1,false}}; // Records fp computation status per layer
@@ -207,6 +208,9 @@ private:
   void DequeTransmission();
   void EnqueTransmission(RingAllReduce* ringallreduce);
   RingAllReduce* QueuePeek();
+  void RecordEvent( uint32_t layer_idx, std::string event);
+  void Debug(std::string event);
+
 };
 
 } // namespace ns3
