@@ -33,12 +33,19 @@
 #include <queue>
 #include <stdint.h>
 
+#define WORKER std::cout<<"Worker ID: "<<HorovodWorker::GetWorkerID()<<std::endl
+#define ITERBARRIER        1
 
 namespace ns3 {
 
 //class Address;
 //class Socket;
 //class Packet;
+enum QDISC {
+  FIFOQDISC,
+  PERFECTPRIORITY,
+ };
+
 
 class RingAllReduce 
 {
@@ -52,14 +59,23 @@ class RingAllReduce
     uint32_t GetPartitionSize(){return r_partition_bytes;};
     uint32_t GetPriority();
     uint32_t r_communication_times = 0; //Todo implement getter/setter instead
+    std::vector<uint32_t> GetTensors(){return r_tensors;};
 
   private:
     uint32_t r_size_bytes = 0;
     uint32_t r_partition_bytes = 0;
     uint32_t r_priority = 0;
     std::vector<uint32_t>  r_tensors;
-
 };
+
+
+class ComparePriority{
+  public:
+    bool operator() (RingAllReduce* r1, RingAllReduce* r2){ 
+        return r1->GetPriority() > r2->GetPriority();
+        };
+};
+
 
 class HorovodWorker : public Application 
 {
@@ -75,7 +91,8 @@ public:
   bool IsClosedByError();  // TODO removed later if not needed
   bool IsClosedNormally(); // TODO removed later if not needed
  
-  void SetLeftNeighbor(Ptr<HorovodWorker>);
+  uint32_t  GetWorkerID(){return m_worker_id;};
+  void      SetLeftNeighbor(Ptr<HorovodWorker>);
   uint32_t GetPartitionIdx(){
     if(m_inflight_partition_idx.empty() == false)
     {
@@ -85,6 +102,7 @@ public:
     }
     return UINT32_MAX;
   };
+
   void AddPartitionIdx(uint32_t idx) {m_inflight_partition_idx.push(idx);};
 protected:
   virtual void DoDispose (void);
@@ -138,9 +156,8 @@ private:
 
   // horovod ML specific
   std::map<int, uint64_t>          m_layer_size_bytes{{0,1000000}, {1,2000000}};
-  std::map<int, float>        m_backprop_layer_computation_time_ms{{0, 5}, {1, 10}};
-  std::map<int, bool>         m_backprop_layer_compute_finished{{0, false}, {1, false}};
-  uint32_t                    m_iteration_idx;
+  std::map<uint32_t, float>        m_bp_layer_compute_time_ms{{0, 5}, {1, 10}};
+  std::map<uint32_t, float>        m_fp_layer_compute_time_ms{{0, 6}, {1, 4}};
   uint32_t                    m_layer_idx;
   uint32_t                    m_num_layers = 2;
   uint32_t                    m_num_workers = 3;
@@ -150,14 +167,21 @@ private:
   std::vector<uint64_t>                    m_curr_send_data_bytes {0, 0};
   uint32_t                    m_worker_id;
   std::queue<RingAllReduce*>     m_fifo_transmission_queue;
-  
+  std::priority_queue<RingAllReduce*, std::vector<RingAllReduce*>, ComparePriority>     m_perfectpriority_queue;
+  QDISC                       m_qdisc{PERFECTPRIORITY};
+
   // TODO <int, vector<event class>> with layer and size information
   std::map<std::string, std::vector<int64_t>>     m_timeline; //timeline to record invents and their stamps
-  std::map<uint32_t, RingAllReduce*>               m_ringallreduce_map;
+  std::map<uint32_t, RingAllReduce*>               m_ringallreduce_map; //key: priority
   bool                        m_ringallreduce_inflight_status = false;
   bool                        m_send_partition_inflight = false;
   RingAllReduce*              m_inflight_allreduce;      
   std::queue<uint32_t>        m_inflight_partition_idx;
+  Ptr<HorovodWorker>          m_leftneighbor;
+  std::map<uint32_t, bool>    m_gradients_received{{0, false}, {1,false}}; // Records status for each layer on whether the tensors have been received
+  std::map<uint32_t, bool>    m_fp_finished_status{{0, false}, {1,false}}; // Records fp computation status per layer
+  uint32_t                    m_iteration_idx =0;
+  uint32_t                    m_max_iteration = 2;
 
 private:
   void ConnectionSucceeded (Ptr<Socket> socket);
@@ -171,12 +195,18 @@ private:
 //   void CwndChange(uint32_t oldCwnd, uint32_t newCwnd);
 //   void HighestRxAckChange(SequenceNumber<unsigned int, int> oldHighestRxAck, SequenceNumber<unsigned int, int> newHighestRxAck);
 
-// horovod ml specific
- void BackPropagationStart(uint32_t layer_idx);
- void BackPropagationDone(uint32_t layer_idx);
- void StartRingAllReduce(uint32_t layer_idx);
- void InitializeRingAllReduceMap();
- Ptr<HorovodWorker> m_leftneighbor;
+  // horovod ml specific
+  void BackPropagationStart(uint32_t layer_idx);
+  void BackPropagationDone(uint32_t layer_idx);
+  void StartRingAllReduce(uint32_t layer_idx);
+  void InitializeRingAllReduceMap();
+  void UpdateReceivedGradients(uint32_t ringallreduce_prioritiy);
+  void ForwardPropagationStart(uint32_t layer_idx);
+  void ForwardPropagationDone(uint32_t layer_idx);
+  bool ReceivedAllGradients();
+  void DequeTransmission();
+  void EnqueTransmission(RingAllReduce* ringallreduce);
+  RingAllReduce* QueuePeek();
 };
 
 } // namespace ns3
