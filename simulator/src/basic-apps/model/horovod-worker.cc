@@ -268,56 +268,105 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         std::cout<<"Worker Id: "<<m_worker_id<<"\n";
         std::cout<<"  > Received up to "<< m_totalRx<<"\n";
         std::cout<<"  > Curr time: "<< Simulator::Now()<<std::endl;
-        if (m_totalRx == m_inflight_allreduce->GetPartitionSize()){
-            //received partition from neighbor
-            //initiate next send 
-            for(auto layer: m_inflight_allreduce->GetTensors()){
-                if(!m_inflight_partition_idx.empty()){
-                    std::cout<<" DEBUG Received_Partition_"<<m_inflight_partition_idx.front() << std::endl;
-                    RecordEvent(layer, format_string("Received_Partition_%" PRIu32, m_inflight_partition_idx.front()));
-                }
-            }
-
-            // if( (m_iteration_idx == 1) && (m_inflight_partition_idx.front() == 0)){
-            //     Debug(format_string("communication_times: %" PRIu32,m_inflight_allreduce->r_communication_times));
-            // }
-
-            if(m_inflight_allreduce->r_communication_times < 2 * (m_num_workers-1))
+        std::map<uint32_t, FusionPartition*> map = m_leftneighbor->GetInflightFusions();
+        // if(m_leftneighbor->GetInflightFusions().find(m_totalRx) != m_leftneighbor->GetInflightFusions().end()){
+        for(auto key = map.begin(); key !=map.end(); ++key){
+            std::cout<<"    > left neighbor fusion map "<<key->first <<" : "<<key->second<<std::endl;
+        }
+        if(map.find(m_totalRx) != map.end()){
+            // matches whats being sent by the neighbor
+            std::cout<<"    > FOUND FUSION : "<<map[m_totalRx]<<std::endl;
+            std::cout<<"    > Received FUSION"<<std::endl;
+            std::cout<<"    > Received partition from R["<<map[m_totalRx]->GetParent()->GetPriority()
+                                                    <<"] : "<<map[m_totalRx]->GetIdx() <<std::endl;
+            // FusionPartition* fusionpartition= map[m_totalRx];
+            uint32_t partition_idx = map[m_totalRx]->GetIdx();
+            std::cout<<"    > Received partition progress "<<map[m_totalRx]->GetProgress()<<std::endl; 
+            if (map[m_totalRx]->GetProgress() < (2 * (m_num_workers-1) - 1)) // not yet fully synced
             {
-                m_maxBytes += m_inflight_allreduce->GetPartitionSize();
-                m_inflight_allreduce->r_communication_times += 1;
-                std::cout<<"    > left neighbor partition id "<<m_leftneighbor->m_inflight_partition_idx.front()<<"\n";
-                std::cout<<"    > left neighbor worker id "<<m_leftneighbor->m_worker_id<<"\n";
-                uint32_t next_idx = m_leftneighbor->GetPartitionIdx();
-                if (next_idx != UINT32_MAX) 
-                {
-                    AddPartitionIdx(next_idx);
-                    for(auto layer: m_inflight_allreduce->GetTensors()){
-                        RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32 , next_idx));
-                    }
-                    std::cout<<"      > Received partition send new partition idx "<< next_idx <<"\n";
-                    std::cout<<"      > Pending communication time: "<< 2 * (m_num_workers-1) - m_inflight_allreduce->r_communication_times <<"\n";
-                    m_totalRx = 0;
+                // Add next fusion to send to queue
+                // increment progress by one
+                std::cout<<"    > Not fully synced, send Partition "<<partition_idx<<" to neighbor"<< std::endl;
+                m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress();
+                // send to right neighbor, add to transmission queue
+                m_maxBytes += map[m_totalRx]->GetSize();
+                m_bytes_sent += map[m_totalRx]->GetSize();
+                m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
+                
+                for(auto key = m_inflight_fusion_map.begin(); key !=m_inflight_fusion_map.end(); ++key){
+                std::cout<<"    > Updated its own fusion map "<<key->first <<" : " <<key->second
+                                            <<" partition idx: "<<key->second->GetIdx()
+                                            <<" Progress: " 
+                                            <<key->second->GetProgress()<<std::endl;
                 }
+                                  
             }
+            //current partition has been circulated among workers twice, no need to send it to neighbors
             else{
-                //All partitions have been sent
+                // clear send buffer
                 m_ringallreduce_inflight_status = false;
-                m_inflight_partition_idx.clear();
-                m_inflight_allreduce->r_communication_times = 0;
                 // UpdateGradientsReceived(m_inflight_allreduce->GetPriority()); //set gradients ready for layers included in the ringallreduce
                 std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
                 // Update tensor received status for all layers contained in the ringallreduce
                 UpdateReceivedGradients(m_inflight_allreduce->GetPriority());
-                
-                // m_fifo_transmission_queue.pop();
+                //reset progress
+                // for(auto p = m_inflight_allreduce->GetPartitions().begin(); p != m_inflight_allreduce->GetPartitions().end(); p++){
+                //     p->second->ResetProgress();
+                // }               
                 DequeTransmission();
-                m_totalRx = 0;
-                
             }
 
             SendData(m_send_socket, 0);
+
         }
+
+        // if (m_totalRx == m_inflight_allreduce->GetPartitionSize()){
+        //     //received partition from neighbor
+        //     //initiate next send 
+        //     for(auto layer: m_inflight_allreduce->GetTensors()){
+        //         if(!m_inflight_partition_idx.empty()){
+        //             std::cout<<" DEBUG Received_Partition_"<<m_inflight_partition_idx.front() << std::endl;
+        //             RecordEvent(layer, format_string("Received_Partition_%" PRIu32, m_inflight_partition_idx.front()));
+        //         }
+        //     }
+        //     // if( (m_iteration_idx == 1) && (m_inflight_partition_idx.front() == 0)){
+        //     //     Debug(format_string("communication_times: %" PRIu32,m_inflight_allreduce->r_communication_times));
+        //     // }
+        //     if(m_inflight_allreduce->r_communication_times < 2 * (m_num_workers-1))
+        //     {
+        //         m_maxBytes += m_inflight_allreduce->GetPartitionSize();
+        //         m_inflight_allreduce->r_communication_times += 1;
+        //         std::cout<<"    > left neighbor partition id "<<m_leftneighbor->m_inflight_partition_idx.front()<<"\n";
+        //         std::cout<<"    > left neighbor worker id "<<m_leftneighbor->m_worker_id<<"\n";
+        //         uint32_t next_idx = m_leftneighbor->GetPartitionIdx();
+        //         if (next_idx != UINT32_MAX) 
+        //         {
+        //             AddPartitionIdx(next_idx);
+        //             for(auto layer: m_inflight_allreduce->GetTensors()){
+        //                 RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32 , next_idx));
+        //             }
+        //             std::cout<<"      > Received partition send new partition idx "<< next_idx <<"\n";
+        //             std::cout<<"      > Pending communication time: "<< 2 * (m_num_workers-1) - m_inflight_allreduce->r_communication_times <<"\n";
+        //             m_totalRx = 0;
+        //         }
+        //     }
+        //     else{
+        //         //All partitions have been sent
+        //         m_ringallreduce_inflight_status = false;
+        //         m_inflight_partition_idx.clear();
+        //         m_inflight_allreduce->r_communication_times = 0;
+        //         // UpdateGradientsReceived(m_inflight_allreduce->GetPriority()); //set gradients ready for layers included in the ringallreduce
+        //         std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
+        //         // Update tensor received status for all layers contained in the ringallreduce
+        //         UpdateReceivedGradients(m_inflight_allreduce->GetPriority());
+                
+        //         // m_fifo_transmission_queue.pop();
+        //         DequeTransmission();
+        //         m_totalRx = 0;
+                
+        //     }
+        //     SendData(m_send_socket, 0);
+        // }
     }
 }
 
@@ -406,7 +455,10 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         m_inflight_allreduce = QueuePeek();
         // m_fifo_transmission_queue.pop(); //pop it after the ringallreduce is completed 
         m_ringallreduce_inflight_status = true;
-        m_maxBytes = m_inflight_allreduce->GetPartitionSize();
+        m_maxBytes += m_inflight_allreduce->GetPartitionSize();
+        m_bytes_sent += m_maxBytes;
+        m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
+        std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<<std::endl;
         m_send_partition_inflight = true;
         // m_inflight_partition_idx = m_worker_id; //Initially rank x would send partition x to start
         AddPartitionIdx(m_worker_id);
@@ -529,9 +581,17 @@ uint32_t RingAllReduce::GetPriority(){
     return r_priority;
 }
 
-void RingAllReduce::SetPartition(uint32_t num_workers){
+void RingAllReduce::SetPartition(uint32_t num_workers, RingAllReduce* parent){
     r_partition_bytes = uint32_t(r_size_bytes/num_workers);
-    std::cout <<"  > Partition size: "<<r_partition_bytes<<"\n";
+    for(uint32_t i =0; i < num_workers; ++i){
+        r_partitions[i] = new FusionPartition();
+        r_partitions[i]->SetSize(r_partition_bytes);
+        r_partitions[i]->SetIdx(i);
+        r_partitions[i]->SetParent(parent);
+        std::cout<<"    > Initialize Parition for R["<<r_partitions[i]->GetParent()->GetPriority()<<"]"<<" : "
+                                                <<","<<" idx: "<<r_partitions[i]->GetIdx()<<std::endl;
+    }
+    std::cout <<"   > Partition size: "<<r_partition_bytes<<"\n";
 }
 
 void HorovodWorker::SetFusionBufferSize(uint32_t size){
@@ -611,7 +671,8 @@ void HorovodWorker::InitializeRingAllReduceMap(){
             if(ringallreduce->GetSize() > 0 ){
                 ringallreduce->SetPriority();
                 uint32_t pri = ringallreduce->GetPriority();
-                ringallreduce->SetPartition(m_num_workers);
+                ringallreduce->SetPartition(m_num_workers, ringallreduce);
+                
                 std::cout<<"  > set priority: "<<pri<<"\n";
                 m_ringallreduce_map[pri] = ringallreduce;
             }
@@ -623,7 +684,7 @@ void HorovodWorker::InitializeRingAllReduceMap(){
 
     ringallreduce->SetPriority();
     uint32_t pri = ringallreduce->GetPriority();
-    ringallreduce->SetPartition(m_num_workers);
+    ringallreduce->SetPartition(m_num_workers, ringallreduce);
     std::cout<<"  > set priority: "<<pri<<"\n";
     m_ringallreduce_map[pri] = ringallreduce;
 

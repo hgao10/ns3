@@ -22,6 +22,8 @@ def build(bld):
         'model/horovod-worker.cc',
         'model/horovod-scheduler.cc',
         'helper/horovod-worker-helper.cc',
+        "model/fusion-partition.cc",
+
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-apps')
@@ -45,6 +47,8 @@ def build(bld):
         'model/horovod-worker.h',
         'model/horovod-scheduler.h',
         'helper/horovod-worker-helper.h',
+        "model/fusion-partition.h",
+
         ]
 
     if bld.env.ENABLE_EXAMPLES:

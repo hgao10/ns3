@@ -32,6 +32,7 @@
 #include <map>
 #include <queue>
 #include <stdint.h>
+#include "ns3/fusion-partition.h"
 
 #define WORKER std::cout<<"Worker ID: "<<HorovodWorker::GetWorkerID()<<std::endl
 #define ITERBARRIER        1
@@ -46,28 +47,65 @@ enum QDISC {
   PERFECTPRIORITY,
  };
 
+// class FusionPartition{};
 
-class RingAllReduce 
+class RingAllReduce
 {
   public:
     RingAllReduce();
+    uint32_t GetSize(); //return total size, overwrite base function
     virtual ~RingAllReduce ();
-    uint32_t GetSize();
-    void AddTensor(uint32_t layer_idx, uint32_t size);
     void SetPriority();
-    void SetPartition(uint32_t num_workers);
+    void SetPartition(uint32_t num_workers, RingAllReduce* parent);
     uint32_t GetPartitionSize(){return r_partition_bytes;};
+    std::map<uint32_t, FusionPartition*> GetPartitions(){return r_partitions;};
+    void AddTensor(uint32_t layer_idx, uint32_t size);
     uint32_t GetPriority();
+    // ToDelete, progress being tracked in partitions
     uint32_t r_communication_times = 0; //Todo implement getter/setter instead
     std::vector<uint32_t> GetTensors(){return r_tensors;};
+    bool AllPartitionsUpdated(uint32_t max_version){
+      for(auto p = r_partitions.begin(); p != r_partitions.end(); p++){
+        if(p->second->GetProgress() != max_version){
+          std::cout<<"Partition "<<p->second->GetIdx()<<" not ready"<<std::endl;
+          return false;
+        }
+      }
+      return true;
+    };
 
   private:
     uint32_t r_size_bytes = 0;
     uint32_t r_partition_bytes = 0;
     uint32_t r_priority = 0;
     std::vector<uint32_t>  r_tensors;
+    // uint32_t r_progress = 0;
+    uint32_t r_iteration = 0;
+    std::map<uint32_t, FusionPartition*> r_partitions; //key:partition index
 };
 
+
+// class FusionPartition
+// {
+//   public:
+//     FusionPartition();
+//     virtual ~FusionPartition();
+//     void SetSize(uint32_t size) {p_size_bytes = size;};
+//     uint32_t GetSize() {return p_size_bytes;};
+//     void SetIdx(uint32_t idx) {p_idx = idx;};
+//     uint32_t GetIdx(){return p_idx;};
+//     void UpdateProgress(uint32_t p) {p_progress = p;};
+//     void ResetProgress(){p_progress = 0;};
+//     // std::vector<uint32_t>  r_tensors;
+//     RingAllReduce*  GetParent(){return p_parent;};
+//     void SetParent(RingAllReduce* parent){p_parent = parent;};
+//   private:
+//     uint32_t p_size_bytes = 0;
+//     uint32_t p_progress = 0;
+//     uint32_t p_iteration = 0;
+//     RingAllReduce* p_parent;
+//     uint32_t p_idx;
+// };
 
 class ComparePriority{
   public:
@@ -96,7 +134,7 @@ public:
   uint32_t GetPartitionIdx();
 
   void AddPartitionIdx(uint32_t idx) {m_inflight_partition_idx.push_back(idx);};
-
+  std::map<uint32_t, FusionPartition*> & GetInflightFusions(){return m_inflight_fusion_map;};
 protected:
   virtual void DoDispose (void);
 
@@ -174,6 +212,8 @@ private:
   std::map<uint32_t, bool>    m_fp_finished_status{{0, false}, {1,false}}; // Records fp computation status per layer
   uint32_t                    m_iteration_idx =0;
   uint32_t                    m_max_iteration = 2;
+  std::map<uint32_t, FusionPartition*>  m_inflight_fusion_map;
+  uint32_t                    m_bytes_sent = 0;
   
 private:
   void ConnectionSucceeded (Ptr<Socket> socket);
