@@ -145,7 +145,6 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
     InitializeRingAllReduceMap();
     InitializeComputeTime();
     
-    
     // Create the socket if not already
     if (!m_send_socket) {
         m_send_socket = Socket::CreateSocket(GetNode(), m_tid);
@@ -217,7 +216,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
 
     //create log file
     std::ofstream ofs;
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_progress.txt", m_worker_id));
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers));
     ofs << "Iteration_idx" << "," << "Layer_idx" << "," <<  "Event" << ","<<"Time"<< std::endl;
 
     ofs.close();
@@ -281,6 +280,11 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                                                     <<"] : "<<map[m_totalRx]->GetIdx() <<std::endl;
             // FusionPartition* fusionpartition= map[m_totalRx];
             uint32_t partition_idx = map[m_totalRx]->GetIdx();
+
+            for(auto layer: map[m_totalRx]->GetParent()->GetTensors()){
+                RecordEvent(layer, format_string("Received_Partition_%" PRIu32, partition_idx));
+            }
+
             std::cout<<"    > Received partition progress "<<map[m_totalRx]->GetProgress()<<std::endl; 
             if (map[m_totalRx]->GetProgress() < (2 * (m_num_workers-1) - 1)) // not yet fully synced
             {
@@ -300,7 +304,11 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                                             <<" Progress: " 
                                             <<key->second->GetProgress()<<std::endl;
                 }
-                                  
+
+                for(auto layer: m_inflight_allreduce->GetTensors()){
+                    RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, partition_idx));
+                }
+                         
             }
             //current partition has been circulated among workers twice, no need to send it to neighbors
             else{
@@ -313,8 +321,9 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                 //reset progress
                 // for(auto p = m_inflight_allreduce->GetPartitions().begin(); p != m_inflight_allreduce->GetPartitions().end(); p++){
                 //     p->second->ResetProgress();
-                // }               
-                DequeTransmission();
+                // }      
+
+                // DequeTransmission();
             }
 
             SendData(m_send_socket, 0);
@@ -376,6 +385,12 @@ void HorovodWorker::DequeTransmission(){
         m_fifo_transmission_queue.pop();
     }
     if(m_qdisc == PERFECTPRIORITY){
+        std::cout<<"Goint to pop from transmission queue: "<<m_perfectpriority_queue.top()->GetPriority()<<std::endl;
+        std::priority_queue<RingAllReduce*, std::vector<RingAllReduce*>, ComparePriority> temp = m_perfectpriority_queue;
+        while(!temp.empty()){
+            std::cout<<" temp priority queue: priority "<< temp.top()->GetPriority() << std::endl;
+            temp.pop();
+        }
         m_perfectpriority_queue.pop();
     }
 }
@@ -394,7 +409,8 @@ void HorovodWorker::UpdateReceivedGradients(uint32_t ringallreduce_prioritiy){
     
     for(auto layer_idx: m_ringallreduce_map[ringallreduce_prioritiy]->GetTensors()){
         m_gradients_received[layer_idx] = true;
-        std::cout <<"  > udpate grad received "<<layer_idx << std::endl;
+        // std::cout <<"  > udpate grad received "<<layer_idx << std::endl;
+        std::cout <<"  > update grad received "<<layer_idx << std::endl;
         if(ITERBARRIER && (m_qdisc != PERFECTPRIORITY)){
             if(ReceivedAllGradients())
             {
@@ -445,8 +461,8 @@ void HorovodWorker::SetLeftNeighbor(Ptr<HorovodWorker> leftneighbor){
 
 void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     NS_LOG_FUNCTION(this);
-    if ( ((m_qdisc == FIFOQDISC) && m_fifo_transmission_queue.empty() ) || ((m_qdisc == PERFECTPRIORITY) && m_perfectpriority_queue.empty())){
-        std::cout<<"  > fifo transmission queue empty \n";
+    if ( ((m_qdisc == FIFOQDISC) && m_fifo_transmission_queue.empty() && (m_ringallreduce_inflight_status != true) ) || ((m_qdisc == PERFECTPRIORITY) && m_perfectpriority_queue.empty() && (m_ringallreduce_inflight_status != true))){
+        std::cout<<"  > fifo or priority transmission queue empty \n";
         // sendData otherwise is always called right after connection is established
         return;
     }
@@ -454,19 +470,23 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     if(m_ringallreduce_inflight_status == false){
         // m_inflight_allreduce = m_fifo_transmission_queue.front();
         m_inflight_allreduce = QueuePeek();
+        DequeTransmission();
         // m_fifo_transmission_queue.pop(); //pop it after the ringallreduce is completed 
         m_ringallreduce_inflight_status = true;
         m_maxBytes += m_inflight_allreduce->GetPartitionSize();
         m_bytes_sent += m_maxBytes;
         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
-        std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<<std::endl;
+        for(auto layer: m_inflight_allreduce->GetTensors()){
+            RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, m_worker_id));
+        }
+        std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Priority: " <<m_inflight_allreduce->GetPriority() <<std::endl;
         m_send_partition_inflight = true;
         // m_inflight_partition_idx = m_worker_id; //Initially rank x would send partition x to start
-        AddPartitionIdx(m_worker_id);
+        // AddPartitionIdx(m_worker_id);
         std::cout<<"  > new ringallreduce, partition_id: "<< m_inflight_partition_idx.front()<<"\n";
-        for(auto layer: m_inflight_allreduce->GetTensors()){
-            RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32 , m_inflight_partition_idx.front()));
-        }
+        // for(auto layer: m_inflight_allreduce->GetTensors()){
+        //     RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32 , m_inflight_partition_idx.front()));
+        // }
         m_inflight_allreduce->r_communication_times += 1;
     }
     
@@ -500,13 +520,16 @@ void HorovodWorker::BackPropagationStart(uint32_t layer_idx){
     NS_LOG_FUNCTION(this);
     NS_LOG_LOGIC("HorovodWorker BackPropagation started");
     int64_t curr_timestamp = Simulator::Now().GetNanoSeconds();
-    int64_t compute_time_ms = m_bp_layer_compute_time_ms[layer_idx];
+    float compute_time_ms = m_bp_layer_compute_time_ms[layer_idx];
     m_timeline["Start_BP"].push_back(curr_timestamp);
     RecordEvent(layer_idx, "BP_Start");
     std::cout <<"  > Start_BP "<<m_timeline["Start_BP"].back()<<"\n";
     std::cout <<"    > compute_time_ms: "<<compute_time_ms<<"\n";
+    uint32_t compute_time_ns = uint32_t(compute_time_ms * 1000000.0);
+    std::cout<<"  > Schedule BP["<<layer_idx<<"] to finish in "<< compute_time_ns<<" ns"<<std::endl;
+
     // m_bp_compute = Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
-    Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::BackPropagationDone, this, layer_idx);        
+    Simulator::Schedule(NanoSeconds(compute_time_ns), &HorovodWorker::BackPropagationDone, this, layer_idx);        
 }
 
 void HorovodWorker::ForwardPropagationStart(uint32_t layer_idx){
@@ -519,10 +542,12 @@ void HorovodWorker::ForwardPropagationStart(uint32_t layer_idx){
 
     if( (layer_idx == 0) || ( (layer_idx > 0) && (m_fp_finished_status[layer_idx-1] == true)))
     {
-        int64_t compute_time_ms = m_fp_layer_compute_time_ms[layer_idx];        
+        float compute_time_ms = m_fp_layer_compute_time_ms[layer_idx];        
         std::cout<<"  > Schedule FP["<<layer_idx<<"] to finish in "<< compute_time_ms<<" ms"<<std::endl;
         RecordEvent(layer_idx, "FP_Start");
-        Simulator::Schedule(NanoSeconds(compute_time_ms * 1000000), &HorovodWorker::ForwardPropagationDone, this, layer_idx);
+        uint32_t compute_time_ns = uint32_t(compute_time_ms * 1000000.0);
+        std::cout<<"  > Schedule FP["<<layer_idx<<"] to finish in "<< compute_time_ns<<" ns"<<std::endl;
+        Simulator::Schedule(NanoSeconds(compute_time_ns), &HorovodWorker::ForwardPropagationDone, this, layer_idx);
     }
 
     else{
@@ -697,7 +722,7 @@ void HorovodWorker::EnqueTransmission(RingAllReduce* ringallreduce){
     if(m_qdisc == FIFOQDISC){
         m_fifo_transmission_queue.push(ringallreduce);
     }
-    if(m_qdisc == PERFECTPRIORITY){
+    if (m_qdisc == PERFECTPRIORITY){
         m_perfectpriority_queue.push(ringallreduce);
     }
 }
@@ -719,7 +744,10 @@ void HorovodWorker::StartRingAllReduce(uint32_t layer_idx){
     WORKER;
     if(m_ringallreduce_map.find(layer_idx) != m_ringallreduce_map.end())
     {
-        std::cout<<"  > add to fifo queue a new ringallreduce"<<"\n";
+        std::cout<<"  > add to fifo queue a new ringallreduce of priority "<< layer_idx<<"\n";
+        if(layer_idx == 0){
+            std::cout<< "   > Enque Layer 0 ringallreduce"<<std::endl;
+        }
         //Todo: send updates to worker 0 and worker 0 will broadcast to all workers when its ready to start ringallreduce
         EnqueTransmission(m_ringallreduce_map[layer_idx]);
         SendData(m_send_socket, 0);
@@ -819,14 +847,15 @@ void HorovodWorker::SocketClosedError(Ptr <Socket> socket) {
 
 void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_progress.txt", m_worker_id), std::ofstream::out | std::ofstream::app);
+    ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), 
+    std::ofstream::out | std::ofstream::app);
     ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
     ofs.close(); 
 }
 
 void HorovodWorker::Debug(std::string event){
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_progress.txt", m_worker_id), std::ofstream::out | std::ofstream::app);
+    ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
     ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
     ofs.close(); 
 }

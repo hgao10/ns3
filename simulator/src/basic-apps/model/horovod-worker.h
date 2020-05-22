@@ -192,7 +192,7 @@ private:
   std::map<uint32_t, float>        m_bp_layer_compute_time_ms{{0, 5}, {1, 10}};
   std::map<uint32_t, float>        m_fp_layer_compute_time_ms{{0, 6}, {1, 4}};
   uint32_t                    m_layer_idx;
-  uint32_t                    m_num_layers = 4;
+  uint32_t                    m_num_layers = 50;
   uint32_t                    m_num_workers = 3;
   EventId                     m_bp_compute;
   uint32_t                    m_tx_layer_idx;
