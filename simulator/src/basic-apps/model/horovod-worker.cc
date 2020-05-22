@@ -287,7 +287,8 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                 // Add next fusion to send to queue
                 // increment progress by one
                 std::cout<<"    > Not fully synced, send Partition "<<partition_idx<<" to neighbor"<< std::endl;
-                m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress();
+                uint32_t new_progress = map[m_totalRx]->GetProgress() +1;
+                m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
                 // send to right neighbor, add to transmission queue
                 m_maxBytes += map[m_totalRx]->GetSize();
                 m_bytes_sent += map[m_totalRx]->GetSize();
@@ -670,6 +671,7 @@ void HorovodWorker::InitializeRingAllReduceMap(){
             // Edge case: a single tensor is too large to fit in user defined fusion buffer
             if(ringallreduce->GetSize() > 0 ){
                 ringallreduce->SetPriority();
+                ringallreduce->SortTensor();            
                 uint32_t pri = ringallreduce->GetPriority();
                 ringallreduce->SetPartition(m_num_workers, ringallreduce);
                 
@@ -683,6 +685,7 @@ void HorovodWorker::InitializeRingAllReduceMap(){
     }
 
     ringallreduce->SetPriority();
+    ringallreduce->SortTensor();
     uint32_t pri = ringallreduce->GetPriority();
     ringallreduce->SetPartition(m_num_workers, ringallreduce);
     std::cout<<"  > set priority: "<<pri<<"\n";

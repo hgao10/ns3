@@ -33,6 +33,7 @@
 #include <queue>
 #include <stdint.h>
 #include "ns3/fusion-partition.h"
+#include <algorithm>
 
 #define WORKER std::cout<<"Worker ID: "<<HorovodWorker::GetWorkerID()<<std::endl
 #define ITERBARRIER        1
@@ -60,6 +61,7 @@ class RingAllReduce
     uint32_t GetPartitionSize(){return r_partition_bytes;};
     std::map<uint32_t, FusionPartition*> GetPartitions(){return r_partitions;};
     void AddTensor(uint32_t layer_idx, uint32_t size);
+    void SortTensor(){std::sort(r_tensors.begin(), r_tensors.end());};
     uint32_t GetPriority();
     // ToDelete, progress being tracked in partitions
     uint32_t r_communication_times = 0; //Todo implement getter/setter instead
@@ -211,7 +213,7 @@ private:
   std::map<uint32_t, bool>    m_gradients_received{{0, false}, {1,false}}; // Records status for each layer on whether the tensors have been received
   std::map<uint32_t, bool>    m_fp_finished_status{{0, false}, {1,false}}; // Records fp computation status per layer
   uint32_t                    m_iteration_idx =0;
-  uint32_t                    m_max_iteration = 2;
+  uint32_t                    m_max_iteration = 1;
   std::map<uint32_t, FusionPartition*>  m_inflight_fusion_map;
   uint32_t                    m_bytes_sent = 0;
   

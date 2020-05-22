@@ -13,7 +13,7 @@ class FusionPartition
     uint32_t GetSize();
     void SetIdx(uint32_t idx);
     uint32_t GetIdx();
-    void UpdateProgress();
+    void UpdateProgress(uint32_t progress);
     uint32_t GetProgress();
     void ResetProgress();
     // std::vector<uint32_t>  r_tensors;
