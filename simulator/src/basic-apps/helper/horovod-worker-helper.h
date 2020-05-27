@@ -23,11 +23,12 @@
 #define HOROVOD_WORKER_HELPER_H
 
 #include <stdint.h>
+
 #include "ns3/application-container.h"
-#include "ns3/node-container.h"
-#include "ns3/object-factory.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv6-address.h"
+#include "ns3/node-container.h"
+#include "ns3/object-factory.h"
 
 namespace ns3 {
 
@@ -36,16 +37,17 @@ namespace ns3 {
  * \brief Create a server application which waits for input UDP packets
  *        and sends them back to the original sender.
  */
-class HorovodWorkerHelper
-{
-public:
+class HorovodWorkerHelper {
+ public:
   /**
    * Create HorovodWorkerHelper which will make life easier for people trying
    * to set up simulations with rtts.
    *
    * \param port The port the server will wait on for incoming packets
    */
-  HorovodWorkerHelper (std::string protocol, Address local_address, Address remote_address, uint32_t rank, std::string baseLogsDir);
+  HorovodWorkerHelper(std::string protocol, Address local_address,
+                      Address remote_address, uint32_t rank,
+                      std::string baseLogsDir);
 
   /**
    * Record an attribute to be set in each Application after it is is created.
@@ -53,7 +55,7 @@ public:
    * \param name the name of the attribute to set
    * \param value the value of the attribute to set
    */
-  void SetAttribute (std::string name, const AttributeValue &value);
+  void SetAttribute(std::string name, const AttributeValue &value);
 
   /**
    * Create HorovodWorkerApplication on the specified Node.
@@ -63,7 +65,7 @@ public:
    *
    * \returns An ApplicationContainer holding the Application created,
    */
-  ApplicationContainer Install (Ptr<Node> node) const;
+  ApplicationContainer Install(Ptr<Node> node) const;
 
   /**
    * Create a HorovodWorkerApplication on specified node
@@ -74,7 +76,7 @@ public:
    *
    * \returns An ApplicationContainer holding the Application created.
    */
-  ApplicationContainer Install (std::string nodeName) const;
+  ApplicationContainer Install(std::string nodeName) const;
 
   /**
    * \param c The nodes on which to create the Applications.  The nodes
@@ -83,12 +85,12 @@ public:
    * Create one udp rtt server application on each of the Nodes in the
    * NodeContainer.
    *
-   * \returns The applications created, one Application per Node in the 
+   * \returns The applications created, one Application per Node in the
    *          NodeContainer.
    */
-  ApplicationContainer Install (NodeContainer c) const;
+  ApplicationContainer Install(NodeContainer c) const;
 
-private:
+ private:
   /**
    * Install an ns3::HorovodWorker on the node configured with all the
    * attributes set with SetAttribute.
@@ -96,12 +98,11 @@ private:
    * \param node The node on which an HorovodWorker will be installed.
    * \returns Ptr to the application installed.
    */
-  Ptr<Application> InstallPriv (Ptr<Node> node) const;
+  Ptr<Application> InstallPriv(Ptr<Node> node) const;
 
-  ObjectFactory m_factory; //!< Object factory.
+  ObjectFactory m_factory;  //!< Object factory.
 };
 
-
-} // namespace ns3
+}  // namespace ns3
 
 #endif /* HOROVOD_WORKER_HELPER_H */
