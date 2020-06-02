@@ -329,54 +329,6 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
             SendData(m_send_socket, 0);
 
         }
-
-        // if (m_totalRx == m_inflight_allreduce->GetPartitionSize()){
-        //     //received partition from neighbor
-        //     //initiate next send 
-        //     for(auto layer: m_inflight_allreduce->GetTensors()){
-        //         if(!m_inflight_partition_idx.empty()){
-        //             std::cout<<" DEBUG Received_Partition_"<<m_inflight_partition_idx.front() << std::endl;
-        //             RecordEvent(layer, format_string("Received_Partition_%" PRIu32, m_inflight_partition_idx.front()));
-        //         }
-        //     }
-        //     // if( (m_iteration_idx == 1) && (m_inflight_partition_idx.front() == 0)){
-        //     //     Debug(format_string("communication_times: %" PRIu32,m_inflight_allreduce->r_communication_times));
-        //     // }
-        //     if(m_inflight_allreduce->r_communication_times < 2 * (m_num_workers-1))
-        //     {
-        //         m_maxBytes += m_inflight_allreduce->GetPartitionSize();
-        //         m_inflight_allreduce->r_communication_times += 1;
-        //         std::cout<<"    > left neighbor partition id "<<m_leftneighbor->m_inflight_partition_idx.front()<<"\n";
-        //         std::cout<<"    > left neighbor worker id "<<m_leftneighbor->m_worker_id<<"\n";
-        //         uint32_t next_idx = m_leftneighbor->GetPartitionIdx();
-        //         if (next_idx != UINT32_MAX) 
-        //         {
-        //             AddPartitionIdx(next_idx);
-        //             for(auto layer: m_inflight_allreduce->GetTensors()){
-        //                 RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32 , next_idx));
-        //             }
-        //             std::cout<<"      > Received partition send new partition idx "<< next_idx <<"\n";
-        //             std::cout<<"      > Pending communication time: "<< 2 * (m_num_workers-1) - m_inflight_allreduce->r_communication_times <<"\n";
-        //             m_totalRx = 0;
-        //         }
-        //     }
-        //     else{
-        //         //All partitions have been sent
-        //         m_ringallreduce_inflight_status = false;
-        //         m_inflight_partition_idx.clear();
-        //         m_inflight_allreduce->r_communication_times = 0;
-        //         // UpdateGradientsReceived(m_inflight_allreduce->GetPriority()); //set gradients ready for layers included in the ringallreduce
-        //         std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
-        //         // Update tensor received status for all layers contained in the ringallreduce
-        //         UpdateReceivedGradients(m_inflight_allreduce->GetPriority());
-                
-        //         // m_fifo_transmission_queue.pop();
-        //         DequeTransmission();
-        //         m_totalRx = 0;
-                
-        //     }
-        //     SendData(m_send_socket, 0);
-        // }
     }
 }
 
