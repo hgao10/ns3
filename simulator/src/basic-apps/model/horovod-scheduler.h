@@ -29,12 +29,13 @@
 #include "ns3/exp-util.h"
 #include "ns3/topology.h"
 #include "ns3/horovod-worker-helper.h"
-
+#include "ringallreduce-syncer.h"
 
 using namespace ns3;
 
 namespace ns3 {
 
+// class GlobalRingAllReduceSyncer; 
 class HorovodScheduler
 {
 
@@ -56,6 +57,7 @@ protected:
     std::map<int, std::shared_ptr<InetSocketAddress>> m_ipv4_addr_self; //Local addr
     std::map<int, std::shared_ptr<InetSocketAddress>> m_ipv4_addr_remote; //Remote addr
 
+    GlobalRingAllReduceSyncer m_global_ringallreduce_syncer;
 };
 
 }

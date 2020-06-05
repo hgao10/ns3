@@ -20,11 +20,12 @@ class GlobalRingAllReduceSyncer{
         void AddSyncedWorker(uint32_t worker_id, std::function<void ()> func);
         void NotifyAllWorkersRingallreduceDone();
         bool AllWorkersSynced(uint32_t number_worker);
+        void RemoveSyncedRingallreduce();
 
 
     private:
         // std::vector<Ptr<HorovodWorker>> s_workers;
-        bool s_empty = true;
+        // bool s_empty = true;
         std::vector<uint32_t> s_synced_worker_ids;
         uint32_t s_inflight_priority;
         std::map<uint32_t, std::vector<uint32_t>> s_global_ringallreduce_status; //key: prio, value: worker_ids that are ready 

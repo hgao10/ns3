@@ -7,13 +7,13 @@ namespace ns3{
     // }
 
     bool GlobalRingAllReduceSyncer::Empty(){
-        return s_empty;
+        return s_global_ringallreduce_status.empty();
     }
 
     void GlobalRingAllReduceSyncer::AddRingallreduce(uint32_t priority){
         s_inflight_priority = priority;
         s_global_ringallreduce_status.insert({s_inflight_priority, s_synced_worker_ids});
-        s_empty = false;
+        // s_empty = false;
         return;
     }
     
@@ -33,10 +33,12 @@ namespace ns3{
     }
 
     void GlobalRingAllReduceSyncer::NotifyAllWorkersRingallreduceDone(){
+        s_synced_worker_ids.clear();
+        RemoveSyncedRingallreduce();
         for(auto func : s_worker_update_ringallreduce_callbacks ){
             func();
-            s_synced_worker_ids.clear();
         }
+        s_worker_update_ringallreduce_callbacks.clear();
         return;
     }
 
@@ -44,6 +46,11 @@ namespace ns3{
     bool GlobalRingAllReduceSyncer::AllWorkersSynced(uint32_t number_worker){
         return s_synced_worker_ids.size() == number_worker;
     }   
+
+    void GlobalRingAllReduceSyncer::RemoveSyncedRingallreduce(){
+        s_global_ringallreduce_status.clear();
+    }
+
 
 
 }

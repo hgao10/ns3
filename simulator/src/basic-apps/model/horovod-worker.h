@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Simon
+ * Author: Hanjing
  * Adapted from PacketSink by:
  * Author:  Tom Henderson (tomhend@u.washington.edu)
  */
@@ -51,7 +51,7 @@ enum QDISC {
   PERFECTPRIORITY,
 };
 
-// class FusionPartition{};
+class GlobalRingAllReduceSyncer;
 
 class RingAllReduce {
  public:
@@ -91,27 +91,7 @@ class RingAllReduce {
   std::map<uint32_t, FusionPartition *> r_partitions;  // key:partition index
 };
 
-// class FusionPartition
-// {
-//   public:
-//     FusionPartition();
-//     virtual ~FusionPartition();
-//     void SetSize(uint32_t size) {p_size_bytes = size;};
-//     uint32_t GetSize() {return p_size_bytes;};
-//     void SetIdx(uint32_t idx) {p_idx = idx;};
-//     uint32_t GetIdx(){return p_idx;};
-//     void UpdateProgress(uint32_t p) {p_progress = p;};
-//     void ResetProgress(){p_progress = 0;};
-//     // std::vector<uint32_t>  r_tensors;
-//     RingAllReduce*  GetParent(){return p_parent;};
-//     void SetParent(RingAllReduce* parent){p_parent = parent;};
-//   private:
-//     uint32_t p_size_bytes = 0;
-//     uint32_t p_progress = 0;
-//     uint32_t p_iteration = 0;
-//     RingAllReduce* p_parent;
-//     uint32_t p_idx;
-// };
+
 
 class ComparePriority {
  public:
@@ -133,13 +113,14 @@ class HorovodWorker : public Application {
   bool IsClosedByError();   // TODO removed later if not needed
   bool IsClosedNormally();  // TODO removed later if not needed
 
+  void UpdateReceivedGradients(uint32_t ringallreduce_prioritiy);
   uint32_t GetWorkerID() { return m_worker_id; };
   void SetLeftNeighbor(Ptr<HorovodWorker>);
-  uint32_t GetPartitionIdx();
-
-  void AddPartitionIdx(uint32_t idx) {
-    m_inflight_partition_idx.push_back(idx);
+  void SetGlobalRingallreduceSyncer(GlobalRingAllReduceSyncer * global_ringallreduce_syncer);
+  void SetInflightRingallreduceStatus(bool status){
+    m_ringallreduce_inflight_status = status;
   };
+
   std::map<uint32_t, FusionPartition *> &GetInflightFusions() {
     return m_inflight_fusion_map;
   };
@@ -175,10 +156,10 @@ class HorovodWorker : public Application {
                      //   uint32_t        m_sendSize;     //!< Size of data to
                      //   send each time
   uint64_t m_maxBytes;  //!< Limit total number of bytes sent
+  std::queue<std::tuple<std::vector<uint32_t>, uint32_t, uint32_t>> m_send_queue; // queues of partitions to be sent (element: {layers, size, idx} )
   uint64_t m_flowId;    //!< Flow identifier
   uint64_t m_totBytes;  //!< Total bytes sent so far
-                        //   TypeId          m_tid;          //!< The type of
-                        //   protocol to use.
+
   int64_t m_completionTimeNs;  //!< Completion time in nanoseconds
   bool m_connFailed;           //!< Whether the connection failed
   bool m_closedNormally;       //!< Whether the connection closed normally
@@ -189,10 +170,6 @@ class HorovodWorker : public Application {
                           //!< of the socket
   bool m_isCompleted;     //!< True iff the flow is completed fully AND closed
                           //!< normally
-
-  // Flow logging
-  // bool m_enableFlowLoggingToFile;          //!< True iff you want to write
-  // flow logs
   std::string
       m_baseLogsDir;  //!< Where the flow logs will be written to:
                       //!<   logs_dir/flow-[id]-{progress, cwnd, rtt}.txt
@@ -221,11 +198,11 @@ class HorovodWorker : public Application {
       m_timeline;  // timeline to record invents and their stamps
   std::map<uint32_t, RingAllReduce *> m_ringallreduce_map;  // key: priority
   bool m_ringallreduce_inflight_status = false;
-  bool m_send_partition_inflight = false;
   RingAllReduce *m_inflight_allreduce;
-  std::deque<uint32_t>
-      m_inflight_partition_idx;  // Use deque instead of queue to use clear()
+  // std::deque<uint32_t>
+  //     m_inflight_partition_idx;  // Use deque instead of queue to use clear()
   Ptr<HorovodWorker> m_leftneighbor;
+  GlobalRingAllReduceSyncer * m_global_ringallreduce_syncer;
   std::map<uint32_t, bool> m_gradients_received{
       {0, false}, {1, false}};  // Records status for each layer on whether the
                                 // tensors have been received
@@ -243,17 +220,11 @@ class HorovodWorker : public Application {
   void SocketClosedNormal(Ptr<Socket> socket);
   void SocketClosedError(Ptr<Socket> socket);
 
-  //   void RttChange(Time oldRtt, Time newRtt);
-  //   void CwndChange(uint32_t oldCwnd, uint32_t newCwnd);
-  //   void HighestRxAckChange(SequenceNumber<unsigned int, int>
-  //   oldHighestRxAck, SequenceNumber<unsigned int, int> newHighestRxAck);
-
   // horovod ml specific
   void BackPropagationStart(uint32_t layer_idx);
   void BackPropagationDone(uint32_t layer_idx);
   void StartRingAllReduce(uint32_t layer_idx);
   void InitializeRingAllReduceMap();
-  void UpdateReceivedGradients(uint32_t ringallreduce_prioritiy);
   void ForwardPropagationStart(uint32_t layer_idx);
   void ForwardPropagationDone(uint32_t layer_idx);
   bool ReceivedAllGradients();
@@ -266,8 +237,45 @@ class HorovodWorker : public Application {
   void InitializeComputeTime();
 
   void SetFusionBufferSize(uint32_t size);
-};
 
-}  // namespace ns3
+  bool CheckAllPartitionSynced(uint32_t excluded_partition_idx){
+    for (uint32_t i=0; i< m_num_workers; ++i){
+      uint32_t progress = m_inflight_allreduce->GetPartitions()[i]->GetProgress();
+      if(i == excluded_partition_idx){
+        continue;
+      }
+      else if(i == m_worker_id){
+        if(progress != m_num_workers){
+          std::cout<<" Partition: "<<i
+                                  <<" not fully synced, at progress "
+                                  <<progress
+                                  <<" , expecting progress "
+                                  << m_num_workers
+                                  <<std::endl;
+          return false;
+        }
+      }
+      else{
+        if(progress != m_num_workers -1) {
+          std::cout<<" Partition: "<<i
+                                  <<" not fully synced, at progress "
+                                  <<progress
+                                  <<" , expecting progress "
+                                  <<m_num_workers-1
+                                  <<std::endl;
+          return false;
+        }
+      }
+      
+    }
+    return true;
+  };
 
+  void UpdateGlobalRingallreduceSyncer();
+  bool CheckAllWorkersSynced();
+
+  void NotifyAllOtherWorkers();
+
+};  // namespace ns3
+}
 #endif /* FLOW_SINK_H */
