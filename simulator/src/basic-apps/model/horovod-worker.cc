@@ -36,6 +36,8 @@
 #include "ns3/tcp-tx-buffer.h"
 #include "ns3/exp-util.h"
 #include "horovod-worker.h"
+#include "ringallreduce-syncer.h"
+
 #include <fstream>
 
 #include "ns3/address-utils.h"
@@ -173,6 +175,10 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
         }
 
         // Connect, no receiver
+        std::cout<<"Set m_send_socket iptos: "<<std::endl;
+        m_send_socket->SetIpTos(0x08);
+        std::cout<<"m_send_socket priority "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
+
         m_send_socket->Connect(m_peer);
         m_send_socket->ShutdownRecv();
 
@@ -263,6 +269,7 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         if (packet->GetSize() == 0) { // EOFs
             break;
         }
+        // packet->PeekPacketTag
         m_totalRx += packet->GetSize ();
         std::cout<<"Worker Id: "<<m_worker_id<<"\n";
         std::cout<<"  > Received up to "<< m_totalRx<<"\n";
@@ -294,9 +301,15 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                 uint32_t new_progress = map[m_totalRx]->GetProgress() +1;
                 m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
                 // send to right neighbor, add to transmission queue
-                m_maxBytes += map[m_totalRx]->GetSize();
-                m_bytes_sent += map[m_totalRx]->GetSize();
-                m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
+                std::vector<uint32_t> p_layers =  m_inflight_allreduce->GetTensors();
+                uint32_t p_size = m_inflight_allreduce->GetPartitionSize();
+                uint32_t p_idx = partition_idx;
+                std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> partition_to_send = make_tuple( p_layers, p_size, p_idx);
+                m_send_queue.push(partition_to_send);
+
+                // m_maxBytes += map[m_totalRx]->GetSize();
+                // m_bytes_sent += map[m_totalRx]->GetSize();
+                // m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
                 
                 for(auto key = m_inflight_fusion_map.begin(); key !=m_inflight_fusion_map.end(); ++key){
                 std::cout<<"    > Updated its own fusion map "<<key->first <<" : " <<key->second
@@ -305,29 +318,38 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                                             <<key->second->GetProgress()<<std::endl;
                 }
 
-                for(auto layer: m_inflight_allreduce->GetTensors()){
-                    RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, partition_idx));
-                }
+                // for(auto layer: m_inflight_allreduce->GetTensors()){
+                //     RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, partition_idx));
+                // }
                          
             }
             //current partition has been circulated among workers twice, no need to send it to neighbors
             else{
                 // clear send buffer
-                m_ringallreduce_inflight_status = false;
-                // UpdateGradientsReceived(m_inflight_allreduce->GetPriority()); //set gradients ready for layers included in the ringallreduce
-                std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
-                // Update tensor received status for all layers contained in the ringallreduce
-                UpdateReceivedGradients(m_inflight_allreduce->GetPriority());
-                //reset progress
-                // for(auto p = m_inflight_allreduce->GetPartitions().begin(); p != m_inflight_allreduce->GetPartitions().end(); p++){
-                //     p->second->ResetProgress();
-                // }      
+                // Check if all paritions have truly been synced and if other workers have done, otherwise 
+                
+                if(CheckAllPartitionSynced(partition_idx)){
+                    std::cout<<"    > all local partitions are synced "<<std::endl;
+                    UpdateGlobalRingallreduceSyncer();
+                    std::cout<<"    > Update Global "<<std::endl;
 
-                // DequeTransmission();
+                    if(CheckAllWorkersSynced()){
+                        // std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
+                        std::cout<<"    > All workers are synced notify other workers" <<std::endl;
+                        NotifyAllOtherWorkers();
+                        // m_ringallreduce_inflight_status = false;
+                        // Update tensor received status for all layers contained in the ringallreduce
+                        // UpdateReceivedGradients(m_inflight_allreduce->GetPriority());
+                    }
+                    else{
+                        //  Not all workers have finished syncing
+                        std::cout <<"     > Not all workers have finished syncing" <<std::endl;
+                    }
+                }
+                std::cout<<"      > Not ready to remove inflight ringallreduce yet"<<std::endl;
             }
 
             SendData(m_send_socket, 0);
-
         }
     }
 }
@@ -410,6 +432,9 @@ void HorovodWorker::SetLeftNeighbor(Ptr<HorovodWorker> leftneighbor){
     m_leftneighbor = leftneighbor;
 }
 
+void HorovodWorker::SetGlobalRingallreduceSyncer(GlobalRingAllReduceSyncer * global_ringallreduce_syncer){
+    m_global_ringallreduce_syncer = global_ringallreduce_syncer;
+}
 
 void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     NS_LOG_FUNCTION(this);
@@ -422,24 +447,56 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     if(m_ringallreduce_inflight_status == false){
         // m_inflight_allreduce = m_fifo_transmission_queue.front();
         m_inflight_allreduce = QueuePeek();
+        uint32_t prio = m_inflight_allreduce->GetPriority();
+        // std::cout <<"size of global status vector "<< m_global_ringallreduce_status->size()<<std::endl;
+        if(m_global_ringallreduce_syncer->Empty()){
+            m_global_ringallreduce_syncer->AddRingallreduce(prio);
+            std::cout<<" Add to global ringallreduce: "<<prio<<" progress: "<< m_global_ringallreduce_syncer->GetProgress() <<std::endl;
+
+        }
+        else if( m_global_ringallreduce_syncer->GetPriority() != prio){
+            // Not allowed, all workers need to agree on one ringallreduce to work with
+            std::cout<<"Not allowed, all workers need to agree on one ringallreduce to work with"<<std::endl;
+            std::cout<<"Expecting global ringallreduce: "<< m_global_ringallreduce_syncer->GetPriority() <<" instead of "<< prio<< std::endl;
+            // Todo! check the queue to see if desired ringallreduce exist, if it does, deque it first
+        }
+        else{
+            std::cout<<"Working on the same global ringallreduce "<<std::endl;
+        }
+
         DequeTransmission();
         // m_fifo_transmission_queue.pop(); //pop it after the ringallreduce is completed 
         m_ringallreduce_inflight_status = true;
-        m_maxBytes += m_inflight_allreduce->GetPartitionSize();
-        m_bytes_sent += m_maxBytes;
-        m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
-        for(auto layer: m_inflight_allreduce->GetTensors()){
-            RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, m_worker_id));
-        }
-        std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Priority: " <<m_inflight_allreduce->GetPriority() <<std::endl;
-        m_send_partition_inflight = true;
-        // m_inflight_partition_idx = m_worker_id; //Initially rank x would send partition x to start
-        // AddPartitionIdx(m_worker_id);
-        std::cout<<"  > new ringallreduce, partition_id: "<< m_inflight_partition_idx.front()<<"\n";
+        
+        // Push to send queue { [layer1, layer2, ], size_in_bytes, partition_id } std::vector<uint32_t>, uint32_t size, uint32_t partition id
+        std::vector<uint32_t> p_layers =  m_inflight_allreduce->GetTensors();
+        uint32_t p_size = m_inflight_allreduce->GetPartitionSize();
+        uint32_t p_idx = m_worker_id;
+        std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> partition_to_send = make_tuple( p_layers, p_size, p_idx);
+        m_send_queue.push(partition_to_send);
+        // m_maxBytes += m_inflight_allreduce->GetPartitionSize();
+
+        // m_bytes_sent += m_maxBytes;
+        // m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
+
         // for(auto layer: m_inflight_allreduce->GetTensors()){
-        //     RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32 , m_inflight_partition_idx.front()));
+        //     RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, m_worker_id));
         // }
         m_inflight_allreduce->r_communication_times += 1;
+    }
+
+    if(m_maxBytes == 0 && m_ringallreduce_inflight_status && (m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() == 0)){
+        if(!m_send_queue.empty()){
+            std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> p_to_send =  m_send_queue.front();
+            m_maxBytes = std::get<1>(p_to_send);
+            m_send_queue.pop();
+            m_bytes_sent += m_maxBytes;
+            m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[std::get<2>(p_to_send)];
+            std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<std::get<2>(p_to_send) <<std::endl;
+            for(auto layer: m_inflight_allreduce->GetTensors()){
+                RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, m_worker_id));
+            }
+        }
     }
     
     while (m_maxBytes) { // Time to send more
@@ -454,6 +511,7 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         int actual = m_send_socket->Send(packet);
         if (actual > 0) {
             // m_totBytes += actual;
+            std::cout<<" Actual bytes sent: "<<actual<<std::endl;
             m_maxBytes -= actual;
             m_txTrace(packet);
         }
@@ -574,16 +632,6 @@ void RingAllReduce::SetPartition(uint32_t num_workers, RingAllReduce* parent){
 
 void HorovodWorker::SetFusionBufferSize(uint32_t size){
     m_fused_tensor_size_bytes =size;
-}
-
-uint32_t HorovodWorker::GetPartitionIdx(){
-    if(m_inflight_partition_idx.empty() == false)
-    {
-        uint32_t idx = m_inflight_partition_idx.front();
-        m_inflight_partition_idx.pop_front();
-        return idx;
-    }
-    return UINT32_MAX;
 }
 
 void HorovodWorker::InitializeLayerWeight(){
@@ -721,6 +769,29 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
         BackPropagationStart(layer_idx-1);
     }
 }
+
+  void HorovodWorker::UpdateGlobalRingallreduceSyncer(){
+    m_global_ringallreduce_syncer->AddSyncedWorker(m_worker_id, [&]() {
+        uint32_t prio =this->m_inflight_allreduce->GetPriority(); 
+        std::cout<< "Worker " <<this->GetWorkerID()
+                <<": RingAllreduce done for: "
+                <<prio<<"\n";
+        this->SetInflightRingallreduceStatus(false);
+        this->UpdateReceivedGradients(prio);
+        return;
+    });
+    // m_global_ringallreduce_syncer->AddSyncedWorker(m_worker_id);
+  }
+
+  
+  bool HorovodWorker::CheckAllWorkersSynced(){
+    return m_global_ringallreduce_syncer->AllWorkersSynced(m_num_workers);
+  }
+
+  void HorovodWorker::NotifyAllOtherWorkers(){
+    m_global_ringallreduce_syncer->NotifyAllWorkersRingallreduceDone();
+  }
+
 
 void HorovodWorker::ConnectionSucceeded(Ptr <Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
