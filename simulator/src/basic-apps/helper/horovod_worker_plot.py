@@ -9,6 +9,7 @@ file_name = sys.argv[1]
 print(file_name)
 file_header = ""
 num_layers = 0
+max_time_ns = 0
 class Event():
     def __init__(self, layer, name, timestamp_ns):
         self.event_name = name
@@ -37,6 +38,7 @@ with open(file_name, "r") as inputfile:
         layer = int(line[1])
         event_name = line[2]
         time_ns = int(line[3])
+        max_time_ns = max(max_time_ns, time_ns)
         # print(f"layer: {layer}, event_name: {event_name}, time_ns: {time_ns}")
         e = Event(layer, event_name, time_ns)
         event_dict[layer].append(e)
@@ -105,7 +107,8 @@ ax.set_ylim(ylim)
 
 timeline_start_time = timeline_event[num_layers-1][0][0] - 1000
 print(f"timeline_start_time : {timeline_start_time}")
-timeline_finish_time = timeline_event[num_layers-1][-1][0] +  timeline_event[num_layers-1][-1][1] + 10
+timeline_finish_time = max_time_ns +10 
+# timeline_finish_time = timeline_event[num_layers-1][-1][0] +  timeline_event[num_layers-1][-1][1] + 10
 xlim = (timeline_start_time, timeline_finish_time)
 print(f"xlim: {xlim}, ylim: {ylim}")
 ax.set_xlim(xlim)
