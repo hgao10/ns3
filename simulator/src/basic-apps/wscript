@@ -23,7 +23,7 @@ def build(bld):
         'model/horovod-scheduler.cc',
         'helper/horovod-worker-helper.cc',
         "model/fusion-partition.cc",
-
+        'model/ringallreduce-syncer.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-apps')
@@ -48,6 +48,7 @@ def build(bld):
         'model/horovod-scheduler.h',
         'helper/horovod-worker-helper.h',
         "model/fusion-partition.h",
+        'model/ringallreduce-syncer.h',
 
         ]
 
