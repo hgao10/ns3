@@ -33,7 +33,7 @@ def flow_plot(flow_plot_dir, logs_ns3_dir, argv):
     # Perform the plots
     local_shell = LocalShell()
     logs_ns3_dir = logs_ns3_dir.replace("/", "\\/")
-    num_flows = str(len(argv))
+    num_flows = str(len(argv)-1)
     flow_ids = ""
     for flow in argv:
         if flow_ids == "":
