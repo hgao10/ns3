@@ -92,6 +92,11 @@ HorovodWorker::GetTypeId(void) {
                            StringValue (""),
                            MakeStringAccessor (&HorovodWorker::m_baseLogsDir),
                            MakeStringChecker ())
+            .AddAttribute("Priority", "The Rank of horovodworker",
+                            UintegerValue(), 
+                            MakeUintegerAccessor(&HorovodWorker::m_send_priority),
+                            MakeUintegerChecker<uint8_t>())
+
             .AddTraceSource("Tx", "A new packet is created and is sent",
                             MakeTraceSourceAccessor(&HorovodWorker::m_txTrace),
                             "ns3::Packet::TracedCallback");
@@ -147,6 +152,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
     InitializeRingAllReduceMap();
     InitializeComputeTime();
     
+    std::cout<<"Start Horovod application "<<std::endl;
     // Create the socket if not already
     if (!m_send_socket) {
         m_send_socket = Socket::CreateSocket(GetNode(), m_tid);
@@ -176,9 +182,18 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
 
         // Connect, no receiver
         std::cout<<"Set m_send_socket iptos: "<<std::endl;
-        m_send_socket->SetIpTos(0x08);
-        std::cout<<"m_send_socket priority "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
-
+        // m_send_socket->SetIpTos(0x08);
+        m_send_socket->SetIpTos(m_send_priority);
+        unsigned socket_prio = unsigned(m_send_socket->GetPriority());
+        // std::cout<<"m_send_socket priority "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
+        std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 2 "<<std::endl;
+        // if(m_send_priority == 0x08){
+        //     std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 2 "<<std::endl;
+        // }
+        // else{
+        //     std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 0 "<<std::endl;
+        // }
+        
         m_send_socket->Connect(m_peer);
         m_send_socket->ShutdownRecv();
 
@@ -187,6 +202,8 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
                 MakeCallback(&HorovodWorker::ConnectionSucceeded, this),
                 MakeCallback(&HorovodWorker::ConnectionFailed, this)
         );
+
+        // m_send_socket->SetDataSentCallback(MakeCallback(&HorovodWorker::DataSent, this));
         
         m_send_socket->SetSendCallback(MakeCallback(&HorovodWorker::SendData, this));
         m_send_socket->SetCloseCallbacks(
@@ -222,7 +239,9 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
 
     //create log file
     std::ofstream ofs;
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers));
+    
+    std::cout<<"file priority: "<<unsigned(m_send_socket->GetPriority()) <<std::endl;
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())));
     ofs << "Iteration_idx" << "," << "Layer_idx" << "," <<  "Event" << ","<<"Time"<< std::endl;
 
     ofs.close();
@@ -438,6 +457,14 @@ void HorovodWorker::SetLeftNeighbor(Ptr<HorovodWorker> leftneighbor){
 
 void HorovodWorker::SetGlobalRingallreduceSyncer(GlobalRingAllReduceSyncer * global_ringallreduce_syncer){
     m_global_ringallreduce_syncer = global_ringallreduce_syncer;
+}
+
+void HorovodWorker::DataSent(Ptr <Socket>, uint32_t sz){
+    WORKER;
+    
+    std::cout <<" Data sent callback: "<< sz <<" has been sent,"
+            <<"txbuffer: " << m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()<<std::endl;
+    return;
 }
 
 void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
@@ -878,7 +905,11 @@ void HorovodWorker::SocketClosedError(Ptr <Socket> socket) {
 
 void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), 
+    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), 
+    // std::ofstream::out | std::ofstream::app);
+    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, unsigned(m_send_socket->GetPriority()), m_num_layers),
+    // std::ofstream::out | std::ofstream::app);
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
     std::ofstream::out | std::ofstream::app);
     ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
     ofs.close(); 
@@ -886,7 +917,9 @@ void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
 
 void HorovodWorker::Debug(std::string event){
     std::ofstream ofs;
-    ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
+    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
+    std::ofstream::out | std::ofstream::app);
     ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
     ofs.close(); 
 }

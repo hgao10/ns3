@@ -142,6 +142,7 @@ class HorovodWorker : public Application {
   std::list<Ptr<Socket>> m_socketList;  //!< the accepted sockets
 
   Address m_local;         //!< Local address to bind to
+  uint8_t m_send_priority;
   TypeId m_tid;            //!< Protocol TypeId
   uint64_t m_totalRx = 0;  //!< Total bytes received
 
@@ -149,6 +150,7 @@ class HorovodWorker : public Application {
    * Send data until the L4 transmission buffer is full.
    */
   void SendData(Ptr<Socket>, uint32_t);
+  void DataSent(Ptr<Socket>, uint32_t);
 
   Ptr<Socket> m_send_socket;  //!< Associated socket
   Address m_peer;             //!< Peer address

@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     // Schedule flows
     HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
-    horovodscheduler.Schedule();
+    horovodscheduler.Schedule(1024, 0x80);
 
     // Run simulation
     basicSimulation->Run();

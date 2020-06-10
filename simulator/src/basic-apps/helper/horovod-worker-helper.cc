@@ -28,7 +28,7 @@
 
 namespace ns3 {
 
-HorovodWorkerHelper::HorovodWorkerHelper(std::string protocol, Address local_address, Address remote_address, uint32_t rank, std::string baseLogsDir) 
+HorovodWorkerHelper::HorovodWorkerHelper(std::string protocol, Address local_address, Address remote_address, uint32_t rank, std::string baseLogsDir, uint8_t priority) 
 {
 //   m_factory.SetTypeId (HorovodWorker::GetTypeId());
   m_factory.SetTypeId ("ns3::HorovodWorker");
@@ -37,6 +37,8 @@ HorovodWorkerHelper::HorovodWorkerHelper(std::string protocol, Address local_add
   m_factory.Set ("Remote", AddressValue (remote_address));
   m_factory.Set("Rank", UintegerValue(rank));
   m_factory.Set ("BaseLogsDir", StringValue (baseLogsDir));
+  m_factory.Set ("Priority", UintegerValue (priority));
+  
 }
 
 void 

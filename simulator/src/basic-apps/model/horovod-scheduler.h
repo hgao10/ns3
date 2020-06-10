@@ -41,7 +41,7 @@ class HorovodScheduler
 
 public:
     HorovodScheduler(Ptr<BasicSimulation> basicSimulation, Ptr<Topology> topology);
-    void Schedule();
+    void Schedule(uint32_t port, uint8_t prio);
     void WriteResults();
 
 protected:

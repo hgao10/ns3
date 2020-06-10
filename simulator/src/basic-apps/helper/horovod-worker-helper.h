@@ -47,7 +47,7 @@ class HorovodWorkerHelper {
    */
   HorovodWorkerHelper(std::string protocol, Address local_address,
                       Address remote_address, uint32_t rank,
-                      std::string baseLogsDir);
+                      std::string baseLogsDir, uint8_t priority);
 
   /**
    * Record an attribute to be set in each Application after it is is created.

@@ -47,16 +47,12 @@ int main(int argc, char *argv[]) {
     TcpOptimizer::OptimizeUsingWorstCaseRtt(basicSimulation, topology->GetWorstCaseRttEstimateNs());
 
     // Schedule flows
-    FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
-    flowScheduler.Schedule();
-    HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
-    horovodscheduler.Schedule(1024, 0x08);
+    HorovodScheduler horovodscheduler(basicSimulation, topology); 
+    horovodscheduler.Schedule(1024, 0x08); // band 2 lowest prio
+    // horovodscheduler.Schedule(1025, 0x10); // band 0 highest prio
 
     // Run simulation
     basicSimulation->Run();
-
-    // Write result
-    flowScheduler.WriteResults();
 
     // Finalize the simulation
     basicSimulation->Finalize();
