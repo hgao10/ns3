@@ -235,6 +235,7 @@ class HorovodWorker : public Application {
   RingAllReduce *QueuePeek();
   void RecordEvent(uint32_t layer_idx, std::string event);
   void Debug(std::string event);
+  void DebugAll(std::string event);
   void InitializeLayerWeight();
   void InitializeComputeTime();
 

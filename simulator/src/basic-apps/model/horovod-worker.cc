@@ -163,7 +163,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
         if (m_send_socket->GetSocketType() != Socket::NS3_SOCK_STREAM &&
             m_send_socket->GetSocketType() != Socket::NS3_SOCK_SEQPACKET) {
             NS_FATAL_ERROR("Using FlowSend with an incompatible socket type. "
-                           "FlowSend requires SOCK_STREAM or SOCK_SEQPACKET. "
+                           "Horovod requires SOCK_STREAM or SOCK_SEQPACKET. "
                            "In other words, use TCP instead of UDP.");
         }
 
@@ -186,15 +186,17 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
         m_send_socket->SetIpTos(m_send_priority);
         unsigned socket_prio = unsigned(m_send_socket->GetPriority());
         // std::cout<<"m_send_socket priority "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
-        std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 2 "<<std::endl;
-        // if(m_send_priority == 0x08){
-        //     std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 2 "<<std::endl;
-        // }
-        // else{
-        //     std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 0 "<<std::endl;
-        // }
+        std::cout<<"m_send_socket priority before connect peer "<<socket_prio<<", Expecting 2 "<<std::endl;
+        if(m_send_priority == 0x08){
+            std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 2 "<<std::endl;
+        }
+        else{
+            std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 6 "<<std::endl;
+        }
         
         m_send_socket->Connect(m_peer);
+        m_send_socket->SetIpTos(m_send_priority);
+        std::cout<<"m_send_socket priority before after peer "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
         m_send_socket->ShutdownRecv();
 
         // Callbacks
@@ -202,6 +204,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
                 MakeCallback(&HorovodWorker::ConnectionSucceeded, this),
                 MakeCallback(&HorovodWorker::ConnectionFailed, this)
         );
+        std::cout<<"m_send_socket priority before after set connectcallback "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
 
         // m_send_socket->SetDataSentCallback(MakeCallback(&HorovodWorker::DataSent, this));
         
@@ -241,7 +244,8 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
     std::ofstream ofs;
     
     std::cout<<"file priority: "<<unsigned(m_send_socket->GetPriority()) <<std::endl;
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())));
+    
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%u_progress.txt", m_worker_id, m_num_layers, (unsigned)(m_send_socket->GetPriority())));
     ofs << "Iteration_idx" << "," << "Layer_idx" << "," <<  "Event" << ","<<"Time"<< std::endl;
 
     ofs.close();
@@ -918,10 +922,20 @@ void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
 void HorovodWorker::Debug(std::string event){
     std::ofstream ofs;
     // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_debug.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
     std::ofstream::out | std::ofstream::app);
     ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
     ofs.close(); 
 }
+
+void HorovodWorker::DebugAll(std::string event){
+    std::ofstream ofs;
+    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_layer_%" PRIu32 "_debug.txt", m_num_layers),
+    std::ofstream::out | std::ofstream::app);
+    ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
+    ofs.close(); 
+}
+
 
 } // Namespace ns3
