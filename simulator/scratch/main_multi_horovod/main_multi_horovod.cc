@@ -48,8 +48,10 @@ int main(int argc, char *argv[]) {
 
     // Schedule flows
     HorovodScheduler horovodscheduler(basicSimulation, topology); 
-    horovodscheduler.Schedule(1024, 0x08); // band 2 lowest prio
+    // horovodscheduler.Schedule(1024, 0x08); // band 2 lowest prio
     // horovodscheduler.Schedule(1025, 0x10); // band 0 highest prio
+    horovodscheduler.Schedule(1025, 0x10); // band 0 highest prio
+    horovodscheduler.Schedule(1024, 0x08); // band 2 lowest prio
 
     // Run simulation
     basicSimulation->Run();

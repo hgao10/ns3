@@ -96,6 +96,10 @@ HorovodWorker::GetTypeId(void) {
                             UintegerValue(), 
                             MakeUintegerAccessor(&HorovodWorker::m_send_priority),
                             MakeUintegerChecker<uint8_t>())
+            .AddAttribute("Port", "The port of the tcp sockets",
+                            UintegerValue(), 
+                            MakeUintegerAccessor(&HorovodWorker::m_port),
+                            MakeUintegerChecker<uint32_t>())
 
             .AddTraceSource("Tx", "A new packet is created and is sent",
                             MakeTraceSourceAccessor(&HorovodWorker::m_txTrace),
@@ -183,28 +187,23 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
         // Connect, no receiver
         std::cout<<"Set m_send_socket iptos: "<<std::endl;
         // m_send_socket->SetIpTos(0x08);
-        m_send_socket->SetIpTos(m_send_priority);
-        unsigned socket_prio = unsigned(m_send_socket->GetPriority());
-        // std::cout<<"m_send_socket priority "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
-        std::cout<<"m_send_socket priority before connect peer "<<socket_prio<<", Expecting 2 "<<std::endl;
-        if(m_send_priority == 0x08){
-            std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 2 "<<std::endl;
-        }
-        else{
-            std::cout<<"m_send_socket priority "<<socket_prio<<", Expecting 6 "<<std::endl;
-        }
+        // m_send_socket->SetIpTos(m_send_priority);
+        // unsigned socket_prio = unsigned(m_send_socket->GetPriority());        
         
         m_send_socket->Connect(m_peer);
-        m_send_socket->SetIpTos(m_send_priority);
-        std::cout<<"m_send_socket priority before after peer "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
+        // m_send_socket->SetIpTos(m_send_priority);
+        WORKER;
+        std::cout<<"m_send_socket priority after connect peer "
+            <<unsigned(m_send_socket->GetPriority())
+            <<" tos: "<<unsigned(m_send_priority)<<std::endl;    
         m_send_socket->ShutdownRecv();
-
+        
         // Callbacks
         m_send_socket->SetConnectCallback(
                 MakeCallback(&HorovodWorker::ConnectionSucceeded, this),
                 MakeCallback(&HorovodWorker::ConnectionFailed, this)
         );
-        std::cout<<"m_send_socket priority before after set connectcallback "<<unsigned(m_send_socket->GetPriority())<<", Expecting 2 "<<std::endl;
+        std::cout<<"m_send_socket priority after set connectcallback "<<unsigned(m_send_socket->GetPriority())<<std::endl;
 
         // m_send_socket->SetDataSentCallback(MakeCallback(&HorovodWorker::DataSent, this));
         
@@ -294,7 +293,6 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         }
         // packet->PeekPacketTag
         m_totalRx += packet->GetSize ();
-        std::cout<<"Worker Id: "<<m_worker_id<<"\n";
         std::cout<<"  > Received up to "<< m_totalRx<<"\n";
         std::cout<<"  > Curr time: "<< Simulator::Now()<<std::endl;
         std::map<uint32_t, FusionPartition*> map = m_leftneighbor->GetInflightFusions();
@@ -340,10 +338,6 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                                             <<" Progress: " 
                                             <<key->second->GetProgress()<<std::endl;
                 }
-
-                // for(auto layer: m_inflight_allreduce->GetTensors()){
-                //     RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, partition_idx));
-                // }
                          
             }
             //current partition has been circulated among workers twice, no need to send it to neighbors
