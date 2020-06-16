@@ -38,7 +38,7 @@
 #include "ns3/traced-callback.h"
 
 #define WORKER \
-  std::cout << "Worker ID: " << HorovodWorker::GetWorkerID() << std::endl
+  std::cout << "Worker ID: " << HorovodWorker::GetWorkerID() <<" Port: "<<m_port<<std::endl
 #define ITERBARRIER 1
 
 namespace ns3 {
@@ -143,6 +143,7 @@ class HorovodWorker : public Application {
 
   Address m_local;         //!< Local address to bind to
   uint8_t m_send_priority;
+  uint32_t m_port;
   TypeId m_tid;            //!< Protocol TypeId
   uint64_t m_totalRx = 0;  //!< Total bytes received
 

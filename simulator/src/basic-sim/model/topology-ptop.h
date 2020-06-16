@@ -16,8 +16,38 @@
 #include "ns3/random-variable-stream.h"
 #include "ns3/command-line.h"
 #include "ns3/traffic-control-helper.h"
-
+#include "ns3/callback.h"
 namespace ns3 {
+void TcBytessInQueueTrace (uint32_t oldValue, uint32_t newValue);
+
+class MyCallback: public CallbackImpl<void, uint32_t, uint32_t,empty,empty,empty,empty,empty,empty,empty>
+{
+  public:
+      MyCallback(std::string baselogdir, int64_t node, uint16_t band){
+        m_base_logdir = baselogdir;
+        queue_node = node;
+        queue_band = band; };
+      
+      void operator() (uint32_t old_value, uint32_t new_value) {
+        std::ofstream ofs;
+        std::cout<<"Mycallback Invoked"<<std::endl;
+        ofs.open(m_base_logdir + "/" + format_string("HorovodWorker_%d_queue_band_%u.txt", queue_node, queue_band),
+        std::ofstream::out | std::ofstream::app);
+        ofs << "TcBytesInQueue " << old_value << " to " << new_value 
+                << " "<< Simulator::Now().GetNanoSeconds()<<std::endl;
+        
+        ofs.close(); 
+    
+      }      
+        bool IsEqual (Ptr<const CallbackImplBase> other) const {
+            return false;
+        }
+
+  private:
+      std::string m_base_logdir;
+      int64_t queue_node;
+      uint16_t queue_band; 
+};
 
 class TopologyPtop : public Topology
 {
@@ -42,6 +72,8 @@ public:
     const std::set<int64_t>& GetAdjacencyList(int64_t node_id);
     int64_t GetWorstCaseRttEstimateNs();
     const std::vector<std::pair<uint32_t, uint32_t>>& GetInterfaceIdxsForEdges();
+    void RecordInternalQueues(QueueDiscContainer qdiscs_ptr, int64_t node);
+
 
 private:
 
@@ -75,7 +107,6 @@ private:
     // From generating ns3 objects
     NodeContainer m_nodes;
     std::vector<std::pair<uint32_t, uint32_t>> m_interface_idxs_for_edges;
-
 };
 
 }

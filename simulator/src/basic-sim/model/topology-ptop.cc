@@ -1,5 +1,4 @@
 #include "topology-ptop.h"
-
 namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED(TopologyPtop);
@@ -92,6 +91,9 @@ void TopologyPtop::ReadTopology() {
   // Sort them for convenience
   std::sort(m_undirected_edges.begin(), m_undirected_edges.end());
 
+  for(auto e: m_undirected_edges){
+    std::cout <<"undirected edges sorted:"<<e.first<<" "<<e.second<<std::endl;
+  }
   // Edge checks
 
   if (m_undirected_edges.size() != (size_t)m_num_undirected_edges) {
@@ -286,18 +288,51 @@ void TopologyPtop::SetupLinks() {
         ->GetQueue()
         ->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
     container.Get(1)
-        ->GetObject<PointToPointNetDevice>()
+        ->GetObject<PointToPointNetDevice>()  
         ->GetQueue()
         ->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
 
     // Install traffic control
     if (IsValidEndpoint(link.first)) {
-      tch_endpoints.Install(container.Get(0));
+      // tch_endpoints.Install(container.Get(0));
+      
+      // std::cout<<" Expect 1 qdisc in the queuedisccontainer: "<<qdiscs.GetN()<<std::endl;
+
+      if (link.second - link.first == 1){
+        std::cout <<"link first: "<<link.first<<" link second: "<<link.second<<std::endl;
+        std::cout <<"Install qdiscs on "<<link.first <<" connecting to "<<link.second<<std::endl;
+        RecordInternalQueues(tch_endpoints.Install(container.Get(0)), link.first);
+
+      }
+      else{
+        // Install qdiscs without recording for edge 0 - 2
+        tch_endpoints.Install(container.Get(0));
+      }
+
+      std::cout
+        << "    >> Installing traffic control for tch_endpoints for link_first"
+        << std::endl;
     } else {
+      std::cout
+        << "    >> Installing traffic control for tch_NOT_endpoints for link_first"
+        << std::endl;
+
       tch_not_endpoints.Install(container.Get(0));
+
     }
     if (IsValidEndpoint(link.second)) {
-      tch_endpoints.Install(container.Get(1));
+      if(link.second - link.first != 1){
+        std::cout <<"link second: "<<link.second<<" link first: "<<link.first<<std::endl;
+        std::cout <<"Install qdiscs on "<<link.second <<" connecting to "<<link.first<<std::endl;
+
+        RecordInternalQueues(tch_endpoints.Install(container.Get(1)), link.second);
+
+      }
+      else{
+        tch_endpoints.Install(container.Get(1));
+      }
+
+
     } else {
       tch_not_endpoints.Install(container.Get(1));
     }
@@ -373,6 +408,23 @@ int64_t TopologyPtop::GetWorstCaseRttEstimateNs() {
 const std::vector<std::pair<uint32_t, uint32_t>>&
 TopologyPtop::GetInterfaceIdxsForEdges() {
   return m_interface_idxs_for_edges;
+}
+
+void TopologyPtop::RecordInternalQueues(QueueDiscContainer qdiscs, int64_t node){
+  Ptr<QueueDisc> q = qdiscs.Get (0);  
+      
+  q->GetTypeId();
+  std::vector<Ptr<QueueDisc::InternalQueue>> internal_queues;
+  for (uint16_t i = 0; i < 3; i++) {
+    Ptr<DropTailQueue<QueueDiscItem> > queue =
+    CreateObject<DropTailQueue<QueueDiscItem> >();
+    bool ok = q->SetAttributeFailSafe("MaxSize", StringValue("1000p"));
+    std::cout<<"Added an internal queue, ok: "<<ok<<std::endl;
+    q->AddInternalQueue(queue);
+    Callback<void, uint32_t, uint32_t> cb(Ptr<MyCallback>(new MyCallback(m_basicSimulation->GetLogsDir() , node, i)));
+    queue->TraceConnectWithoutContext ("BytesInQueue", cb);
+
+  }
 }
 
 }  // namespace ns3
