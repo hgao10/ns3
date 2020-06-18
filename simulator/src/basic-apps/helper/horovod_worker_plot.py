@@ -11,15 +11,17 @@ file_header = ""
 num_layers = 0
 max_time_ns = 0
 class Event():
-    def __init__(self, layer, name, timestamp_ns):
+    def __init__(self, iter, layer, name, timestamp_ns):
         self.event_name = name
         self.time = timestamp_ns 
         self.layer = layer
+        self.iter = iter
     def __str__(self):
-        return f"event_name: {event_name}, time_ns: {time_ns}"
+        return f"event_name: {self.event_name}, time_ns: {self.time}, iter: {self.iter}"
 
 event_dict = collections.defaultdict(list) # key: layer index, value: (event_name, time_ns)  
 timeline_event = collections.defaultdict(list) #key: layer index, value: duration
+iter_event_dict = collections.defaultdict(list) # key: iteration index, value: event_dict
 with open(file_name, "r") as inputfile:
     line = inputfile.readline().strip("\n")
     file_header = line
@@ -35,13 +37,15 @@ with open(file_name, "r") as inputfile:
         if(line == ['']):
             break
         print(f"line: {line}")
+        iter = int(line[0])
         layer = int(line[1])
         event_name = line[2]
         time_ns = int(line[3])
         max_time_ns = max(max_time_ns, time_ns)
         # print(f"layer: {layer}, event_name: {event_name}, time_ns: {time_ns}")
-        e = Event(layer, event_name, time_ns)
+        e = Event(iter, layer, event_name, time_ns)
         event_dict[layer].append(e)
+        
         print(f"added event: {e}")
 
 num_layers = max(event_dict.keys())+1
@@ -55,28 +59,34 @@ s1_len = len(s1)
 s2 = "Received_Partition"
 s2_len = len(s2)
 for key, event_list in event_dict.items():
+    # first_start_sending_partition= True
     for e in event_list:
         # print(f"e in event_list: {e}")
         if e.event_name == "BP_Start" :
             bp_start_time = e.time
+            first_start_sending_partition= True
+
         elif e.event_name == "FP_Start":
             fp_start_time = e.time
-        elif e.event_name[:5] == "Start":
+        elif e.event_name[:5] == "Start" and first_start_sending_partition:
             send_start_time = e.time
+            first_start_sending_partition = False
         elif e.event_name == "BP_Done":
             duration = int(e.time) - int(bp_start_time)
             timeline_event[key].append((bp_start_time, duration))
-            print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
+            print(f"layer: {key}, iter: {e.iter} Event name: {e.event_name}: duration: {duration} ")
         elif e.event_name == "FP_Done":
             duration = int(e.time) - int(fp_start_time)
             timeline_event[key].append((fp_start_time, duration))
             print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
+                
         elif e.event_name[:5] == "Recei":
             duration = int(e.time) - int(send_start_time)
             timeline_event[key].append((send_start_time, duration))
+            send_start_time = e.time
             print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
-        else:
-            print(f"ERROR: No SUCH EVENT: {e.event_name}")
+        # else:
+        #     print(f"ERROR: No SUCH EVENT: {e.event_name}")
 
 
 # Plot the timeline
