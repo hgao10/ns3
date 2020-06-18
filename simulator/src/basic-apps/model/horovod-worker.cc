@@ -184,12 +184,7 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
             }
         }
 
-        // Connect, no receiver
-        std::cout<<"Set m_send_socket iptos: "<<std::endl;
-        // m_send_socket->SetIpTos(0x08);
-        // m_send_socket->SetIpTos(m_send_priority);
-        // unsigned socket_prio = unsigned(m_send_socket->GetPriority());        
-        
+        // Connect, no receiver        
         m_send_socket->Connect(m_peer);
         // m_send_socket->SetIpTos(m_send_priority);
         WORKER;
@@ -244,7 +239,8 @@ void HorovodWorker::StartApplication(void) { // Called at time specified by Star
     
     std::cout<<"file priority: "<<unsigned(m_send_socket->GetPriority()) <<std::endl;
     
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%u_progress.txt", m_worker_id, m_num_layers, (unsigned)(m_send_socket->GetPriority())));
+    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%u_progress.txt", m_worker_id, m_num_layers, (unsigned)(m_send_socket->GetPriority())));
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_port_%u_progress.txt", m_worker_id, m_num_layers, m_port));
     ofs << "Iteration_idx" << "," << "Layer_idx" << "," <<  "Event" << ","<<"Time"<< std::endl;
 
     ofs.close();
@@ -291,87 +287,77 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         if (packet->GetSize() == 0) { // EOFs
             break;
         }
-        // packet->PeekPacketTag
         m_totalRx += packet->GetSize ();
         std::cout<<"  > Received up to "<< m_totalRx<<"\n";
         std::cout<<"  > Curr time: "<< Simulator::Now()<<std::endl;
         std::map<uint32_t, FusionPartition*> map = m_leftneighbor->GetInflightFusions();
-        // if(m_leftneighbor->GetInflightFusions().find(m_totalRx) != m_leftneighbor->GetInflightFusions().end()){
-        for(auto key = map.begin(); key !=map.end(); ++key){
-            std::cout<<"    > left neighbor fusion map "<<key->first <<" : "<<key->second<<std::endl;
-        }
-        if(map.find(m_totalRx) != map.end()){
-            // matches whats being sent by the neighbor
-            std::cout<<"    > FOUND FUSION : "<<map[m_totalRx]<<std::endl;
-            std::cout<<"    > Received FUSION"<<std::endl;
-            std::cout<<"    > Received partition from R["<<map[m_totalRx]->GetParent()->GetPriority()
-                                                    <<"] : "<<map[m_totalRx]->GetIdx() <<std::endl;
-            // FusionPartition* fusionpartition= map[m_totalRx];
-            uint32_t partition_idx = map[m_totalRx]->GetIdx();
+        
+        for( std::vector<uint32_t>::reverse_iterator it = m_leftneighbor->GetBytesSentVector().rbegin(); it != m_leftneighbor->GetBytesSentVector().rend(); ++it ){
+            Debug(format_string("left neighbor byte sent vector: %u", *it));
+            if (m_totalRx >= *it) {
+                Debug(format_string("m_totalRx: %u >= *it", m_totalRx));
+                Debug(format_string("received vector empty %u", m_bytes_received_vector.empty()));
+                std::cout<<"received vector empty"<< m_bytes_received_vector.empty()<<std::endl;
+                if((m_bytes_received_vector.empty()) || (*it != m_bytes_received_vector.back())){
+                    // found fusion, push it back to received vector
+                    m_bytes_received_vector.push_back(*it);
+                    // matches whats being sent by the neighbor
 
-            for(auto layer: map[m_totalRx]->GetParent()->GetTensors()){
-                RecordEvent(layer, format_string("Received_Partition_%" PRIu32, partition_idx));
-            }
+                    Debug("Found fusion");
+                    std::cout<<"    > FOUND FUSION : "<<map[*it]<<std::endl;
+                    std::cout<<"    > Received FUSION"<<std::endl;
+                    std::cout<<"    > Received partition from R["<<map[*it]->GetParent()->GetPriority()
+                                                            <<"] : "<<map[*it]->GetIdx() <<std::endl;
+                    // FusionPartition* fusionpartition= map[m_totalRx];
+                    uint32_t partition_idx = map[*it]->GetIdx();
 
-            std::cout<<"    > Received partition progress "<<map[m_totalRx]->GetProgress()<<std::endl; 
-            if (map[m_totalRx]->GetProgress() < (2 * (m_num_workers-1) - 1)) // not yet fully synced
-            {
-                // Add next fusion to send to queue
-                // increment progress by one
-                std::cout<<"    > Not fully synced, send Partition "<<partition_idx<<" to neighbor"<< std::endl;
-                uint32_t new_progress = map[m_totalRx]->GetProgress() +1;
-                m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
-                // send to right neighbor, add to transmission queue
-                std::vector<uint32_t> p_layers =  m_inflight_allreduce->GetTensors();
-                uint32_t p_size = m_inflight_allreduce->GetPartitionSize();
-                uint32_t p_idx = partition_idx;
-                std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> partition_to_send = make_tuple( p_layers, p_size, p_idx);
-                m_send_queue.push(partition_to_send);
-
-                // m_maxBytes += map[m_totalRx]->GetSize();
-                // m_bytes_sent += map[m_totalRx]->GetSize();
-                // m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
-                
-                for(auto key = m_inflight_fusion_map.begin(); key !=m_inflight_fusion_map.end(); ++key){
-                std::cout<<"    > Updated its own fusion map "<<key->first <<" : " <<key->second
-                                            <<" partition idx: "<<key->second->GetIdx()
-                                            <<" Progress: " 
-                                            <<key->second->GetProgress()<<std::endl;
-                }
-                         
-            }
-            //current partition has been circulated among workers twice, no need to send it to neighbors
-            else{
-                // clear send buffer
-                // Check if all paritions have truly been synced and if other workers have done, otherwise 
-                
-                if(CheckAllPartitionSynced(partition_idx)){
-                    std::cout<<"    > all local partitions are synced "<<std::endl;
-                    UpdateGlobalRingallreduceSyncer();
-                    std::cout<<"    > Update Global "<<std::endl;
-
-                    if(CheckAllWorkersSynced()){
-                        // std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
-                        std::cout<<"    > All workers are synced notify other workers" <<std::endl;
-                        NotifyAllOtherWorkers();
-                        // m_ringallreduce_inflight_status = false;
-                        // Update tensor received status for all layers contained in the ringallreduce
-                        // UpdateReceivedGradients(m_inflight_allreduce->GetPriority());
+                    for(auto layer: map[*it]->GetParent()->GetTensors()){
+                        RecordEvent(layer, format_string("Received_Partition_%" PRIu32, partition_idx));
                     }
+
+                    std::cout<<"    > Received partition progress "<<map[*it]->GetProgress()<<std::endl; 
+                    if (map[*it]->GetProgress() < (2 * (m_num_workers-1) - 1)) // not yet fully synced
+                    {
+                        // Add next fusion to send to queue
+                        // increment progress by one
+                        std::cout<<"    > Not fully synced, send Partition "<<partition_idx<<" to neighbor"<< std::endl;
+                        uint32_t new_progress = map[*it]->GetProgress() +1;
+                        m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
+                        // send to right neighbor, add to transmission queue
+                        m_maxBytes += map[*it]->GetSize();
+                        m_bytes_sent += map[*it]->GetSize();
+                        m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
+                        m_bytes_sent_vector.push_back(m_bytes_sent);                                
+                    }
+                    //current partition has been circulated among workers twice, no need to send it to neighbors
                     else{
-                        //  Not all workers have finished syncing
-                        std::cout <<"     > Not all workers have finished syncing" <<std::endl;
+                        // clear send buffer
+                        // Check if all paritions have truly been synced and if other workers have done, otherwise                         
+                        if(CheckAllPartitionSynced(partition_idx)){
+                            std::cout<<"    > all local partitions are synced "<<std::endl;
+                            UpdateGlobalRingallreduceSyncer();
+                            std::cout<<"    > Update Global "<<std::endl;
+
+                            if(CheckAllWorkersSynced()){
+                                // std::cout<<"    > RingAllreduce done for: "<<m_inflight_allreduce->GetPriority()<<"\n";
+                                std::cout<<"    > All workers are synced notify other workers" <<std::endl;
+                                NotifyAllOtherWorkers();
+                            }
+                            else{
+                                //  Not all workers have finished syncing
+                                std::cout <<"     > Not all workers have finished syncing" <<std::endl;
+                            }
+                        }
+                        else{
+                            std::cout <<"      > Not all partitions are synced"<<std::endl;
+                            std::cout<<"      > Not ready to remove inflight ringallreduce yet"<<std::endl;
+                        }
                     }
+                    SendData(m_send_socket, 0);
                 }
-                else{
-                    std::cout <<"      > Not all partitions are synced"<<std::endl;
-                    std::cout<<"      > Not ready to remove inflight ringallreduce yet"<<std::endl;
-
-                }
+                break;
             }
-
-            SendData(m_send_socket, 0);
-        }
+        }         
     }
 }
 
@@ -496,7 +482,6 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         }
 
         DequeTransmission();
-        // m_fifo_transmission_queue.pop(); //pop it after the ringallreduce is completed 
         m_ringallreduce_inflight_status = true;
         
         // Push to send queue { [layer1, layer2, ], size_in_bytes, partition_id } std::vector<uint32_t>, uint32_t size, uint32_t partition id
@@ -505,31 +490,44 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         uint32_t p_idx = m_worker_id;
         std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> partition_to_send = make_tuple( p_layers, p_size, p_idx);
         m_send_queue.push(partition_to_send);
-        // m_maxBytes += m_inflight_allreduce->GetPartitionSize();
+        m_maxBytes += m_inflight_allreduce->GetPartitionSize();
 
+        m_bytes_sent += m_inflight_allreduce->GetPartitionSize();
         // m_bytes_sent += m_maxBytes;
-        // m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
+        std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<p_idx <<std::endl;
+        m_bytes_sent_vector.push_back(m_bytes_sent);
+        m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
 
-        // for(auto layer: m_inflight_allreduce->GetTensors()){
-        //     RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, m_worker_id));
-        // }
-        m_inflight_allreduce->r_communication_times += 1;
-    }
+        if(m_inflight_allreduce->GetPriority() <= 14){
+            // set priority to high, band 0
+            m_send_socket->SetIpTos(0x10);
+            std::cout<<"Change priority to 0x10, expect priority to be 6 "<<unsigned(m_send_socket->GetPriority())<<std::endl;
+        }
+        else{
+            m_send_socket->SetIpTos(0x08);
+            std::cout<<"Change priority to 0x08, expect priority to be 2 "<<unsigned(m_send_socket->GetPriority())<<std::endl;
 
-    if(m_maxBytes == 0 && m_ringallreduce_inflight_status && (m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() == 0)){
-        if(!m_send_queue.empty()){
-            std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> p_to_send =  m_send_queue.front();
-            m_maxBytes = std::get<1>(p_to_send);
-            uint32_t idx = std::get<2>(p_to_send);
-            m_send_queue.pop();
-            m_bytes_sent += m_maxBytes;
-            m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[idx];
-            std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<idx <<std::endl;
-            for(auto layer: m_inflight_allreduce->GetTensors()){
-                RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, idx));
-            }
+        }
+
+        for(auto layer: m_inflight_allreduce->GetTensors()){
+            RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, m_worker_id));
         }
     }
+
+    // if(m_maxBytes == 0 && m_ringallreduce_inflight_status && (m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() == 0)){
+    //     if(!m_send_queue.empty()){
+    //         std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> p_to_send =  m_send_queue.front();
+    //         m_maxBytes = std::get<1>(p_to_send);
+    //         uint32_t idx = std::get<2>(p_to_send);
+    //         m_send_queue.pop();
+    //         m_bytes_sent += m_maxBytes;
+    //         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[idx];
+    //         std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<idx <<std::endl;
+    //         for(auto layer: m_inflight_allreduce->GetTensors()){
+    //             RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, idx));
+    //         }
+    //     }
+    // }
     
     while (m_maxBytes) { // Time to send more
         // Make sure we don't send too many
@@ -808,9 +806,11 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
         std::cout<< "Worker " <<this->GetWorkerID()
                 <<": RingAllreduce done for: "
                 <<prio<<"\n";
+        this->m_inflight_allreduce->ResetPartitionsProgress();
         this->SetInflightRingallreduceStatus(false);
         this->UpdateReceivedGradients(prio);
         this->SendData(this->m_send_socket, 0);
+        
         return;
     });
     // m_global_ringallreduce_syncer->AddSyncedWorker(m_worker_id);
@@ -851,6 +851,37 @@ void HorovodWorker::ConnectionFailed(Ptr <Socket> socket) {
     m_send_socket = 0;
 }
 
+void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
+    std::ofstream ofs;
+    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_port_%u_progress.txt", m_worker_id, m_num_layers, m_port),
+    std::ofstream::out | std::ofstream::app);
+    ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
+    ofs.close(); 
+}
+
+void HorovodWorker::Debug(std::string event){
+    std::ofstream ofs;
+    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_debug.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
+    // std::ofstream::out | std::ofstream::app);
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_port_%u_debug.txt", m_worker_id, m_num_layers, m_port),
+    std::ofstream::out | std::ofstream::app);
+
+    ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
+    ofs.close(); 
+}
+
+void HorovodWorker::DebugAll(std::string event){
+    std::ofstream ofs;
+    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
+    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_layer_%" PRIu32 "_debug.txt", m_num_layers),
+    std::ofstream::out | std::ofstream::app);
+    ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
+    ofs.close(); 
+}
+
+
+//******************************************** Functions below currently unused *****************************************************//
 int64_t HorovodWorker::GetAckedBytes() {
     if (m_closedNormally || m_closedByError) {
         return m_ackedBytes;
@@ -900,36 +931,5 @@ void HorovodWorker::SocketClosedError(Ptr <Socket> socket) {
     m_isCompleted = false;
     m_send_socket = 0;
 }
-
-void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
-    std::ofstream ofs;
-    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), 
-    // std::ofstream::out | std::ofstream::app);
-    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, unsigned(m_send_socket->GetPriority()), m_num_layers),
-    // std::ofstream::out | std::ofstream::app);
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
-    std::ofstream::out | std::ofstream::app);
-    ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
-    ofs.close(); 
-}
-
-void HorovodWorker::Debug(std::string event){
-    std::ofstream ofs;
-    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_debug.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
-    std::ofstream::out | std::ofstream::app);
-    ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
-    ofs.close(); 
-}
-
-void HorovodWorker::DebugAll(std::string event){
-    std::ofstream ofs;
-    // ofs.open (m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers), std::ofstream::out | std::ofstream::app);
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_layer_%" PRIu32 "_debug.txt", m_num_layers),
-    std::ofstream::out | std::ofstream::app);
-    ofs << event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
-    ofs.close(); 
-}
-
 
 } // Namespace ns3

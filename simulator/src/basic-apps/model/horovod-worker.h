@@ -67,8 +67,6 @@ class RingAllReduce {
   void AddTensor(uint32_t layer_idx, uint32_t size);
   void SortTensor() { std::sort(r_tensors.begin(), r_tensors.end()); };
   uint32_t GetPriority();
-  // ToDelete, progress being tracked in partitions
-  uint32_t r_communication_times = 0;  // Todo implement getter/setter instead
   std::vector<uint32_t> GetTensors() { return r_tensors; };
   bool AllPartitionsUpdated(uint32_t max_version) {
     for (auto p = r_partitions.begin(); p != r_partitions.end(); p++) {
@@ -80,6 +78,12 @@ class RingAllReduce {
     }
     return true;
   };
+
+  void ResetPartitionsProgress(){
+    for (auto p = r_partitions.begin(); p != r_partitions.end(); p++) {
+      p->second->ResetProgress();
+    }
+  }
 
  private:
   uint32_t r_size_bytes = 0;
@@ -124,6 +128,10 @@ class HorovodWorker : public Application {
   std::map<uint32_t, FusionPartition *> &GetInflightFusions() {
     return m_inflight_fusion_map;
   };
+
+  std::vector<uint32_t> & GetBytesSentVector(){
+    return m_bytes_sent_vector;
+  }
 
  protected:
   virtual void DoDispose(void);
@@ -212,9 +220,11 @@ class HorovodWorker : public Application {
   std::map<uint32_t, bool> m_fp_finished_status{
       {0, false}, {1, false}};  // Records fp computation status per layer
   uint32_t m_iteration_idx = 0;
-  uint32_t m_max_iteration = 1;
+  uint32_t m_max_iteration = 3;
   std::map<uint32_t, FusionPartition *> m_inflight_fusion_map;
   uint32_t m_bytes_sent = 0;
+  std::vector<uint32_t> m_bytes_sent_vector;
+  std::vector<uint32_t> m_bytes_received_vector;
 
  private:
   void ConnectionSucceeded(Ptr<Socket> socket);
