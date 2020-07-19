@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
     // Load basic simulation environment
     Ptr<BasicSimulation> basicSimulation = CreateObject<BasicSimulation>(run_dir);
-
+    std::cout<<"sim log dir: "<<basicSimulation->GetLogsDir()<<std::endl;
     // Read point-to-point topology, and install routing arbiters
     Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
     ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
@@ -48,16 +48,23 @@ int main(int argc, char *argv[]) {
 
     // Schedule PPBP background traffic
     PPBPScheduler ppbpscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
-    ppbpscheduler.Schedule(1025, 0x10);
-    // HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
-    // horovodscheduler.Schedule(1024, 0x08);
+    // ppbpscheduler.Schedule(1025, 0x10, 50, 5);
+    ppbpscheduler.Schedule(1025, 0x10, topology->GetNumberOfActiveBursts(), 0.2);
+    HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
+    /*
+        ToS to Priority band mapping for pfifo-fast-queue-disc
+            0x10 -> 0
+            0x06 -> 1
+            0x08 -> 2
+    */
+    horovodscheduler.Schedule(1024, 0x08);
 
     // Run simulation
     basicSimulation->Run();
 
     // Finalize the simulation
     basicSimulation->Finalize();
-
+            
     return 0;
 
 }
