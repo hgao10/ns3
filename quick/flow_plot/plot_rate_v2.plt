@@ -66,6 +66,6 @@ set key spacing 2
 #####################################
 ### PLOTS
 set datafile separator ","
-plot    for [i= 0:NUM] "flow_".i."_rate.txt" using ($2/1000000000):($3) w lp ls 1+i \
+plot    for [i= 0:NUM] "[LOG-DIR]/flow_".i."_rate.txt" using ($2/1000000000):($3) w lp ls 1+i \
         title "flow\\_".i."\\_rate" 
 
