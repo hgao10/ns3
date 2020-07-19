@@ -29,6 +29,8 @@
 #include "ns3/net-device.h"
 #include "ns3/node-container.h"
 #include "ns3/application-container.h"
+#include "ns3/double.h"
+
 
 namespace ns3 {
 
@@ -49,7 +51,7 @@ public:
    * \param address the address of the remote node to send traffic
    *        to.
    */
-  PPBPHelper (std::string protocol, Address address, Address local_address, std::string baseLogsDir, uint32_t node_id);
+  PPBPHelper (std::string protocol, Address address, Address local_address, std::string baseLogsDir, uint32_t node_id, DoubleValue mburst_arr, DoubleValue mburst_timelt );
 
   /**
    * Helper function used to set the underlying application attributes.

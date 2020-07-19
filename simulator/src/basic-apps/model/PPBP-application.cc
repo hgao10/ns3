@@ -55,7 +55,7 @@ namespace ns3 {
 		.SetParent<Application> ()
 		.AddConstructor<PPBPApplication> ()
 		.AddAttribute ("BurstIntensity", "The data rate of each burst.",
-					   DataRateValue (DataRate ("1Mb/s")),
+					   DataRateValue (DataRate ("20Mb/s")),
 					   MakeDataRateAccessor (&PPBPApplication::m_cbrRate),
 					   MakeDataRateChecker ())
 		.AddAttribute ("PacketSize", "The size of packets sent in on state",
@@ -112,6 +112,7 @@ namespace ns3 {
 		m_totalBytes = 0;
 		m_activebursts = 0;
 		m_offPeriod = true;
+		m_totalRx = 0;
 	}
 
 	PPBPApplication::~PPBPApplication()
@@ -157,6 +158,14 @@ namespace ns3 {
 			}
 			m_receive_socket->Listen();
 			m_receive_socket->ShutdownSend();
+
+
+			    // Callbacks
+    		m_receive_socket->SetRecvCallback(MakeCallback(&PPBPApplication::HandleRead, this));
+			m_receive_socket->SetAcceptCallback(
+					MakeNullCallback<bool, Ptr<Socket>,const Address &>(),
+					MakeCallback(&PPBPApplication::HandleAccept, this)
+			);
 		}
 
 		// Set up logging 
@@ -187,7 +196,7 @@ namespace ns3 {
 		//cout << "Mean = " << inter_burst_intervals << endl;
 
 		Ptr<ExponentialRandomVariable> exp = CreateObject<ExponentialRandomVariable> ();
-    exp->SetAttribute ("Mean", DoubleValue (inter_burst_intervals));
+    	exp->SetAttribute ("Mean", DoubleValue (inter_burst_intervals));
 		//exp->SetAttribute ("Bound", DoubleValue (3.0));
 		Time t_poisson_arrival = Seconds (exp->GetValue());
 		m_PoissonArrival = Simulator::Schedule(t_poisson_arrival,&PPBPApplication::PoissonArrival, this);
@@ -304,17 +313,44 @@ namespace ns3 {
 	{
 		NS_LOG_FUNCTION_NOARGS ();
 		Ptr<Packet> packet = Create<Packet> (m_pktSize);
-		uint32_t actual = m_socket->Send (packet);
+		int actual = m_socket->Send (packet);
 		// m_totalBytes += packet->GetSize();
-		std::cout <<" actual: "<<actual <<std::endl;
+		// std::cout <<" actual: "<<actual <<std::endl;
 		if(actual > 0) {
-			std::cout<<"m_totalbytes before add actual: "<<m_totalBytes<<std::endl;
+			// std::cout<<"m_totalbytes before add actual: "<<m_totalBytes<<std::endl;
 			m_totalBytes += actual;
-			std::cout<<"m_totalbytes after add actual: "<<m_totalBytes<<std::endl;
+			// std::cout<<"m_totalbytes after add actual: "<<m_totalBytes<<std::endl;
 			m_txTrace (packet);
 		}
 		m_lastStartTime = Simulator::Now();
 		ScheduleNextTx();
+	}
+
+	void
+	PPBPApplication::HandleRead(Ptr<Socket> socket) 
+	{
+		// Immediately from the socket drain all the packets it has received
+		Ptr<Packet> packet;
+		Address from;
+		while ((packet = socket->RecvFrom(from))) {
+			if (packet->GetSize() == 0) { // EOFs
+				break;
+			}
+			m_totalRx += packet->GetSize ();
+
+			// Other fields that could be useful here if actually did something:
+			// Size: packet->GetSize()
+			// Source IP: InetSocketAddress::ConvertFrom(from).GetIpv4 ()
+			// Source port: InetSocketAddress::ConvertFrom (from).GetPort ()
+			// Our own IP / port: Address localAddress; socket->GetSockName (localAddress);
+
+		}
+	}
+
+	void
+	PPBPApplication::HandleAccept(Ptr<Socket> socket, const Address &from) {
+		NS_LOG_FUNCTION(this << socket << from);
+		socket->SetRecvCallback (MakeCallback (&PPBPApplication::HandleRead, this));
 	}
 
 	void
@@ -337,7 +373,7 @@ namespace ns3 {
 	{
 		std::ofstream ofs;
 		ofs.open (m_baseLogsDir + format_string("/flow_%u_progress.txt", m_node_id), std::ofstream::out | std::ofstream::app);
-		std::cout<<"m_totalbytes: "<<m_totalBytes<<" txbuffer size: "<<m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()<<std::endl;
+		// std::cout<<"m_totalbytes: "<<m_totalBytes<<" txbuffer size: "<<m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()<<std::endl;
 		ofs << "0" << "," << Simulator::Now ().GetNanoSeconds () << "," << (m_totalBytes - m_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size()) << std::endl;
 		ofs.close();
 	}

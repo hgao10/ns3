@@ -27,14 +27,16 @@
 
 namespace ns3 {
 
-PPBPHelper::PPBPHelper (std::string protocol, Address address, Address local_address, std::string baseLogsDir, uint32_t node_id)
+PPBPHelper::PPBPHelper (std::string protocol, Address address, Address local_address, std::string baseLogsDir, uint32_t node_id, DoubleValue mburst_arr, DoubleValue mburst_timelt )
 {
   m_factory.SetTypeId ("ns3::PPBPApplication");
   m_factory.Set ("Protocol", StringValue (protocol));
   m_factory.Set ("Remote", AddressValue (address));
   m_factory.Set ("Local", AddressValue (local_address));
   m_factory.Set ("BaseLogsDir", StringValue (baseLogsDir));
-  m_factory.Set ("Node", UintegerValue (node_id));
+  m_factory.Set ("Node", UintegerValue (node_id)); 
+  m_factory.Set ("MeanBurstArrivals", DoubleValue (mburst_arr)); 
+  m_factory.Set ("MeanBurstTimeLength", DoubleValue (mburst_timelt)); 
 
 }
 

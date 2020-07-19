@@ -156,6 +156,7 @@ namespace ns3 {
 		bool			      m_offPeriod;
         std::string         m_baseLogsDir;               //!< Where the flow logs will be written to:
         uint32_t            m_node_id;
+		uint64_t			m_totalRx;
 	private:
 		void ScheduleStartEvent();
 		void ScheduleStopEvent();
@@ -170,7 +171,8 @@ namespace ns3 {
 		void PPBP();
 		void PoissonArrival();
 		void ParetoDeparture();
-
+		void HandleRead(Ptr<Socket> socket);
+		void HandleAccept(Ptr<Socket> socket, const Address &from);
 		/**
 		 * \ Function thet generates the packets departure at a constant bit-rate nt x r.
 		 */
