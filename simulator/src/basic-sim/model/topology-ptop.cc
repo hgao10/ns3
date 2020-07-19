@@ -1,4 +1,5 @@
 #include "topology-ptop.h"
+
 namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED(TopologyPtop);
@@ -25,6 +26,9 @@ void TopologyPtop::ReadRelevantConfig() {
       m_basicSimulation->GetConfigParamOrFail("link_delay_ns"));
   m_link_max_queue_size_pkts = parse_positive_int64(
       m_basicSimulation->GetConfigParamOrFail("link_max_queue_size_pkts"));
+  
+  m_num_active_bursts = parse_positive_double(
+      m_basicSimulation->GetConfigParamOrDefault("num_of_active_bursts", "5"));
 
   // Qdisc properties
   m_disable_qdisc_endpoint_tors_xor_servers =
@@ -301,8 +305,16 @@ void TopologyPtop::SetupLinks() {
       if (link.second - link.first == 1){
         std::cout <<"link first: "<<link.first<<" link second: "<<link.second<<std::endl;
         std::cout <<"Install qdiscs on "<<link.first <<" connecting to "<<link.second<<std::endl;
-        RecordInternalQueues(tch_endpoints.Install(container.Get(0)), link.first);
-
+        
+        // RecordInternalQueues(tch_endpoints.Install(container.Get(0)), link.first);
+        
+        int64_t interval_ns = 200000000; // 10ms 
+        UtilizationTracker* ut = new UtilizationTracker() ;
+        ut->EnableUtilizationTracking(interval_ns, link.first, m_basicSimulation->GetLogsDir());
+        Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_Txbegin(Ptr<MyCallback2>(new MyCallback2(ut, true)));
+        Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_TxEnd(Ptr<MyCallback2>(new MyCallback2(ut, false)));
+        container.Get(0)->TraceConnectWithoutContext("PhyTxBegin", ut_callback_Txbegin);
+        container.Get(0)->TraceConnectWithoutContext("PhyTxEnd", ut_callback_TxEnd);
       }
       else{
         // Install qdiscs without recording for edge 0 - 2
@@ -325,7 +337,15 @@ void TopologyPtop::SetupLinks() {
         std::cout <<"link second: "<<link.second<<" link first: "<<link.first<<std::endl;
         std::cout <<"Install qdiscs on "<<link.second <<" connecting to "<<link.first<<std::endl;
 
-        RecordInternalQueues(tch_endpoints.Install(container.Get(1)), link.second);
+        // RecordInternalQueues(tch_endpoints.Install(container.Get(1)), link.second);
+
+        int64_t interval_ns = 10000000; // 10ms 
+        UtilizationTracker* ut = new UtilizationTracker();
+        ut->EnableUtilizationTracking(interval_ns, link.second, m_basicSimulation->GetLogsDir());
+        Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_Txbegin(Ptr<MyCallback2>(new MyCallback2(ut, true)));
+        Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_TxEnd(Ptr<MyCallback2>(new MyCallback2(ut, false)));
+        container.Get(1)->TraceConnectWithoutContext("PhyTxBegin", ut_callback_Txbegin);
+        container.Get(1)->TraceConnectWithoutContext("PhyTxEnd", ut_callback_TxEnd);
 
       }
       else{
@@ -408,6 +428,10 @@ int64_t TopologyPtop::GetWorstCaseRttEstimateNs() {
 const std::vector<std::pair<uint32_t, uint32_t>>&
 TopologyPtop::GetInterfaceIdxsForEdges() {
   return m_interface_idxs_for_edges;
+}
+
+double TopologyPtop::GetNumberOfActiveBursts(){
+  return m_num_active_bursts;
 }
 
 void TopologyPtop::RecordInternalQueues(QueueDiscContainer qdiscs, int64_t node){

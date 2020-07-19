@@ -17,8 +17,33 @@
 #include "ns3/command-line.h"
 #include "ns3/traffic-control-helper.h"
 #include "ns3/callback.h"
+#include "ns3/packet.h"
+#include "ns3/utilization-tracker.h"
+
+
 namespace ns3 {
 void TcBytessInQueueTrace (uint32_t oldValue, uint32_t newValue);
+
+class MyCallback2: public CallbackImpl<void, ns3::Ptr<ns3::Packet const>, empty,empty,empty,empty,empty,empty,empty,empty>
+{
+  public:
+      MyCallback2(UtilizationTracker * ut, bool next_state_is_on){
+        m_ut =  ut;
+        m_state = next_state_is_on;
+      };
+      
+      void operator() (ns3::Ptr<ns3::Packet const>) {
+        m_ut->TrackUtilization(m_state);
+      }      
+
+      bool IsEqual (Ptr<const CallbackImplBase> other) const {
+        return false;
+      }
+
+  private:
+      UtilizationTracker * m_ut;
+      bool m_state;
+};
 
 class MyCallback: public CallbackImpl<void, uint32_t, uint32_t,empty,empty,empty,empty,empty,empty,empty>
 {
@@ -30,8 +55,7 @@ class MyCallback: public CallbackImpl<void, uint32_t, uint32_t,empty,empty,empty
       
       void operator() (uint32_t old_value, uint32_t new_value) {
         std::ofstream ofs;
-        std::cout<<"Mycallback Invoked"<<std::endl;
-        ofs.open(m_base_logdir + "/" + format_string("HorovodWorker_%d_queue_band_%u.txt", queue_node, queue_band),
+        ofs.open(m_base_logdir + "/" + format_string("Node_%d_queue_band_%u.txt", queue_node, queue_band),
         std::ofstream::out | std::ofstream::app);
         ofs << "TcBytesInQueue " << old_value << " to " << new_value 
                 << " "<< Simulator::Now().GetNanoSeconds()<<std::endl;
@@ -73,6 +97,7 @@ public:
     int64_t GetWorstCaseRttEstimateNs();
     const std::vector<std::pair<uint32_t, uint32_t>>& GetInterfaceIdxsForEdges();
     void RecordInternalQueues(QueueDiscContainer qdiscs_ptr, int64_t node);
+    double GetNumberOfActiveBursts();
 
 
 private:
@@ -92,7 +117,7 @@ private:
     int64_t m_worst_case_rtt_ns;
     bool m_disable_qdisc_endpoint_tors_xor_servers;
     bool m_disable_qdisc_non_endpoint_switches;
-
+    double m_num_active_bursts;
     // Graph properties
     int64_t m_num_nodes;
     int64_t m_num_undirected_edges;
