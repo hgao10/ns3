@@ -155,12 +155,14 @@ class HorovodWorker : public Application {
   TypeId m_tid;            //!< Protocol TypeId
   uint64_t m_totalRx = 0;  //!< Total bytes received
 
+  uint64_t m_notify_datasent = 0; // Debug purpose, tracked by datasent callback 
   /**
    * Send data until the L4 transmission buffer is full.
    */
   void SendData(Ptr<Socket>, uint32_t);
   void DataSent(Ptr<Socket>, uint32_t);
 
+  void NotifyDataSent(Ptr<Socket>, uint32_t);
   Ptr<Socket> m_send_socket;  //!< Associated socket
   Address m_peer;             //!< Peer address
   bool m_connected;           //!< True if connected
@@ -220,7 +222,7 @@ class HorovodWorker : public Application {
   std::map<uint32_t, bool> m_fp_finished_status{
       {0, false}, {1, false}};  // Records fp computation status per layer
   uint32_t m_iteration_idx = 0;
-  uint32_t m_max_iteration = 3;
+  uint32_t m_max_iteration = 2;
   std::map<uint32_t, FusionPartition *> m_inflight_fusion_map;
   uint32_t m_bytes_sent = 0;
   std::vector<uint32_t> m_bytes_sent_vector;
