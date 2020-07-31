@@ -38,9 +38,9 @@ namespace ns3 {
             std::cout << "  > Enabled for all point-to-point links in the topology" << std::endl;
 
             // Distributed information
-            m_system_id = m_basicSimulation->GetSystemId();
-            m_enable_distributed = m_basicSimulation->IsDistributedEnabled();
-            m_distributed_node_system_id_assignment = m_basicSimulation->GetDistributedNodeSystemIdAssignment();
+            // m_system_id = m_basicSimulation->GetSystemId();
+            // m_enable_distributed = m_basicSimulation->IsDistributedEnabled();
+            // m_distributed_node_system_id_assignment = m_basicSimulation->GetDistributedNodeSystemIdAssignment();
 
             // Read in parameters
             m_utilization_interval_ns = parse_geq_one_int64(m_basicSimulation->GetConfigParamOrFail("link_utilization_tracking_interval_ns"));
@@ -55,37 +55,37 @@ namespace ns3 {
                 std::pair<uint32_t, uint32_t> edge_if_idxs = m_topology->GetInterfaceIdxsForEdges()[i];
 
                 // One tracker a -> b
-                if (!m_enable_distributed || m_distributed_node_system_id_assignment[edge.first] == m_system_id) {
+                // if (!m_enable_distributed || m_distributed_node_system_id_assignment[edge.first] == m_system_id) {
                     Ptr<PointToPointNetDevice> networkDevice_a_b = m_topology->GetNodes().Get(edge.first)->GetObject<Ipv4>()->GetNetDevice(edge_if_idxs.first)->GetObject<PointToPointNetDevice>();
                     Ptr<PtopUtilizationTracker> tracker_a_b = CreateObject<PtopUtilizationTracker>(networkDevice_a_b, m_utilization_interval_ns);
                     m_utilization_trackers.push_back(tracker_a_b);
                     m_installed_edges.push_back(edge);
-                }
+                // }
 
                 // One tracker b -> a
-                if (!m_enable_distributed || m_distributed_node_system_id_assignment[edge.second] == m_system_id) {
+                // if (!m_enable_distributed || m_distributed_node_system_id_assignment[edge.second] == m_system_id) {
                     Ptr<PointToPointNetDevice> networkDevice_b_a = m_topology->GetNodes().Get(edge.second)->GetObject<Ipv4>()->GetNetDevice(edge_if_idxs.second)->GetObject<PointToPointNetDevice>();
                     Ptr<PtopUtilizationTracker> tracker_b_a = CreateObject<PtopUtilizationTracker>(networkDevice_b_a, m_utilization_interval_ns);
                     m_utilization_trackers.push_back(tracker_b_a);
                     m_installed_edges.push_back(std::make_pair(edge.second, edge.first));
-                }
+                // }
 
             }
             std::cout << "  > Tracking utilization on " << m_utilization_trackers.size() << " point-to-point network devices" << std::endl;
             m_basicSimulation->RegisterTimestamp("Install utilization trackers");
 
             // Determine filenames
-            if (m_enable_distributed) {
-                m_filename_utilization_csv = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization.csv";
-                m_filename_utilization_compressed_csv = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization_compressed.csv";
-                m_filename_utilization_compressed_txt = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization_compressed.txt";
-                m_filename_utilization_summary_txt = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization_summary.txt";
-            } else {
+            // if (m_enable_distributed) {
+            //     m_filename_utilization_csv = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization.csv";
+            //     m_filename_utilization_compressed_csv = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization_compressed.csv";
+            //     m_filename_utilization_compressed_txt = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization_compressed.txt";
+            //     m_filename_utilization_summary_txt = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_utilization_summary.txt";
+            // } else {
                 m_filename_utilization_csv = m_basicSimulation->GetLogsDir() + "/utilization.csv";
                 m_filename_utilization_compressed_csv = m_basicSimulation->GetLogsDir() + "/utilization_compressed.csv";
                 m_filename_utilization_compressed_txt = m_basicSimulation->GetLogsDir() + "/utilization_compressed.txt";
                 m_filename_utilization_summary_txt = m_basicSimulation->GetLogsDir() + "/utilization_summary.txt";
-            }
+            // }
 
             // Remove files if they are there
             remove_file_if_exists(m_filename_utilization_csv);
