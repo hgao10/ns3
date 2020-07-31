@@ -19,7 +19,8 @@ def build(bld):
         'helper/arbiter-ecmp-helper.cc',
         'model/ipv4-arbiter-routing.cc',
         'helper/ipv4-arbiter-routing-helper.cc',
-        'model/utilization-tracker.cc',
+        'helper/ptop-utilization-tracker-helper.cc',
+        'model/ptop-utilization-tracker.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-sim')
@@ -41,7 +42,8 @@ def build(bld):
         'helper/arbiter-ecmp-helper.h',
         'model/ipv4-arbiter-routing.h',
         'helper/ipv4-arbiter-routing-helper.h',
-        'model/utilization-tracker.h',
+        'helper/ptop-utilization-tracker-helper.h',
+        'model/ptop-utilization-tracker.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:
