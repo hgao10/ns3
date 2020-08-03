@@ -17,7 +17,7 @@ FlowScheduler::FlowScheduler(Ptr<BasicSimulation> basicSimulation,
   // Read schedule
   m_schedule = read_schedule(
       m_basicSimulation->GetRunDir() + "/" +
-          m_basicSimulation->GetConfigParamOrFail("filename_schedule"),
+          m_basicSimulation->GetConfigParamOrFail("flow_schedule_filename"),
       m_topology, m_simulation_end_time_ns);
   m_basicSimulation->RegisterTimestamp("Read schedule");
 
@@ -44,18 +44,9 @@ void FlowScheduler::StartNextFlow(int i) {
                                     ->GetAddress(1, 0)
                                     .GetLocal(),
                                 1025);
-  // iptos - uint8_t, bits 3-6 maps to priority
-  if (entry.flow_id == 0) {
-    destAddress.SetTos(
-        0x10);  // Interactive(6)->0 from pfifo-fast-queue-disc-test-suite.cc
-                // (highest prio)
-  } else {
-    destAddress.SetTos(0x1e);
-    // Int.Bulk(4)->1
-  }
 
-  std::cout << "Flow " << entry.flow_id
-            << " has tos: " << unsigned(destAddress.GetTos()) << std::endl;
+  // All flows are set to the highest priority Interactive(6)->0 from pfifo-fast-queue-disc-test-suite.cc
+  destAddress.SetTos(0x10);  
 
   // Helper to install the source application
   FlowSendHelper source(
