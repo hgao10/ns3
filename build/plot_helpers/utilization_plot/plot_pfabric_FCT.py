@@ -9,7 +9,7 @@ import pathlib
 import numpy as np
 from horovod_worker_plot import * 
 from networkload import *
-
+import argparse
 def plot_pfabric_utilization(log_dir):
     # log_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/pfabric_flows_horovod/logs_ns3"
     data_out_dir = log_dir
@@ -40,6 +40,7 @@ def plot_flows_FCT(run_dir):
 
     data_file_path = pathlib.Path(data_file)
     if data_file_path.exists() == False:
+        print(f"data_file: {data_file_path} doesn't exist")
         return None, None, None
     # Read in csv data
     flows_csv_columns = read_csv_direct_in_columns(
@@ -91,8 +92,8 @@ def plot_flows_FCT(run_dir):
     # print(f"small flow fct: {average_small_flows_FCT_ms}, cnt: {len(small_finished_flows_duration)}")
     # print(f"large flow fct: {average_large_flows_FCT_ms}, cnt: {len(large_finished_flows_duration)}")
     print(f"99th percentile: {small_flows_99th_FCT_ms}")
-    print(f"average small percentile: {average_small_flows_FCT_ms}")
-    print(f"average large percentile: {average_large_flows_FCT_ms}")
+    print(f"average small FCT: {average_small_flows_FCT_ms}")
+    print(f"average large FCT: {average_large_flows_FCT_ms}")
 
     return average_small_flows_FCT_ms, average_large_flows_FCT_ms, small_flows_99th_FCT_ms
 
@@ -115,7 +116,9 @@ def extract_average_utilization(run_dir):
     return link_utilization
 
 
-def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits):
+def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
+
+
     # key: flows_per_s, value: utilization in string
     utilization_dict = collections.defaultdict() 
     expected_flows_bw = collections.defaultdict()
@@ -157,7 +160,7 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits):
         expected_flows_bw[flows_per_s] = get_flows_expected_utilization(link_cap_Gbits, flows_per_s)
         horovod_p0_bw[flows_per_s] = utilization_dict[flows_per_s] - expected_flows_bw[flows_per_s]
         leftover_p0_bw[flows_per_s] = 100.0 - utilization_dict[flows_per_s] 
-
+        
         bg_small_flows_FCT_dict[flows_per_s], bg_large_flows_FCT_dict[flows_per_s], bg_small_flows_99th_FCT_dict[flows_per_s] = plot_flows_FCT(bg_run_dir)
         small_flows_FCT_dict[flows_per_s], large_flows_FCT_dict[flows_per_s], small_flows_99th_FCT_dict[flows_per_s] = plot_flows_FCT(run_dir)
         c_small_flows_FCT_dict[flows_per_s], c_large_flows_FCT_dict[flows_per_s], c_small_flows_99th_FCT_dict[flows_per_s] = plot_flows_FCT(hrvd_p2_run_dir)
@@ -271,9 +274,10 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits):
     
     # fig.set_size_inches(18.5, 10.5)
     fig.set_size_inches(26.5, 10.5)
-    plt.show(block=True)
-
-    # fig.savefig(f"small_large_small_99th_flows_FCT_{curr_date}_single_pkt_dev_queue_w_new_tcpto_10G", bbox_inches='tight')
+    if save_fig == False:
+        plt.show(block=True)
+    else:
+        fig.savefig(f"small_large_small_99th_flows_FCT_{curr_date}_single_pkt_dev_queue_w_new_tcpto_10G_low_util", bbox_inches='tight')
 
 
 def calculate_avg_horovod_iter_and_log_summary(horovod_progress_txt, horovod_iteration_time_summary, log_dir, horovod_iteration_times_s):
@@ -313,13 +317,17 @@ def get_flows_expected_utilization(link_cap_Gbits, expected_flows_per_s):
 
 
 def plot_stacked_bw_distribution(ax, link_utilization, bg_bw, horovod_bw, free_bw):
-    barwidth = 3
+    barwidth = 1
     ax.bar(link_utilization, bg_bw, color='#b5ffb9', edgecolor='white', label = "pfabric", width =barwidth)
     ax.bar(link_utilization, horovod_bw, bottom=bg_bw, color='#f9bc86', edgecolor='white', label = "horovod", width =barwidth)
     ax.bar(link_utilization, free_bw, bottom=[i+j for i,j in zip(bg_bw, horovod_bw)], color='#a3acff', edgecolor='white', label="Leftover", width =barwidth)
 
     
 if __name__  == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--save_fig", action="store_true", help="specify whether the summary plot should be saved")
+    args = parser.parse_args()
+
     link_cap_Gbits = 10
     # input_run_dirs_timestamp = [(100, "17_03_2020_07_22","21_13_2020_07_22"),(200, "17_03_2020_07_22","21_13_2020_07_22"), (300, "17_03_2020_07_22","21_13_2020_07_22"),\
     #             (400, "17_03_2020_07_22","01_04_2020_07_23"), (500, "17_03_2020_07_22","01_04_2020_07_23"), (600, "17_03_2020_07_22","01_04_2020_07_23"),\
@@ -366,4 +374,62 @@ if __name__  == "__main__":
             (250.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G), \
             (300.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G)]
 
-    plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits)
+
+    # Running with 8
+    link_cap_Gbits = 5
+    baseline_both_P0_5G = "02_31_2020_07_31"
+    h_p2_single_pkt_new_TCP_to_5G = "02_35_2020_07_31"
+    bg_alone = "02_43_2020_07_31"
+    input_run_dirs_timestamp = [(50.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G),\
+            (100.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G), \
+            (150.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G),\
+            (200.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G), \
+            (250.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G), \
+            (300.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G)]
+
+
+    # running with 3 workers and 10G at low utilization
+    link_cap_Gbits = 10
+    baseline_both_P0 = "09_27_2020_07_31"
+    h_p2_single_pkt_new_TCP_to = "09_37_2020_07_31"
+    bg_alone = "10_23_2020_07_31"
+    input_run_dirs_timestamp = [(10, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (25, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (50, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (100, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (150, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]#, \
+            # (200, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            # (250, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            # (300, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            # (350, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]
+
+
+    # running with 3 workers and 10G at low utilization
+    link_cap_Gbits = 5
+    baseline_both_P0 = "11_15_2020_07_31"
+    h_p2_single_pkt_new_TCP_to = "11_32_2020_07_31"
+    bg_alone = "10_57_2020_07_31"
+    input_run_dirs_timestamp = [(10, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (25, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (50, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (100, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (150, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]#, \
+            # (200, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            # (250, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            # (300, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            # (350, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]
+
+    
+    link_cap_Gbits = 5
+    baseline_both_P0 = "runhvd_true_hrvprio_0x10_14_30_2020_08_01"
+    h_p2_single_pkt_new_TCP_to = "runhvd_true_hrvprio_0x08_14_30_2020_08_01"
+    bg_alone = "runhvd_false_hrvprio_0x08_16_46_2020_08_01"
+    input_run_dirs_timestamp = [(1.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (3.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (5.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (12.5, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (25.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (50.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]#, \
+
+    print(f"save_fig: {args.save_fig}")
+    plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, args.save_fig)
