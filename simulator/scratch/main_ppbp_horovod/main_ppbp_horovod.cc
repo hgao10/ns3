@@ -57,7 +57,8 @@ int main(int argc, char *argv[]) {
             0x06 -> 1
             0x08 -> 2
     */
-    horovodscheduler.Schedule(1024, 0x08);
+    // horovodscheduler.Schedule(1024, 0x08);
+    horovodscheduler.Schedule(1024);
 
     // Run simulation
     basicSimulation->Run();

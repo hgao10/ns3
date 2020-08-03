@@ -50,7 +50,8 @@ int main(int argc, char *argv[]) {
     FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
     flowScheduler.Schedule();
     HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
-    horovodscheduler.Schedule(1024, 0x08);
+    // horovodscheduler.Schedule(1024, 0x08);
+    horovodscheduler.Schedule(1024);
 
     // Run simulation
     basicSimulation->Run();

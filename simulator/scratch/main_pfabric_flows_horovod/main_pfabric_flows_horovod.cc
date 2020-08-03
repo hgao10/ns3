@@ -17,11 +17,20 @@
 #include "ns3/tcp-optimizer.h"
 #include "ns3/arbiter-ecmp-helper.h"
 #include "ns3/ipv4-arbiter-routing-helper.h"
-
+#include "ns3/ptop-utilization-tracker-helper.h"
+#include <signal.h>
 using namespace ns3;
+
+void signal_callback_handler(int signum) {
+   std::cout << "Caught signal " << signum << std::endl;
+   // Terminate program
+   exit(signum);
+}
 
 int main(int argc, char *argv[]) {
 
+    // Register signal and signal handler, trap ctrl-C
+    signal(SIGINT, signal_callback_handler);
     // No buffering of printf
     setbuf(stdout, nullptr);
     
@@ -43,14 +52,20 @@ int main(int argc, char *argv[]) {
     Ptr<TopologyPtop> topology = CreateObject<TopologyPtop>(basicSimulation, Ipv4ArbiterRoutingHelper());
     ArbiterEcmpHelper::InstallArbiters(basicSimulation, topology);
 
+    // Install utilization trackers
+    PtopUtilizationTrackerHelper utilTrackerHelper = PtopUtilizationTrackerHelper(basicSimulation, topology); // Requires enable_link_utilization_tracking=true
+
     // Optimize TCP
     TcpOptimizer::OptimizeUsingWorstCaseRtt(basicSimulation, topology->GetWorstCaseRttEstimateNs());
 
     // Schedule flows
     FlowScheduler flowScheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
     flowScheduler.Schedule();
-    // HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
+
+    HorovodScheduler horovodscheduler(basicSimulation, topology); // Requires filename_schedule to be present in the configuration
+    horovodscheduler.Schedule(1024);
     // horovodscheduler.Schedule(1024, 0x08);
+    // horovodscheduler.Schedule(1024, 0x10);
 
     // Run simulation
     basicSimulation->Run();
@@ -58,6 +73,9 @@ int main(int argc, char *argv[]) {
     // Write result
     flowScheduler.WriteResults();
 
+    // Write utilization results
+    utilTrackerHelper.WriteResults();
+    
     // Finalize the simulation
     basicSimulation->Finalize();
 
