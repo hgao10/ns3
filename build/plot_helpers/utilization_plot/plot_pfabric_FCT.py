@@ -10,6 +10,88 @@ import numpy as np
 from horovod_worker_plot import * 
 from networkload import *
 import argparse
+from dataclasses import dataclass
+from typing import Tuple
+import statistics
+
+def delta_percent(a, divider):    
+    return (a-divider)/divider * 100
+
+
+# all dataclasses require python 3.7+
+@dataclass 
+class FlowStats:
+    min_FCT_ms: float 
+    max_FCT_ms: float
+    median_FCT_ms: float
+    avg_FCT_ms: float
+    percentile_90th_ms: float
+    percentile_99th_ms: float
+    ecdf_x_y: Tuple
+    flows_cnt: int
+
+    def show_ecdf(self, block):
+        (x, y) = self.ecdf_x_y
+        plt.scatter(x=x, y=y)
+        plt.show(block=block)
+    
+    def compare_avg_FCT(self, other):
+        return delta_percent(self.avg_FCT_ms, other.avg_FCT_ms)
+    
+    def compare_99th_pct(self, other):
+        return delta_percent(self.percentile_99th_ms, other.percentile_99th_ms)
+
+
+@dataclass
+class AllFlowStats:
+    small_flows: FlowStats
+    large_flows: FlowStats
+    mid_flows: FlowStats
+    all_flows: FlowStats
+
+    def compare_avg_FCT(self, other):
+        delta = collections.defaultdict()
+        delta["small"] = self.small_flows.compare_avg_FCT(other.small_flows)
+        delta["large"] = self.large_flows.compare_avg_FCT(other.large_flows)
+        delta["mid"] = self.mid_flows.compare_avg_FCT(other.mid_flows)
+        delta["all"] = self.all_flows.compare_avg_FCT(other.all_flows)
+        
+        return delta
+
+    def compare_99th_pct(self, other):
+        delta = collections.defaultdict()
+        delta["small"] = self.small_flows.compare_99th_pct(other.small_flows)
+        delta["large"] = self.large_flows.compare_99th_pct(other.large_flows)
+        delta["mid"] = self.mid_flows.compare_99th_pct(other.mid_flows)
+        delta["all"] = self.all_flows.compare_99th_pct(other.all_flows)
+
+        return delta
+
+
+def ns_to_ms(ns_val):
+    return float(ns_val)/float(10**6)
+
+
+def ecdf(data):
+    """ Compute ECDF """
+    x = np.sort(data)
+    n = x.size
+    y = np.arange(1, n+1) / n
+    return(x,y)
+
+
+def generate_flow_stats(durations_ns):
+    min_FCT_ms = ns_to_ms(min(durations_ns))
+    max_FCT_ms = ns_to_ms(max(durations_ns))
+    median_FCT_ms = ns_to_ms(statistics.median(durations_ns))
+    avg_FCT_ms = ns_to_ms(sum(durations_ns)/len(durations_ns))
+    percentile_99th_ms = ns_to_ms(np.percentile(durations_ns,99))
+    percentile_90th_ms = ns_to_ms(np.percentile(durations_ns,90))
+    ecdf_x_y = ecdf(durations_ns)
+    flows_cnt = len(durations_ns)
+    return FlowStats(min_FCT_ms, max_FCT_ms, median_FCT_ms, avg_FCT_ms, percentile_90th_ms, percentile_99th_ms, ecdf_x_y, flows_cnt)
+
+
 def plot_pfabric_utilization(log_dir):
     # log_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/pfabric_flows_horovod/logs_ns3"
     data_out_dir = log_dir
@@ -65,6 +147,18 @@ def plot_flows_FCT(run_dir):
 
     small_finished_flows_duration = []
     large_finished_flows_duration = []
+
+    midsize_finished_flows_duration = []
+    all_finished_flows_duration = []
+
+    # Only consider flows that were completed between warmup and cooldown period
+    warmup_period_ns = 2 * (10**9) 
+    cooldown_period_ns = 2 * (10**9)
+    last_flow_start_timestamp_ns = start_time[-1]
+    valid_period_upperbound = last_flow_start_timestamp_ns - cooldown_period_ns
+
+    flows_count = collections.defaultdict(int)
+    ecdf_dict = collections.defaultdict()
     for i in range(num_entries):
         f_id = flows_id[i]
         from_node = source[i]
@@ -73,29 +167,43 @@ def plot_flows_FCT(run_dir):
         f_size_KB = float(f_size/1000)
         f_duration = duration[i]
         f_finished_state = finished_state[i]
+        f_start_time = start_time[i]
         # print(f"f id: {f_id}, from: {from_node}, to: {to_node}, f_size_KB:{f_size_KB:.2f},f_duration:{f_duration}, state:{f_finished_state} ")
-        if f_finished_state == "YES":
+
+        if warmup_period_ns < f_start_time < valid_period_upperbound:  
+            flows_count["all"] +=1
             if f_size_KB <= small_flows_threshold_KB:
-                small_finished_flows_duration.append(f_duration)
+                if f_finished_state == "YES":
+                    small_finished_flows_duration.append(f_duration)
+                    all_finished_flows_duration.append(f_duration)
+                flows_count["small"] += 1
             elif f_size_KB >= large_flows_threshold_KB:
-                large_finished_flows_duration.append(f_duration)
+                if f_finished_state == "YES":
+                    large_finished_flows_duration.append(f_duration)
+                    all_finished_flows_duration.append(f_duration)
+                flows_count["large"] += 1
+            else: # flows between [100KB, 10MB]
+                if f_finished_state == "YES":
+                    midsize_finished_flows_duration.append(f_duration)
+                    all_finished_flows_duration.append(f_duration)
+                flows_count["mid"] += 1
 
-    average_small_flows_FCT_ms = sum(small_finished_flows_duration)/len(small_finished_flows_duration)        
-    average_small_flows_FCT_ms = float(average_small_flows_FCT_ms)/float(1000000)
+    print(f" cnt small finished flows: {len(small_finished_flows_duration)}, expected: {flows_count['small']}")
+    print(f" cnt large finished flows: {len(large_finished_flows_duration)}, expected: {flows_count['large']}")
+    assert len(small_finished_flows_duration) == flows_count["small"], "Some small flows are not finished during considered interval"
+    assert len(large_finished_flows_duration) == flows_count["large"], "Some large flows are not finished during considered interval"
 
-    small_flows_99th_FCT_ms = np.percentile(small_finished_flows_duration,99)
-    small_flows_99th_FCT_ms = float(small_flows_99th_FCT_ms)/float(1000000)
+    small_flows_stats = generate_flow_stats(small_finished_flows_duration)
+    large_flows_stats = generate_flow_stats(large_finished_flows_duration)
+    mid_flows_stats = generate_flow_stats(midsize_finished_flows_duration)
+    all_flows_stats = generate_flow_stats(all_finished_flows_duration)
+    
+    run_flow_summary = AllFlowStats(small_flows_stats, large_flows_stats, mid_flows_stats, all_flows_stats)
 
+    print(run_flow_summary)
 
-    average_large_flows_FCT_ms = sum(large_finished_flows_duration)/len(large_finished_flows_duration)        
-    average_large_flows_FCT_ms = float(average_large_flows_FCT_ms)/float(1000000)
-    # print(f"small flow fct: {average_small_flows_FCT_ms}, cnt: {len(small_finished_flows_duration)}")
-    # print(f"large flow fct: {average_large_flows_FCT_ms}, cnt: {len(large_finished_flows_duration)}")
-    print(f"99th percentile: {small_flows_99th_FCT_ms}")
-    print(f"average small FCT: {average_small_flows_FCT_ms}")
-    print(f"average large FCT: {average_large_flows_FCT_ms}")
+    return run_flow_summary
 
-    return average_small_flows_FCT_ms, average_large_flows_FCT_ms, small_flows_99th_FCT_ms
 
 def extract_average_utilization(run_dir):
     run_dir_root = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
@@ -125,18 +233,10 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
     horovod_p0_bw = collections.defaultdict()
     leftover_p0_bw = collections.defaultdict()
 
-    bg_small_flows_FCT_dict = collections.defaultdict()
-    bg_large_flows_FCT_dict = collections.defaultdict()
-    bg_small_flows_99th_FCT_dict = collections.defaultdict()
-
-    small_flows_FCT_dict = collections.defaultdict() 
-    large_flows_FCT_dict = collections.defaultdict() 
-    small_flows_99th_FCT_dict = collections.defaultdict() 
+    bg_flows_summary = collections.defaultdict()
+    both_p0_flows_summary = collections.defaultdict()
+    hrvd_p2_flows_summary = collections.defaultdict()
     
-    c_small_flows_FCT_dict = collections.defaultdict() 
-    c_small_flows_99th_FCT_dict = collections.defaultdict() 
-    c_large_flows_FCT_dict = collections.defaultdict() 
-
     small_flows_delta_percent = []
     large_flows_delta_percent = []
     small_flows_99th_delta_percent = []
@@ -149,8 +249,6 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
     baseline_horovod_iteration_times_s = []
 
     for flows_per_s, bg_alone_time_stamp, hrvd_p0_time_stamp, hrvd_p2_time_stamp in input_run_dirs_timestamp:
-        # baseline_time_stamp = "17_03_2020_07_22"
-        # comparison_time_stamp = "21_13_2020_07_22"
         print(f"Flows per second: {flows_per_s}")
         run_dir = f"pfabric_flows_horovod_100ms_arrival_{flows_per_s}_{hrvd_p0_time_stamp}"
         hrvd_p2_run_dir = f"pfabric_flows_horovod_100ms_arrival_{flows_per_s}_{hrvd_p2_time_stamp}"
@@ -161,19 +259,26 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
         horovod_p0_bw[flows_per_s] = utilization_dict[flows_per_s] - expected_flows_bw[flows_per_s]
         leftover_p0_bw[flows_per_s] = 100.0 - utilization_dict[flows_per_s] 
         
-        bg_small_flows_FCT_dict[flows_per_s], bg_large_flows_FCT_dict[flows_per_s], bg_small_flows_99th_FCT_dict[flows_per_s] = plot_flows_FCT(bg_run_dir)
-        small_flows_FCT_dict[flows_per_s], large_flows_FCT_dict[flows_per_s], small_flows_99th_FCT_dict[flows_per_s] = plot_flows_FCT(run_dir)
-        c_small_flows_FCT_dict[flows_per_s], c_large_flows_FCT_dict[flows_per_s], c_small_flows_99th_FCT_dict[flows_per_s] = plot_flows_FCT(hrvd_p2_run_dir)
-        
-        if c_small_flows_FCT_dict[flows_per_s] != None and c_large_flows_FCT_dict[flows_per_s] != None:
-            small_flows_delta_percent.append( (c_small_flows_FCT_dict[flows_per_s] - small_flows_FCT_dict[flows_per_s])/small_flows_FCT_dict[flows_per_s] * 100)
-            large_flows_delta_percent.append((c_large_flows_FCT_dict[flows_per_s] - large_flows_FCT_dict[flows_per_s])/large_flows_FCT_dict[flows_per_s] * 100)
-            small_flows_99th_delta_percent.append((c_small_flows_99th_FCT_dict[flows_per_s]-small_flows_99th_FCT_dict[flows_per_s])/small_flows_99th_FCT_dict[flows_per_s] * 100)
+        bg_flows_summary[flows_per_s] = plot_flows_FCT(bg_run_dir)
+        both_p0_flows_summary[flows_per_s] = plot_flows_FCT(run_dir)
+        hrvd_p2_flows_summary[flows_per_s] = plot_flows_FCT(hrvd_p2_run_dir)
 
-            small_flows_bg_delta_percent.append( (c_small_flows_FCT_dict[flows_per_s] - bg_small_flows_FCT_dict[flows_per_s])/bg_small_flows_FCT_dict[flows_per_s] * 100)
-            large_flows_bg_delta_percent.append((c_large_flows_FCT_dict[flows_per_s] - bg_large_flows_FCT_dict[flows_per_s])/bg_large_flows_FCT_dict[flows_per_s] * 100)
-            small_flows_99th_bg_delta_percent.append((c_small_flows_99th_FCT_dict[flows_per_s]-bg_small_flows_99th_FCT_dict[flows_per_s])/bg_small_flows_99th_FCT_dict[flows_per_s] * 100)
-            
+        if hrvd_p2_flows_summary[flows_per_s].small_flows.avg_FCT_ms != None and hrvd_p2_flows_summary[flows_per_s].large_flows.avg_FCT_ms != None:
+        
+            avg_FCT_delta = hrvd_p2_flows_summary[flows_per_s].compare_avg_FCT(both_p0_flows_summary[flows_per_s])
+            pct_99th_deleta = hrvd_p2_flows_summary[flows_per_s].compare_99th_pct(both_p0_flows_summary[flows_per_s])
+
+            small_flows_delta_percent.append(avg_FCT_delta["small"])
+            large_flows_delta_percent.append(avg_FCT_delta["large"])
+            small_flows_99th_delta_percent.append(pct_99th_deleta["small"])
+
+            avg_FCT_delta = hrvd_p2_flows_summary[flows_per_s].compare_avg_FCT(bg_flows_summary[flows_per_s])
+            pct_99th_deleta = hrvd_p2_flows_summary[flows_per_s].compare_99th_pct(bg_flows_summary[flows_per_s])
+
+            small_flows_bg_delta_percent.append(avg_FCT_delta["small"])
+            large_flows_bg_delta_percent.append(avg_FCT_delta["large"])
+            small_flows_99th_bg_delta_percent.append(pct_99th_deleta["small"])
+
         else:
             small_flows_delta_percent.append(None)
             large_flows_delta_percent.append(None)
@@ -220,17 +325,17 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
                                 [x for x in horovod_p0_bw.values()], 
                                 [x for x in leftover_p0_bw.values()])
     # fig.suptitle("Average FCT vs Link Utilization")
-    ax1.plot([x for x in utilization_dict.values()],[x for x in small_flows_FCT_dict.values()], label='horovod P0+bg P0', marker='x')
-    ax1.plot([x for x in utilization_dict.values()],[x for x in c_small_flows_FCT_dict.values()], label = 'horovod P2+bg P0', marker='o')
-    ax1.plot([x for x in utilization_dict.values()],[x for x in bg_small_flows_FCT_dict.values()], label = 'bg only', marker='v')
+    ax1.plot([x for x in utilization_dict.values()],[x.small_flows.avg_FCT_ms for x in both_p0_flows_summary.values()], label='horovod P0+bg P0', marker='x')
+    ax1.plot([x for x in utilization_dict.values()],[x.small_flows.avg_FCT_ms for x in hrvd_p2_flows_summary.values()], label = 'horovod P2+bg P0', marker='o')
+    ax1.plot([x for x in utilization_dict.values()],[x.small_flows.avg_FCT_ms for x in bg_flows_summary.values()], label = 'bg only', marker='v')
     
-    ax2.plot([x for x in utilization_dict.values()],[x for x in large_flows_FCT_dict.values()], label='horovod P0+bg P0', marker='x' )
-    ax2.plot([x for x in utilization_dict.values()],[x for x in c_large_flows_FCT_dict.values()], label = 'horovod P2+bg P0', marker='o')
-    ax2.plot([x for x in utilization_dict.values()],[x for x in bg_large_flows_FCT_dict.values()], label = 'bg only', marker='v')
+    ax2.plot([x for x in utilization_dict.values()],[x.large_flows.avg_FCT_ms for x in both_p0_flows_summary.values()], label='horovod P0+bg P0', marker='x' )
+    ax2.plot([x for x in utilization_dict.values()],[x.large_flows.avg_FCT_ms for x in hrvd_p2_flows_summary.values()], label = 'horovod P2+bg P0', marker='o')
+    ax2.plot([x for x in utilization_dict.values()],[x.large_flows.avg_FCT_ms for x in bg_flows_summary.values()], label = 'bg only', marker='v')
     
-    ax3.plot([x for x in utilization_dict.values()],[x for x in small_flows_99th_FCT_dict.values()], label = 'horovod P0+bg P0', marker='x' )
-    ax3.plot([x for x in utilization_dict.values()],[x for x in c_small_flows_99th_FCT_dict.values()], label = 'horovod P2+bg P0', marker='o' )
-    ax3.plot([x for x in utilization_dict.values()],[x for x in bg_small_flows_99th_FCT_dict.values()], label = 'bg only', marker='v' )
+    ax3.plot([x for x in utilization_dict.values()],[x.small_flows.percentile_99th_ms for x in both_p0_flows_summary.values()], label = 'horovod P0+bg P0', marker='x' )
+    ax3.plot([x for x in utilization_dict.values()],[x.small_flows.percentile_99th_ms for x in hrvd_p2_flows_summary.values()], label = 'horovod P2+bg P0', marker='o' )
+    ax3.plot([x for x in utilization_dict.values()],[x.small_flows.percentile_99th_ms for x in bg_flows_summary.values()], label = 'bg only', marker='v' )
     
     ax4.plot([x for x in utilization_dict.values()],small_flows_delta_percent, label = 'small flows', marker='x' )
     ax4.plot([x for x in utilization_dict.values()],large_flows_delta_percent, label = 'large flows', marker='o' )
@@ -375,7 +480,7 @@ if __name__  == "__main__":
             (300.0, bg_alone, baseline_both_P0_5G,h_p2_single_pkt_new_TCP_to_5G)]
 
 
-    # Running with 8
+    # Running with 8 and failed!
     link_cap_Gbits = 5
     baseline_both_P0_5G = "02_31_2020_07_31"
     h_p2_single_pkt_new_TCP_to_5G = "02_35_2020_07_31"
@@ -430,6 +535,18 @@ if __name__  == "__main__":
             (12.5, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
             (25.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
             (50.0, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]#, \
+
+    
+    link_cap_Gbits=10
+    baseline_both_P0 = "runhvd_true_hrvprio_0x10_num_hvd_8_17_58_2020_08_04"
+    h_p2_single_pkt_new_TCP_to="runhvd_true_hrvprio_0x08_num_hvd_8_17_58_2020_08_04"
+    bg_alone="runhvd_false_hrvprio_0x08_num_hvd_8_17_58_2020_08_04"
+    input_run_dirs_timestamp = [(10, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (50, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (100, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to),\
+            (200, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (300, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
+            (400, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]#, \
 
     print(f"save_fig: {args.save_fig}")
     plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, args.save_fig)
