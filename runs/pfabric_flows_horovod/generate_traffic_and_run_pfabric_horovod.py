@@ -9,6 +9,8 @@ import importlib.util
 import sys
 import concurrent.futures
 import time
+from dataclasses import dataclass, field
+from typing import DefaultDict
 
 
 config_dir = pathlib.Path.cwd()
@@ -28,16 +30,7 @@ except ImportError:
 config_file = f"{config_dir}/config_ns3.properties"
 topology_file = f"{config_dir}/topology_single.properties"
 print(f"config file: {config_file}")
-# with open(config_file, "r") as f:
-#     d = f.readlines()
-#     f.seek(0)
-#     for i in d:
-#         if i.find("simulation_end_time_ns") != -1:
-#             duration_ns = int(i.split("=")[1].strip("\n"))
 
-# print(f"duration_ns: {duration_ns}")
-# num_servers = 3
-# num_servers = 8
 local_shell = exputil.LocalShell()
 main_program = "pfabric_flows_horovod"
 
@@ -168,22 +161,31 @@ def individual_pfabric_run(args):
 # expected_flows_per_s = [10, 50, 100, 200, 300, 400, 500, 600, 700]
 
 def launch_multiprocess_run(config_horovod_p0_5G):
-    # for utilization_interval_ns in  interval_ns_test_cases: #interval_ns_test_cases:
-    #     # individual_pfabric_run(500)
-
     with concurrent.futures.ProcessPoolExecutor() as executor:
         executor.map(individual_pfabric_run, enumerate(config_horovod_p0_5G))
 
 
+@dataclass
 class pfabric_horovod_config:
-    def __init__(self, link_bw_Mbits, simulation_ns, flow_arr_rate, horovod_prio, run_horovod, num_workers):
-        self.c_link_bw_Mbits = link_bw_Mbits
-        self.c_simulation_ns = simulation_ns
-        self.c_flow_arr_rate = flow_arr_rate
-        self.c_horovod_prio = horovod_prio
-        self.c_run_horovod = run_horovod
-        self.c_num_workers = num_workers
+    c_link_bw_Mbits : float
+    c_simulation_ns : int
+    c_flow_arr_rate: float
+    c_horovod_prio: str
+    c_run_horovod: str
+    c_num_workers: int
+    c_hrvd_specifics: DefaultDict = field(default_factory=collections.defaultdict)
+    
+    def add_configs(self, **kwargs):
+        for key, value in kwargs.items():
+            self.c_hrvd_specifics[key] = value
 
+
+def test_pfabric_horovod_config_class():
+    config = pfabric_horovod_config(1, 1, 1, 1, 1, 1)
+    print(config)
+    more_config = {"size":0, "time": 2}
+    config.add_configs(**more_config)
+    print(config)
 
 def Test_5G_low_utilization():
     # Test 5G low utilization
@@ -202,7 +204,7 @@ def Test_5G_low_utilization():
                 for flows in flows_per_s_test_cases_low_utilization_5G:
                 # for flows in test_flows:
                     new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
-                    print(new_config.__dict__)
+                    # print(new_config.__dict__)
                     configs.append(new_config)
         else:
             for flows in flows_per_s_test_cases_low_utilization_5G:
@@ -248,7 +250,7 @@ def Test_10G_8_workers():
                 for flows in flows_per_s_test_cases:
                 # for flows in test_flows:
                     new_config  = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
-                    print(new_config.__dict__)
+                    # print(new_config.__dict__)
                     configs.append(new_config)
         else:
             for flows in flows_per_s_test_cases:
@@ -280,5 +282,7 @@ if __name__ == "__main__":
     configs_to_test = Test_5G_Bg_only()
 
     configs_to_test = Test_10G_8_workers()
-    launch_multiprocess_run(configs_to_test)
+
+    test_pfabric_horovod_config_class()
+    # launch_multiprocess_run(configs_to_test)
     
