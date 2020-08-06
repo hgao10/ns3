@@ -41,6 +41,13 @@
   std::cout << "Worker ID: " << HorovodWorker::GetWorkerID() <<" Port: "<<m_port<<std::endl
 #define ITERBARRIER 1
 
+
+// #define DEBUG
+#ifdef DEBUG
+#define DEBUG_MSG(str) do {WORKER; std::cout << str << std::endl; } while( false )
+#else
+#define DEBUG_MSG(str) do { } while ( false )
+#endif
 namespace ns3 {
 
 // class Address;
@@ -129,9 +136,10 @@ class HorovodWorker : public Application {
     return m_inflight_fusion_map;
   };
 
+
   std::vector<uint32_t> & GetBytesSentVector(){
     return m_bytes_sent_vector;
-  }
+  };
 
  protected:
   virtual void DoDispose(void);
@@ -255,36 +263,23 @@ class HorovodWorker : public Application {
   void SetFusionBufferSize(uint32_t size);
 
   bool CheckAllPartitionSynced(uint32_t excluded_partition_idx){
+    // excluded partition implicitly is at program 2(num_workers - 1)
+    uint32_t max_progress = 2 * (m_num_workers - 1);
+    DEBUG_MSG("excluded_partition_idx "<< excluded_partition_idx);
     for (uint32_t i=0; i< m_num_workers; ++i){
-      uint32_t progress = m_inflight_allreduce->GetPartitions()[i]->GetProgress();
-      if(i == excluded_partition_idx){
-        continue;
+      uint32_t wrapped_around_partition_idx = (excluded_partition_idx + i) % m_num_workers;
+      uint32_t progress = m_inflight_allreduce->GetPartitions()[wrapped_around_partition_idx]->GetProgress();
+      if (progress != max_progress - i){
+
+        DEBUG_MSG(" Partition: "<<wrapped_around_partition_idx <<" not fully synced, at progress "
+                                <<progress <<" , expecting progress "
+                                  << max_progress-i);
+        return false;
       }
-      else if(i == m_worker_id){
-        if(progress != m_num_workers){
-          std::cout<<" Partition: "<<i
-                                  <<" not fully synced, at progress "
-                                  <<progress
-                                  <<" , expecting progress "
-                                  << m_num_workers
-                                  <<std::endl;
-          return false;
-        }
-      }
-      else{
-        if(progress != m_num_workers -1) {
-          std::cout<<" Partition: "<<i
-                                  <<" not fully synced, at progress "
-                                  <<progress
-                                  <<" , expecting progress "
-                                  <<m_num_workers-1
-                                  <<std::endl;
-          return false;
-        }
-      }
-      
     }
+    
     return true;
+
   };
 
   void UpdateGlobalRingallreduceSyncer();

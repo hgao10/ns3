@@ -42,11 +42,11 @@
 
 #include "ns3/address-utils.h"
 // #define DEBUG
-#ifdef DEBUG
-#define DEBUG_MSG(str) do {WORKER; std::cout << str << std::endl; } while( false )
-#else
-#define DEBUG_MSG(str) do { } while ( false )
-#endif
+// #ifdef DEBUG
+// #define DEBUG_MSG(str) do {WORKER; std::cout << str << std::endl; } while( false )
+// #else
+// #define DEBUG_MSG(str) do { } while ( false )
+// #endif
 
 
 namespace ns3 {
@@ -75,6 +75,10 @@ HorovodWorker::GetTypeId(void) {
                             UintegerValue(), 
                             MakeUintegerAccessor(&HorovodWorker::m_worker_id),
                             MakeUintegerChecker<uint64_t>())
+            .AddAttribute("NumWorkers", "Number of horovodworkers in a ring",
+                            UintegerValue(3), 
+                            MakeUintegerAccessor(&HorovodWorker::m_num_workers),
+                            MakeUintegerChecker<uint32_t>())
             .AddAttribute("MaxBytes",
                           "The total number of bytes to send. "
                           "Once these bytes are sent, "
@@ -319,26 +323,35 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                     // std::cout<<"    > Received partition from R["<<map[*it]->GetParent()->GetPriority()
                                                             // <<"] : "<<map[*it]->GetIdx() <<std::endl;
                     // FusionPartition* fusionpartition= map[m_totalRx];
+                    DEBUG_MSG("     > Left neighbor is: "<<m_leftneighbor->GetWorkerID());
                     DEBUG_MSG("    > FOUND FUSION : "<<map[*it]);
+
                     uint32_t partition_idx = map[*it]->GetIdx();
 
                     for(auto layer: map[*it]->GetParent()->GetTensors()){
                         RecordEvent(layer, format_string("Received_Partition_%" PRIu32 "_Priority_%" PRIu64, partition_idx, uint64_t(m_send_socket->GetPriority())));
                     }
 
+                    uint32_t new_progress = map[*it]->GetProgress() +1;
+                    m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
+
                     // std::cout<<"    > Received partition progress "<<map[*it]->GetProgress()<<std::endl; 
-                    if (map[*it]->GetProgress() < (2 * (m_num_workers-1) - 1)) // not yet fully synced
+                    // if (map[*it]->GetProgress() < 2 * (m_num_workers-1) ) // not yet fully synced
+                    if (new_progress < 2 * (m_num_workers-1) ) // not yet fully synced
                     {
                         // Add next fusion to send to queue
                         // increment progress by one
                         // std::cout<<"    > Not fully synced, send Partition "<<partition_idx<<" to neighbor"<< std::endl;
                         DEBUG_MSG("    > Not fully synced, send Partition "<<partition_idx<<" to neighbor");
-                        uint32_t new_progress = map[*it]->GetProgress() +1;
-                        m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
+                        // uint32_t new_progress = map[*it]->GetProgress() +1;
+                        // m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
+
                         // send to right neighbor, add to transmission queue
                         m_maxBytes += map[*it]->GetSize();
                         m_bytes_sent += map[*it]->GetSize();
+                        DEBUG_MSG("    > Update fusion map ["<<m_bytes_sent<<"] "<< partition_idx);
                         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
+                        DEBUG_MSG("    > Update fusion map [1777776] "<< m_inflight_fusion_map[1777776]);
                         m_bytes_sent_vector.push_back(m_bytes_sent);   
 
                         // for(auto layer: m_inflight_allreduce->GetTensors()){
@@ -493,8 +506,7 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
             // Todo! check the queue to see if desired ringallreduce exist, if it does, deque it first
         }
         else{
-            std::cout<<" >Working on the same global ringallreduce: "<< prio <<std::endl;
-            DEBUG_MSG(" >Working on the same global ringallreduce: ");
+            DEBUG_MSG(" >Working on the same global ringallreduce: "<< prio);
         }
 
         DequeTransmission();
@@ -513,7 +525,9 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         // std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<p_idx <<std::endl;
         DEBUG_MSG("  > Add m_bytes_sent_vector: " <<m_bytes_sent<< " Partition: " <<p_idx);
         m_bytes_sent_vector.push_back(m_bytes_sent);
+        DEBUG_MSG("    > Update fusion map ["<<m_bytes_sent<<"] "<< m_worker_id);
         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
+        DEBUG_MSG("    > Update fusion map [1777776] "<< m_inflight_fusion_map[1777776]);
 
         // ***** Scheduling scheme 1:
         // *************************** allreduce priority <= 14 : P0
@@ -542,8 +556,8 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
     //         uint32_t idx = std::get<2>(p_to_send);
     //         m_send_queue.pop();
     //         m_bytes_sent += m_maxBytes;
-    //         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[idx];
     //         std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<idx <<std::endl;
+    //        m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[idx];
     //         for(auto layer: m_inflight_allreduce->GetTensors()){
     //             RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, idx));
     //         }
@@ -689,8 +703,8 @@ void RingAllReduce::SetPartition(uint32_t num_workers, RingAllReduce* parent){
         r_partitions[i]->SetSize(r_partition_bytes);
         r_partitions[i]->SetIdx(i);
         r_partitions[i]->SetParent(parent);
-        std::cout<<"    > Initialize Parition for R["<<r_partitions[i]->GetParent()->GetPriority()<<"]"<<" : "
-                                                <<","<<" idx: "<<r_partitions[i]->GetIdx()<<std::endl;
+        DEBUG_MSG("    > Initialize Parition for R["<<r_partitions[i]->GetParent()->GetPriority()<<"]"<<" : "
+                                                <<","<<" idx: "<<r_partitions[i]->GetIdx());
     }
     std::cout <<"   > Partition size: "<<r_partition_bytes<<"\n";
 }
