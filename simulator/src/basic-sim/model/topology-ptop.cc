@@ -1,5 +1,5 @@
 #include "topology-ptop.h"
-
+// #define DEBUG_INTERNAL_QUEUE
 namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED(TopologyPtop);
@@ -307,15 +307,7 @@ void TopologyPtop::SetupLinks() {
         std::cout <<"Install qdiscs on "<<link.first <<" connecting to "<<link.second<<std::endl;
         
         RecordInternalQueues(tch_endpoints.Install(container.Get(0)), link.first);
-        
-        // int64_t interval_ns = 200000000; // 10ms 
-        // UtilizationTracker* ut = new UtilizationTracker() ;
-        // ut->EnableUtilizationTracking(interval_ns, link.first, m_basicSimulation->GetLogsDir());
-        // Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_Txbegin(Ptr<MyCallback2>(new MyCallback2(ut, true)));
-        // Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_TxEnd(Ptr<MyCallback2>(new MyCallback2(ut, false)));
-        // container.Get(0)->TraceConnectWithoutContext("PhyTxBegin", ut_callback_Txbegin);
-        // container.Get(0)->TraceConnectWithoutContext("PhyTxEnd", ut_callback_TxEnd);
-      }
+              }
       else{
         // Install qdiscs without recording for edge 0 - 2
         tch_endpoints.Install(container.Get(0));
@@ -338,15 +330,6 @@ void TopologyPtop::SetupLinks() {
         std::cout <<"Install qdiscs on "<<link.second <<" connecting to "<<link.first<<std::endl;
 
         RecordInternalQueues(tch_endpoints.Install(container.Get(1)), link.second);
-
-        // int64_t interval_ns = 10000000; // 10ms 
-        // UtilizationTracker* ut = new UtilizationTracker();
-        // ut->EnableUtilizationTracking(interval_ns, link.second, m_basicSimulation->GetLogsDir());
-        // Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_Txbegin(Ptr<MyCallback2>(new MyCallback2(ut, true)));
-        // Callback<void, ns3::Ptr<ns3::Packet const>> ut_callback_TxEnd(Ptr<MyCallback2>(new MyCallback2(ut, false)));
-        // container.Get(1)->TraceConnectWithoutContext("PhyTxBegin", ut_callback_Txbegin);
-        // container.Get(1)->TraceConnectWithoutContext("PhyTxEnd", ut_callback_TxEnd);
-
       }
       else{
         tch_endpoints.Install(container.Get(1));
@@ -435,6 +418,7 @@ double TopologyPtop::GetNumberOfActiveBursts(){
 }
 
 void TopologyPtop::RecordInternalQueues(QueueDiscContainer qdiscs, int64_t node){
+  #ifdef DEBUG_INTERNAL_QUEUE 
   Ptr<QueueDisc> q = qdiscs.Get (0);  
       
   q->GetTypeId();
@@ -449,6 +433,7 @@ void TopologyPtop::RecordInternalQueues(QueueDiscContainer qdiscs, int64_t node)
     queue->TraceConnectWithoutContext ("BytesInQueue", cb);
 
   }
+  #endif
 }
 
 }  // namespace ns3

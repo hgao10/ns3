@@ -18,32 +18,11 @@
 #include "ns3/traffic-control-helper.h"
 #include "ns3/callback.h"
 #include "ns3/packet.h"
-#include "ns3/utilization-tracker.h"
+// #include "ns3/utilization-tracker.h"
 
 
 namespace ns3 {
 void TcBytessInQueueTrace (uint32_t oldValue, uint32_t newValue);
-
-class MyCallback2: public CallbackImpl<void, ns3::Ptr<ns3::Packet const>, empty,empty,empty,empty,empty,empty,empty,empty>
-{
-  public:
-      MyCallback2(UtilizationTracker * ut, bool next_state_is_on){
-        m_ut =  ut;
-        m_state = next_state_is_on;
-      };
-      
-      void operator() (ns3::Ptr<ns3::Packet const>) {
-        m_ut->TrackUtilization(m_state);
-      }      
-
-      bool IsEqual (Ptr<const CallbackImplBase> other) const {
-        return false;
-      }
-
-  private:
-      UtilizationTracker * m_ut;
-      bool m_state;
-};
 
 class MyCallback: public CallbackImpl<void, uint32_t, uint32_t,empty,empty,empty,empty,empty,empty,empty>
 {
