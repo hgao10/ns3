@@ -89,6 +89,7 @@ def generate_flow_stats(durations_ns):
     percentile_90th_ms = ns_to_ms(np.percentile(durations_ns,90))
     ecdf_x_y = ecdf(durations_ns)
     flows_cnt = len(durations_ns)
+
     return FlowStats(min_FCT_ms, max_FCT_ms, median_FCT_ms, avg_FCT_ms, percentile_90th_ms, percentile_99th_ms, ecdf_x_y, flows_cnt)
 
 
@@ -103,18 +104,22 @@ def plot_pfabric_utilization(log_dir):
         utilization_plot.utilization_plot(log_dir, data_out_dir, pdf_out_dir, n1, n2)
 
 
-class flow:
-    def init(self, id, size, source, target,start_time, duration, sent_bytes, status):
-        self.id = id
-        self.size_KB = size
-        self.source = source
-        self.target = target
-        self.start_time = start_time
-        self.duration = duration
-        self.end_time = self.start_time + self.duration
-        self.sent_bytes = sent_bytes
-        self.status = status
-        self.attr = collections.defaultdict()
+@dataclass
+class Flow:
+    f_id:  int
+    source: int
+    target: int
+    size_KB: int
+    start_time: int
+    duration: int
+    end_time: int
+    sent_bytes: int
+    finished_status: str
+
+    def __post_init__(self):
+        # initialized with unit Byte in __init__
+        self.size_KB = float(self.size_KB/1000)
+
 
 def plot_flows_FCT(run_dir):
     run_dir_root = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
@@ -158,34 +163,28 @@ def plot_flows_FCT(run_dir):
     valid_period_upperbound = last_flow_start_timestamp_ns - cooldown_period_ns
 
     flows_count = collections.defaultdict(int)
-    ecdf_dict = collections.defaultdict()
-    for i in range(num_entries):
-        f_id = flows_id[i]
-        from_node = source[i]
-        to_node = target[i]
-        f_size = size[i]
-        f_size_KB = float(f_size/1000)
-        f_duration = duration[i]
-        f_finished_state = finished_state[i]
-        f_start_time = start_time[i]
-        # print(f"f id: {f_id}, from: {from_node}, to: {to_node}, f_size_KB:{f_size_KB:.2f},f_duration:{f_duration}, state:{f_finished_state} ")
 
-        if warmup_period_ns < f_start_time < valid_period_upperbound:  
+    for i in range(num_entries):
+        curr_flow = Flow(flows_id[i], source[i], target[i], size[i], start_time[i], duration[i], end_time[i],sent_bytes[i], finished_state[i]  )
+
+        print(curr_flow)
+
+        if warmup_period_ns < curr_flow.start_time < valid_period_upperbound:  
             flows_count["all"] +=1
-            if f_size_KB <= small_flows_threshold_KB:
-                if f_finished_state == "YES":
-                    small_finished_flows_duration.append(f_duration)
-                    all_finished_flows_duration.append(f_duration)
+            if curr_flow.size_KB <= small_flows_threshold_KB:
+                if curr_flow.finished_status == "YES":
+                    small_finished_flows_duration.append(curr_flow.duration)
+                    all_finished_flows_duration.append(curr_flow.duration)
                 flows_count["small"] += 1
-            elif f_size_KB >= large_flows_threshold_KB:
-                if f_finished_state == "YES":
-                    large_finished_flows_duration.append(f_duration)
-                    all_finished_flows_duration.append(f_duration)
+            elif curr_flow.size_KB >= large_flows_threshold_KB:
+                if curr_flow.finished_status == "YES":
+                    large_finished_flows_duration.append(curr_flow.duration)
+                    all_finished_flows_duration.append(curr_flow.duration)
                 flows_count["large"] += 1
             else: # flows between [100KB, 10MB]
-                if f_finished_state == "YES":
-                    midsize_finished_flows_duration.append(f_duration)
-                    all_finished_flows_duration.append(f_duration)
+                if curr_flow.finished_status == "YES":
+                    midsize_finished_flows_duration.append(curr_flow.duration)
+                    all_finished_flows_duration.append(curr_flow.duration)
                 flows_count["mid"] += 1
 
     print(f" cnt small finished flows: {len(small_finished_flows_duration)}, expected: {flows_count['small']}")
