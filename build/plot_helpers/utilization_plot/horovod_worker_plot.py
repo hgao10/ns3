@@ -4,17 +4,16 @@ import matplotlib.pyplot as plt
 import pathlib
 import numpy as np
 import argparse
+from datetime import datetime
+from dataclasses import dataclass
 # NS_LOG="*" ./waf --run="main_horovod --run_dir='/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/horovod_example'" > ../runs/horovod_example/simulation_logs
 
-class Event():
-    def __init__(self, iter_idx, layer, name, timestamp_ns):
-        self.event_name = name
-        self.time = timestamp_ns 
-        self.layer = layer
-        self.iter_idx = iter_idx
-    def __str__(self):
-        return f"event_name: {self.event_name}, time_ns: {self.time}, iter: {self.iter_idx}"
-
+@dataclass
+class Event:
+    iter_idx: int
+    layer: int
+    event_name: str
+    time: int 
 
 def construct_event_list_from_progress_file(progress_file):
     event_dict = collections.defaultdict(list) # key: layer index, value: (event_name, time_ns)  
@@ -44,10 +43,10 @@ def construct_event_list_from_progress_file(progress_file):
             e = Event(iter_idx, layer, event_name, time_ns)
             event_dict[layer].append(e)
             
-            print(f"added event: {e}")
+            # print(f"added event: {e}")
     
     num_layers = max(event_dict.keys())+1
-    print(f"num_layers: {num_layers}, max_time_ns: {max_time_ns}")
+    # print(f"num_layers: {num_layers}, max_time_ns: {max_time_ns}")
     return event_dict, num_layers, max_time_ns
 
 def construct_timeline_and_priority_events_from_event_list(event_dict, log_dir):
@@ -85,11 +84,11 @@ def construct_timeline_and_priority_events_from_event_list(event_dict, log_dir):
             elif e.event_name == "BP_Done":
                 duration = int(e.time) - int(bp_start_time)
                 timeline_event[key].append((bp_start_time, duration))
-                print(f"layer: {key}, iter: {e.iter_idx} Event name: {e.event_name}: duration: {duration} ")
+                # print(f"layer: {key}, iter: {e.iter_idx} Event name: {e.event_name}: duration: {duration} ")
             elif e.event_name == "FP_Done":
                 duration = int(e.time) - int(fp_start_time)
                 timeline_event[key].append((fp_start_time, duration))
-                print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
+                # print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
                     
             elif e.event_name[:5] == "Recei":
                 duration = int(e.time) - int(send_start_time)
@@ -98,7 +97,7 @@ def construct_timeline_and_priority_events_from_event_list(event_dict, log_dir):
 
                 timeline_event[key].append((send_start_time, duration))
                 send_start_time = e.time
-                print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
+                # print(f"layer: {key} Event name: {e.event_name}: duration: {duration} ")
     
     return timeline_event, priority_duration_timestamp, iteration_times_ns
 
@@ -116,10 +115,8 @@ def write_to_priority_sample_files(priority_duration_timestamp,log_dir):
                     sample_file.write(f"{dur_ms/1000000:.2f},{time_s/1000000000:.1f}\n")  
     return available_prio_samples_files      
 
-def plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns):
-    # num_layers = max(event_dict.keys())+1
-    # print(f"num_layers: {num_layers}")
 
+def plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns, progress_file_abs_path, save_fig):
     # Plot the timeline
     fig, ax = plt.subplots()
 
@@ -163,15 +160,23 @@ def plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns):
     ax.grid(True)
     fig.set_size_inches(20.5, 12.5)
 
-    plt.show(block=True)
 
-# plot_name = f"event_timeline_qdisc_{horovod_simulator.config}_{curr_time}"
-# print(f"config: {horovod_simulator.config}, curr_time: {curr_time}")
+    if save_fig == False:
+        plt.show(block=True)
+    else:
+        path_parent = pathlib.Path(progress_file_abs_path).parent
+        plot_name = pathlib.Path(progress_file_abs_path).stem
+        # curr_date = datetime.now().strftime('%H_%M_%Y_%m_%d')
+        fig.savefig(f"{path_parent/plot_name}")
 
-# if savefig:
-#     plt.savefig(f'./simulation_result/{plot_name}')    
+def ecdf(data):
+    """ Compute ECDF """
+    x = np.sort(data)
+    n = x.size
+    y = np.arange(1, n+1) / n
+    return(x,y)
 
-def plot_prio_samples(sample_file_list):
+def plot_prio_samples(sample_file_list, save_fig):
     for f in sample_file_list:
         print(f"sample file: {f.name}")
         prio = str(f.name).split("_")[1]
@@ -186,7 +191,7 @@ def plot_prio_samples(sample_file_list):
             scatter_plot_name = f"Priority 1 Samples"
             translated_prio = 1
 
-        fig, ax = plt.subplots()
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
         y = []
         x = []
         point_cnt = 0
@@ -203,20 +208,51 @@ def plot_prio_samples(sample_file_list):
                 line = input_file.readline()
                 line = line.strip("\n")
         
-        # ax.scatter(x, y,s=0.8, marker='o')
-        # ax.set_xlabel(f"Simulation Time(s)")
-        # ax.set_ylabel("Network Transfer time(ms)")
-        # ax.set_title(f"{scatter_plot_name}")
-        # plt.show(block=True)
+        # scatter plot
+        ax1.scatter(x, y,s=0.8, marker='o')
+        ax1.set_xlabel(f"Simulation Time(s)")
+        ax1.set_ylabel("Network Transfer time(ms)")
+        ax1.set_title(f"{scatter_plot_name}")
         
-        ax.hist(y, bins=40)
-        ax.set_title(f"Priority {translated_prio} Histogram")        
-        plt.show(block=True)
+        # histogram show network transfer time distribution
+        ax2.hist(y, bins=40)
+        ax2.set_title(f"Priority {translated_prio} Histogram")        
+        
+        # ecdf 
+        e_x, e_y = ecdf(y)
+        ax3.scatter(e_x, e_y, s=2**2)
+        ax3.set_title(f"Priority {translated_prio} CDF")
+        ax3.set_xlabel("Network Transfer time(ms)")
+
+        fig.set_size_inches(12.5, 20.5)
+        plt.subplots_adjust(hspace = 0.3)
+
+        if save_fig == False:
+            plt.show(block=True)
+        else:
+            path_parent = pathlib.Path(f).parent
+            plot_name = pathlib.Path(f).stem
+            # curr_date = datetime.now().strftime('%H_%M_%Y_%m_%d')
+            fig.savefig(f"{path_parent/plot_name}")
+
+        
+
+
+def plot_progress_files(progress_file_lists):
+    for p_file in progress_file_lists:
+        event_dict, num_layers, max_time_ns = construct_event_list_from_progress_file(p_file)
+
+        timeline_event, priority_duration_timestamp, iteration_times_ns = construct_timeline_and_priority_events_from_event_list(event_dict, log_dir)
+        plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns, p_file, True)
+
+
 
 if __name__ == "__main__":
     # file_name = sys.argv[1]
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", help="specify the absolute path of the run directory")
+    parser.add_argument("--save_fig", action="store_true", help="specify whether the summary plot should be saved")
+
     # parser.add_argument("--run_program", action="store_true", help="execute the simulation specified by the main program")
     # parser.add_argument("--plot_utilization", help="plot the utilization of the links", choices=["hist","line"])
     args = parser.parse_args()
@@ -232,7 +268,7 @@ if __name__ == "__main__":
     event_dict, num_layers, max_time_ns = construct_event_list_from_progress_file(progress_file)
 
     timeline_event, priority_duration_timestamp, iteration_times_ns = construct_timeline_and_priority_events_from_event_list(event_dict, log_dir)
-    plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns)
+    plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns, progress_file, args.save_fig)
 
     available_prio_samples_files = write_to_priority_sample_files(priority_duration_timestamp, log_dir)
-    plot_prio_samples(available_prio_samples_files)
+    plot_prio_samples(available_prio_samples_files, args.save_fig)
