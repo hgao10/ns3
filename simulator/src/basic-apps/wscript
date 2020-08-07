@@ -27,6 +27,7 @@ def build(bld):
         'model/PPBP-application.cc',
         'model/ppbp-scheduler.cc',
         'helper/PPBP-helper.cc',
+        'model/horovod-worker-config-reader.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('basic-apps')
@@ -55,7 +56,7 @@ def build(bld):
         'model/PPBP-application.h',
         'model/ppbp-scheduler.h',
         'helper/PPBP-helper.h',
-
+        'model/horovod-worker-config-reader.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:

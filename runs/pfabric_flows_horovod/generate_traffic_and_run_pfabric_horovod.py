@@ -67,12 +67,75 @@ def generate_ring_topology_file(num_nodes, topology_file):
         set_undirected_edges = ",".join(set_undirected_edges)
         output_file.write(f"undirected_edges=set({set_undirected_edges})\n")
 
+
 def run_pfabric_horovod_simulation(waf_bin_path,main_program, run_dir_abs):
     waf = sh.Command(f"{waf_bin_path}/waf")
     sh.cd(f"{waf_bin_path}")
     waf(run=f"{main_program} --run_dir='{run_dir_abs}'", _out=f"{run_dir_abs}/simulation.log", _err_to_out=True)
 
 
+def generate_horovod_layer_size(model_size_in_byte, num_layers):
+    layer_size_dict = collections.defaultdict()
+    # layer_size_file = output_dir/"layer_size.csv"
+    min_layer_size_bytes = int(2 * model_size_in_byte / (9 * num_layers))
+    print(f"min_layer_size_bytes: {min_layer_size_bytes}")
+    
+    total_layer_size = 0
+    for i in range(num_layers):
+        if i < num_layers/2:
+            layer_size_dict[i] = min_layer_size_bytes
+        elif num_layers/2 <= i <= 0.75 * num_layers:
+            layer_size_dict[i] = 4 * min_layer_size_bytes
+        else:
+            layer_size_dict[i] = 12 * min_layer_size_bytes
+        
+        assert layer_size_dict[i] != 0.0, f"layer {i} has 0 weights"
+        total_layer_size += layer_size_dict[i]
+        # output_file.write(f"{i}, {layer_size_dict[i]}\n")
+    
+    print(f"model_size: {model_size_in_byte}, num_layers: {num_layers}, total_bytes: {total_layer_size}")
+    return layer_size_dict
+
+
+def write_to_csv(data, csv_file):
+    with open(csv_file, "w") as output_file:
+        for key, value in data.items():
+            output_file.write(f"{key},{value}\n")
+
+
+def map_layer_to_ringallreduce(layer_size_dict, fusion_size, output_dir):
+    outputfile = output_dir/"ringallreduce_map"
+    fusion_count = 0
+    # TODO finish the implementation
+
+
+
+def test_generate_horovod_layer_size(output_dir):
+    model_size = [100 * (10**6), 200 * (10**6)]
+    num_layers = [50, 100, 150]
+
+    for m_size in model_size:
+        for n_layer in num_layers:
+            output_file = output_dir/f"layer_size_config_model_{m_size}_num_layers_{n_layer}.csv"
+            generate_horovod_layer_size(m_size, n_layer)
+
+
+def generate_horovod_compute_time(iteration_time, num_layers, batchsize_multiplier, output_dir):
+    fp_compute_time_file = output_dir/"fp_compute_time.csv"
+    bp_compute_time_file = output_dir/"bp_compute_time.csv"
+
+
+
+def estimate_network_comm_time(link_bw_Mbits, num_workers, model_size_in_byte):
+    total_bytes_transferred = model_size_in_byte * 2 * (num_workers - 1)
+    time_ms = total_bytes_transferred * 8 / (link_bw_Mbits * (10**3))
+    return time_ms
+
+
+def cal_compute_vs_network_ratio(iteration_time, network_time):
+    return float(iteration_time) / float(network_time)
+
+    
 def individual_pfabric_run(args):
     utilization_interval_ns = ("100ms", 100000000)
     index, config = args
@@ -87,7 +150,6 @@ def individual_pfabric_run(args):
                   f"hrvprio_{config.c_horovod_prio}_"+\
                   f"num_hvd_{config.c_num_workers}_"+\
                   f"link_bw_{config.c_link_bw_Mbits/1000}Gbit_"+\
-                  f"num_workers_{config.c_num_workers}_"+\
                   f"{curr_date}"
 
     new_run_dir_path_abs = f"{ns3_basic_sim_dir}/runs/{new_run_dir}" 
@@ -111,6 +173,11 @@ def individual_pfabric_run(args):
     sh.sed("-i", f"s/\\[RUN\\-HOROVOD\\]/{config.c_run_horovod}/g", f"{new_config_file}")
     sh.sed("-i", f"s/\\[NUM\\-HVD\\]/{config.c_num_workers}/g", f"{new_config_file}")
 
+    print("Going to configure hrvd layer size")
+    configure_hrvd_layer_size(config.c_hrvd_specifics, new_run_dir_path_abs)
+    print("finished configuring hrvd layer size")
+    
+
     schedule_file_name = f"schedule_{config.c_flow_arr_rate}.csv"
     random.seed(123456789)
     seed_start_times = random.randint(0, 100000000)
@@ -121,8 +188,6 @@ def individual_pfabric_run(args):
     num_starts = len(list_start_time_ns)
 
     # (From, to) tuples
-    # list_from_to = draw_n_times_from_to_all_to_all(num_starts, topology.servers, seed_from_to)
-
     from_to_tuples = []
     for i in range(config.c_num_workers):
         if i != config.c_num_workers-1:
@@ -152,6 +217,7 @@ def individual_pfabric_run(args):
 
     # run the program
     run_pfabric_horovod_simulation(waf_bin_path, main_program, new_run_dir_path_abs)
+    
     # plot utilization
     sh.cd(f"{utilization_plot_dir}")
     plot_pfabric_FCT.plot_pfabric_utilization(f"{new_run_dir_path_abs}/logs_ns3")
@@ -160,9 +226,9 @@ def individual_pfabric_run(args):
 
 # expected_flows_per_s = [10, 50, 100, 200, 300, 400, 500, 600, 700]
 
-def launch_multiprocess_run(config_horovod_p0_5G):
+def launch_multiprocess_run(p_hrvd_configs):
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        executor.map(individual_pfabric_run, enumerate(config_horovod_p0_5G))
+        executor.map(individual_pfabric_run, enumerate(p_hrvd_configs))
 
 
 @dataclass
@@ -175,17 +241,57 @@ class pfabric_horovod_config:
     c_num_workers: int
     c_hrvd_specifics: DefaultDict = field(default_factory=collections.defaultdict)
     
-    def add_configs(self, **kwargs):
+    def add_hrvd_configs(self, **kwargs):
         for key, value in kwargs.items():
             self.c_hrvd_specifics[key] = value
+
 
 
 def test_pfabric_horovod_config_class():
     config = pfabric_horovod_config(1, 1, 1, 1, 1, 1)
     print(config)
     more_config = {"size":0, "time": 2}
-    config.add_configs(**more_config)
+    config.add_hrvd_configs(**more_config)
     print(config)
+
+
+def configure_hrvd_layer_size(hrvd_configs_dict, new_run_dir_path_abs):
+    print(f"configure_hrvd_layer_size: hrvd_dict: {hrvd_configs_dict}")
+    if "layer_size_dict" in hrvd_configs_dict.keys():
+        # write to a file
+        layer_size_filename = "layer_size.csv"
+        full_path = pathlib.Path(new_run_dir_path_abs)/layer_size_filename
+        print(f"layer_size file path: {full_path}")
+        write_to_csv(hrvd_configs_dict["layer_size_dict"], full_path)
+
+        # TODO, check if "hrvd_layer_size" exist if not, write new line instead of replacing
+
+    # return 
+
+def test_reading_layer_size():
+    flows = 10
+    configs = []
+    link_bw_Mbits = 10000.0
+    simulation_ns =12000000000
+    horovod_prio ="0x10"
+    run_horovod="true"
+    num_workers = 3
+
+    new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+    
+    model_size = 100 * (10**6)
+    num_layers = 50
+
+    layer_size_dict = generate_horovod_layer_size(model_size, num_layers)
+
+    optional_config_field = {"layer_size_dict": layer_size_dict}
+    new_config.add_hrvd_configs(**optional_config_field)
+    # print(f"new_config: {new_config}")
+    # print(f"hrvd_specific config: {new_config.c_hrvd_specifics['layer_size_dict']}")
+    configs.append(new_config)
+
+    return configs
+
 
 def Test_5G_low_utilization():
     # Test 5G low utilization
@@ -283,6 +389,8 @@ if __name__ == "__main__":
 
     configs_to_test = Test_10G_8_workers()
 
-    test_pfabric_horovod_config_class()
+    # test_pfabric_horovod_config_class()
+    configs_to_test = test_reading_layer_size()
+
     # launch_multiprocess_run(configs_to_test)
-    
+    individual_pfabric_run((0, configs_to_test[0]))

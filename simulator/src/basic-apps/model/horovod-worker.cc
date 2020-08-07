@@ -37,6 +37,7 @@
 #include "ns3/exp-util.h"
 #include "horovod-worker.h"
 #include "ringallreduce-syncer.h"
+#include "horovod-worker-config-reader.h"
 
 #include <fstream>
 
@@ -101,6 +102,11 @@ HorovodWorker::GetTypeId(void) {
                            StringValue (""),
                            MakeStringAccessor (&HorovodWorker::m_baseLogsDir),
                            MakeStringChecker ())
+            .AddAttribute ("RunDir",
+                           "Run directory where config files and horovod-specific files are located",
+                           StringValue (""),
+                           MakeStringAccessor (&HorovodWorker::m_runDir),
+                           MakeStringChecker ())
             .AddAttribute("Priority", "The Rank of horovodworker",
                             UintegerValue(), 
                             MakeUintegerAccessor(&HorovodWorker::m_send_priority),
@@ -109,7 +115,10 @@ HorovodWorker::GetTypeId(void) {
                             UintegerValue(), 
                             MakeUintegerAccessor(&HorovodWorker::m_port),
                             MakeUintegerChecker<uint32_t>())
-
+            .AddAttribute("FusionSizeBytes", "The port of the tcp sockets",
+                            UintegerValue(), 
+                            MakeUintegerAccessor(&HorovodWorker::m_fused_tensor_size_bytes),
+                            MakeUintegerChecker<uint32_t>())
             .AddTraceSource("Tx", "A new packet is created and is sent",
                             MakeTraceSourceAccessor(&HorovodWorker::m_txTrace),
                             "ns3::Packet::TracedCallback");
@@ -316,13 +325,6 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                     // found fusion, push it back to received vector
                     m_bytes_received_vector.push_back(*it);
                     // matches whats being sent by the neighbor
-
-                    // Debug("Found fusion");
-                    // std::cout<<"    > FOUND FUSION : "<<map[*it]<<std::endl;
-                    // std::cout<<"    > Received FUSION"<<std::endl;
-                    // std::cout<<"    > Received partition from R["<<map[*it]->GetParent()->GetPriority()
-                                                            // <<"] : "<<map[*it]->GetIdx() <<std::endl;
-                    // FusionPartition* fusionpartition= map[m_totalRx];
                     DEBUG_MSG("     > Left neighbor is: "<<m_leftneighbor->GetWorkerID());
                     DEBUG_MSG("    > FOUND FUSION : "<<map[*it]);
 
@@ -339,12 +341,7 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                     // if (map[*it]->GetProgress() < 2 * (m_num_workers-1) ) // not yet fully synced
                     if (new_progress < 2 * (m_num_workers-1) ) // not yet fully synced
                     {
-                        // Add next fusion to send to queue
-                        // increment progress by one
-                        // std::cout<<"    > Not fully synced, send Partition "<<partition_idx<<" to neighbor"<< std::endl;
                         DEBUG_MSG("    > Not fully synced, send Partition "<<partition_idx<<" to neighbor");
-                        // uint32_t new_progress = map[*it]->GetProgress() +1;
-                        // m_inflight_allreduce->GetPartitions()[partition_idx]->UpdateProgress(new_progress);
 
                         // send to right neighbor, add to transmission queue
                         m_maxBytes += map[*it]->GetSize();
@@ -360,8 +357,8 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                         // }
 
                     }
-                    //current partition has been circulated among workers twice, no need to send it to neighbors
-                    else{
+                    
+                    else{ // current partition has completed allreduce and updated on all workers
 
                         // clear send buffer
                         // Check if all paritions have truly been synced and if other workers have done, otherwise                         
@@ -548,23 +545,7 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
             DEBUG_MSG("Start_Sending_Partition_"<<m_worker_id<<"_Priority_"<< uint64_t(m_send_socket->GetPriority()) << " layer: "<< layer);
         }
     }
-
-    // if(m_maxBytes == 0 && m_ringallreduce_inflight_status && (m_send_socket->GetObject<TcpSocketBase>()->GetTxBuffer()->Size() == 0)){
-    //     if(!m_send_queue.empty()){
-    //         std::tuple<std::vector<uint32_t>, uint32_t, uint32_t> p_to_send =  m_send_queue.front();
-    //         m_maxBytes = std::get<1>(p_to_send);
-    //         uint32_t idx = std::get<2>(p_to_send);
-    //         m_send_queue.pop();
-    //         m_bytes_sent += m_maxBytes;
-    //         std::cout<<"  > Add to fusion map key: " <<m_bytes_sent<< " Partition: " <<idx <<std::endl;
-    //        m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[idx];
-    //         for(auto layer: m_inflight_allreduce->GetTensors()){
-    //             RecordEvent(layer, format_string("Start_Sending_Partition_%" PRIu32, idx));
-    //         }
-    //     }
-    // }
     
-
     while (m_maxBytes) { // Time to send more
         // Make sure we don't send too many
         uint64_t toSend = 100000;
@@ -714,23 +695,10 @@ void HorovodWorker::SetFusionBufferSize(uint32_t size){
 }
 
 void HorovodWorker::InitializeLayerWeight(){
-    uint32_t model_size_bytes = 100 * 1000000;
-    uint32_t min_layer_size_bytes = uint32_t(2 * model_size_bytes / (9 * m_num_layers));
-    std::cout << "Min layer size " << min_layer_size_bytes<<std::endl;
-    for(uint32_t i=0; i< m_num_layers; ++i){
-        if(i < uint32_t(m_num_layers/2)){
-            std::cout <<"i < layer/2 "<< uint32_t(m_num_layers/2) << std::endl;
-            m_layer_size_bytes[i] = min_layer_size_bytes;
-            std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
-        }
-        else if( (i >= uint32_t(m_num_layers/2)) && (i < uint32_t(3* m_num_layers/4))){
-            m_layer_size_bytes[i] = 4* min_layer_size_bytes;
-            std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
-        }
-        else {
-            m_layer_size_bytes[i] = 12 * min_layer_size_bytes;
-            std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
-        }
+    std::string filename = m_runDir + "/" + "layer_size.csv";
+    m_layer_size_bytes = read_layer_size(filename);
+    for(uint32_t i = 0; i < m_layer_size_bytes.size() ; i++){
+        std::cout<<"layer "<<i <<" size: "<<m_layer_size_bytes[i]<<std::endl;
     }
     // set fusionbuffer size to be slightly larger than the maximum layer size
     SetFusionBufferSize(m_layer_size_bytes[m_num_layers-1]+1);
@@ -848,9 +816,6 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
   void HorovodWorker::UpdateGlobalRingallreduceSyncer(){
     m_global_ringallreduce_syncer->AddSyncedWorker(m_worker_id, [&]() {
         uint32_t prio =this->m_inflight_allreduce->GetPriority(); 
-        // std::cout<< "Worker " <<this->GetWorkerID()
-        //         <<": RingAllreduce done for: "
-        //         <<prio<<"\n";
         this->m_inflight_allreduce->ResetPartitionsProgress();
         this->SetInflightRingallreduceStatus(false);
         this->UpdateReceivedGradients(prio);
@@ -858,7 +823,6 @@ void HorovodWorker::BackPropagationDone(uint32_t layer_idx){
         
         return;
     });
-    // m_global_ringallreduce_syncer->AddSyncedWorker(m_worker_id);
   }
 
   

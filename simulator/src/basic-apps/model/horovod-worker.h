@@ -197,6 +197,7 @@ class HorovodWorker : public Application {
   TracedCallback<Ptr<const Packet>> m_txTrace;
 
   // horovod ML specific
+  std::string m_runDir;
   std::map<int, uint64_t> m_layer_size_bytes{
       {0, 1000000}, {1, 2000000}};  // later initialized in a function
   std::map<uint32_t, float> m_bp_layer_compute_time_ms{{0, 5}, {1, 10}};
@@ -206,7 +207,8 @@ class HorovodWorker : public Application {
   uint32_t m_num_workers = 3;
   EventId m_bp_compute;
   uint32_t m_tx_layer_idx;
-  uint32_t m_fused_tensor_size_bytes = 2000000;
+  // uint32_t m_fused_tensor_size_bytes = 2000000;
+  uint32_t m_fused_tensor_size_bytes;
   uint32_t m_worker_id;
   std::queue<RingAllReduce *> m_fifo_transmission_queue;
   std::priority_queue<RingAllReduce *, std::vector<RingAllReduce *>,
@@ -277,7 +279,7 @@ class HorovodWorker : public Application {
         return false;
       }
     }
-    
+
     return true;
 
   };

@@ -24,6 +24,8 @@ void HorovodScheduler::Schedule(uint32_t port) {
     bool run_horovod = parse_boolean(m_basicSimulation->GetConfigParamOrDefault("run_horovod","false"));   
     std::string prio_config =  m_basicSimulation->GetConfigParamOrDefault("horovod_initial_priority","0x08");
     int64_t num_workers = parse_positive_int64(m_basicSimulation->GetConfigParamOrDefault("num_horovod_workers", "3"));
+    int64_t fusion_size_bytes = parse_positive_int64(m_basicSimulation->GetConfigParamOrDefault("fusion_size_bytes", "2000000"));
+    
     if(run_horovod){
         
         std::vector<ApplicationContainer> apps;
@@ -55,7 +57,9 @@ void HorovodScheduler::Schedule(uint32_t port) {
                     m_basicSimulation->GetLogsDir(),
                     prio,
                     port, 
-                    num_workers    
+                    num_workers, 
+                    fusion_size_bytes, 
+                    m_basicSimulation->GetRunDir()    
                     );
 
             ApplicationContainer app = horovodworker.Install(m_nodes.Get(i));
