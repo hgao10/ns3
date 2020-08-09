@@ -34,10 +34,7 @@ HorovodWorkerHelper::HorovodWorkerHelper(std::string protocol, \
                                           uint32_t rank,\
                                           std::string baseLogsDir, \
                                           uint8_t priority, \
-                                          uint32_t port, 
-                                          uint32_t num_workers, \
-                                          uint32_t fusion_size_bytes, \
-                                          std::string runDir) 
+                                          uint32_t port)
 {
 //   m_factory.SetTypeId (HorovodWorker::GetTypeId());
   m_factory.SetTypeId ("ns3::HorovodWorker");
@@ -48,9 +45,6 @@ HorovodWorkerHelper::HorovodWorkerHelper(std::string protocol, \
   m_factory.Set ("BaseLogsDir", StringValue (baseLogsDir));
   m_factory.Set ("Priority", UintegerValue (priority));
   m_factory.Set ("Port", UintegerValue (port));
-  m_factory.Set ("NumWorkers", UintegerValue (num_workers));  
-  m_factory.Set ("FusionSizeBytes", UintegerValue (fusion_size_bytes));
-  m_factory.Set ("RunDir", StringValue (runDir));
     
 }
 
