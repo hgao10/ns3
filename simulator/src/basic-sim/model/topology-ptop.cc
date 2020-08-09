@@ -1,5 +1,5 @@
 #include "topology-ptop.h"
-// #define DEBUG_INTERNAL_QUEUE
+#define DEBUG_INTERNAL_QUEUE
 namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED(TopologyPtop);
@@ -230,13 +230,15 @@ void TopologyPtop::SetupLinks() {
   // Qdisc for endpoints (i.e., servers if they are defined, else the ToRs)
   TrafficControlHelper tch_endpoints;
   if (m_disable_qdisc_endpoint_tors_xor_servers) {
-    // tch_endpoints.SetRootQueueDisc(
-    //     "ns3::FifoQueueDisc", "MaxSize",
-    //     QueueSizeValue(QueueSize("1p")));  // No queueing discipline
-    //     basically
-    // std::cout
-    //     << "    >> Flow-endpoints....... none (FIFO with 1 max. queue size)"
-    //     << std::endl;
+    tch_endpoints.SetRootQueueDisc(
+        "ns3::FifoQueueDisc", "MaxSize",
+        QueueSizeValue(QueueSize("1p")));  // No queueing discipline basically
+    std::cout
+        << "    >> Flow-endpoints....... none (FIFO with 1 max. queue size)"
+        << std::endl;
+
+
+  } else {
     tch_endpoints.SetRootQueueDisc("ns3::PfifoFastQueueDisc", "MaxSize",
                                    StringValue("1000p"));
     std::cout
@@ -244,17 +246,6 @@ void TopologyPtop::SetupLinks() {
            "max. queue size)"
         << std::endl;
 
-  } else {
-    std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
-    std::string target =
-        format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
-    tch_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval",
-                                   StringValue(interval), "Target",
-                                   StringValue(target));
-    printf(
-        "    >> Flow-endpoints....... fq-co-del (interval = %.2f ms, target = "
-        "%.2f ms)\n",
-        m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
   }
 
   // Qdisc for non-endpoints (i.e., if servers are defined, all switches, else
@@ -268,16 +259,14 @@ void TopologyPtop::SetupLinks() {
         << "    >> Non-flow-endpoints... none (FIFO with 1 max. queue size)"
         << std::endl;
   } else {
-    std::string interval = format_string("%" PRId64 "ns", m_worst_case_rtt_ns);
-    std::string target =
-        format_string("%" PRId64 "ns", m_worst_case_rtt_ns / 20);
-    tch_not_endpoints.SetRootQueueDisc("ns3::FqCoDelQueueDisc", "Interval",
-                                       StringValue(interval), "Target",
-                                       StringValue(target));
-    printf(
-        "    >> Non-flow-endpoints... fq-co-del (interval = %.2f ms, target = "
-        "%.2f ms)\n",
-        m_worst_case_rtt_ns / 1e6, m_worst_case_rtt_ns / 1e6 / 20);
+
+    tch_not_endpoints.SetRootQueueDisc("ns3::PfifoFastQueueDisc", "MaxSize",
+                                   StringValue("1000p"));
+    std::cout
+        << "    >> Flow non-endpoints....... none (PfifoFastQueueDisc with 1000 "
+           "max. queue size)"
+        << std::endl;
+    
   }
 
   // Create Links
@@ -297,49 +286,35 @@ void TopologyPtop::SetupLinks() {
         ->SetMaxSize(p2p_net_device_max_queue_size_pkts_str);
 
     // Install traffic control
+
+    std::cout<<"Installing traffic control: "<<std::endl;
+    std::cout<<"Going to install tch for link first "<<link.first<<std::endl;
+    QueueDiscContainer qdiscContainer; 
     if (IsValidEndpoint(link.first)) {
-      // tch_endpoints.Install(container.Get(0));
-      
-      // std::cout<<" Expect 1 qdisc in the queuedisccontainer: "<<qdiscs.GetN()<<std::endl;
+        // std::cout<<"installed tc :"<<container.Get(0)->GetObject<PointToPointNetDevice>()->GetQueue() <<std::endl;
+        qdiscContainer = tch_endpoints.Install(container.Get(0));
 
-      if (link.second - link.first == 1){
-        std::cout <<"link first: "<<link.first<<" link second: "<<link.second<<std::endl;
-        std::cout <<"Install qdiscs on "<<link.first <<" connecting to "<<link.second<<std::endl;
-        
-        RecordInternalQueues(tch_endpoints.Install(container.Get(0)), link.first);
-              }
-      else{
-        // Install qdiscs without recording for edge 0 - 2
-        tch_endpoints.Install(container.Get(0));
-      }
-
-      std::cout
-        << "    >> Installing traffic control for tch_endpoints for link_first"
-        << std::endl;
-    } else {
-      std::cout
-        << "    >> Installing traffic control for tch_NOT_endpoints for link_first"
-        << std::endl;
-
-      tch_not_endpoints.Install(container.Get(0));
-
+        // currently only record internal queues for endpoints      
+        RecordInternalQueues(qdiscContainer, link.first);
     }
+    else{
+        tch_not_endpoints.Install(container.Get(0));
+    }
+
+    
+    
+    std::cout<<"Going to install tch for link second "<<link.second<<std::endl;
     if (IsValidEndpoint(link.second)) {
-      if(link.second - link.first != 1){
-        std::cout <<"link second: "<<link.second<<" link first: "<<link.first<<std::endl;
-        std::cout <<"Install qdiscs on "<<link.second <<" connecting to "<<link.first<<std::endl;
-
-        RecordInternalQueues(tch_endpoints.Install(container.Get(1)), link.second);
-      }
-      else{
-        tch_endpoints.Install(container.Get(1));
-      }
-
-
-    } else {
+      qdiscContainer = tch_endpoints.Install(container.Get(1));
+      
+      RecordInternalQueues(qdiscContainer, link.second);
+    }
+    else{
       tch_not_endpoints.Install(container.Get(1));
     }
 
+    
+    std::cout<<"Going to assgin address to container "<<std::endl;
     // Assign IP addresses
     address.Assign(container);
     address.NewNetwork();
