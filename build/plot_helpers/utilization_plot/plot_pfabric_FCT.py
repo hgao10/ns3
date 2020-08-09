@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import pathlib
 import numpy as np
-from horovod_worker_plot import * 
 from networkload import *
 import argparse
 from dataclasses import dataclass
 from typing import Tuple
 import statistics
+from horovod_worker_plot_class import *
 
 def delta_percent(a, divider):    
     return (a-divider)/divider * 100
@@ -308,23 +308,22 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
         run_dir_root = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
         comparison_log_dir = f"{run_dir_root}/{hrvd_p2_run_dir}/logs_ns3"
         horovod_progress_txt = f"{run_dir_root}/{hrvd_p2_run_dir}/logs_ns3/HorovodWorker_0_layer_50_port_1024_progress.txt"
-        horovod_iteration_time_summary = f"{run_dir_root}/{hrvd_p2_run_dir}/logs_ns3/HorovodWorker_0_iteration_summary.txt"
 
         # directory - Horovod P0 and bg P0
         baseline_log_dir = f"{run_dir_root}/{run_dir}/logs_ns3"
         baseline_horovod_progress_txt = f"{baseline_log_dir}/HorovodWorker_0_layer_50_port_1024_progress.txt"
-        baseline_horovod_iteration_time_summary = f"{baseline_log_dir}/HorovodWorker_0_iteration_summary.txt"
-
 
         if pathlib.Path(comparison_log_dir).exists() == False or pathlib.Path(horovod_progress_txt).exists() == False:
             horovod_iteration_times_s.append(None)
         else:
-            calculate_avg_horovod_iter_and_log_summary(horovod_progress_txt, horovod_iteration_time_summary, comparison_log_dir, horovod_iteration_times_s)
+            horovodprogress = HorovodWorkerProgress(horovod_progress_txt, True)
+            horovod_iteration_times_s.append(horovodprogress.avg_iter_time_s)
 
         if pathlib.Path(baseline_log_dir).exists() == False or pathlib.Path(baseline_horovod_progress_txt).exists() == False:
             baseline_horovod_iteration_times_s.append(None)
         else:
-            calculate_avg_horovod_iter_and_log_summary(baseline_horovod_progress_txt, baseline_horovod_iteration_time_summary, baseline_log_dir, baseline_horovod_iteration_times_s)
+            horovodprogress = HorovodWorkerProgress(baseline_horovod_progress_txt, True)
+            horovod_iteration_times_s.append(horovodprogress.avg_iter_time_s)
 
         horovod_iter_delta = []
         for i in range(len(horovod_iteration_times_s)):
