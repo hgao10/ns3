@@ -170,9 +170,9 @@ HorovodWorker::DoDispose(void) {
 
 void HorovodWorker::StartApplication(void) { // Called at time specified by Start
     NS_LOG_FUNCTION(this);
-    InitializeLayerWeight();
+    // InitializeLayerWeight();
     InitializeRingAllReduceMap();
-    InitializeComputeTime();
+    // InitializeComputeTime();
     
     std::cout<<"Start Horovod application "<<std::endl;
     // Create the socket if not already
@@ -690,8 +690,16 @@ void RingAllReduce::SetPartition(uint32_t num_workers, RingAllReduce* parent){
     std::cout <<"   > Partition size: "<<r_partition_bytes<<"\n";
 }
 
-void HorovodWorker::SetFusionBufferSize(uint32_t size){
+void HorovodWorker::SetFusionBufferSize(uint64_t size){
     m_fused_tensor_size_bytes =size;
+}
+
+void HorovodWorker::SetNumLayers(uint32_t num_layers){
+    m_num_layers =num_layers;
+}
+
+void HorovodWorker::SetNumWorkers(uint32_t num_workers){
+    m_num_workers=num_workers;
 }
 
 void HorovodWorker::InitializeLayerWeight(){
@@ -703,6 +711,21 @@ void HorovodWorker::InitializeLayerWeight(){
     // set fusionbuffer size to be slightly larger than the maximum layer size
     SetFusionBufferSize(m_layer_size_bytes[m_num_layers-1]+1);
 }
+
+void HorovodWorker::SetLayerWeight(std::map<int, uint64_t> layer_weight){
+    m_layer_size_bytes = layer_weight;
+}
+
+
+void HorovodWorker::SetFPComputeTime(std::map<int, float> compute_time){
+    m_fp_layer_compute_time_ms = compute_time;
+}
+
+
+void HorovodWorker::SetBPComputeTime(std::map<int, float> compute_time){
+    m_bp_layer_compute_time_ms = compute_time;
+}
+
 
 void HorovodWorker::InitializeComputeTime(){
     float compute_time_per_iteration_ms = 900;

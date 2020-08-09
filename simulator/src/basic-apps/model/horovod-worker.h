@@ -48,6 +48,7 @@
 #else
 #define DEBUG_MSG(str) do { } while ( false )
 #endif
+
 namespace ns3 {
 
 // class Address;
@@ -60,7 +61,7 @@ enum QDISC {
 
 class GlobalRingAllReduceSyncer;
 
-class RingAllReduce {
+class RingAllReduce: public Object {
  public:
   RingAllReduce();
   uint32_t GetSize();  // return total size, overwrite base function
@@ -128,6 +129,13 @@ class HorovodWorker : public Application {
   uint32_t GetWorkerID() { return m_worker_id; };
   void SetLeftNeighbor(Ptr<HorovodWorker>);
   void SetGlobalRingallreduceSyncer(GlobalRingAllReduceSyncer * global_ringallreduce_syncer);
+  void SetFusionBufferSize(uint64_t size);
+  void SetLayerWeight(std::map<int, uint64_t> layer_weight);
+  void SetNumLayers(uint32_t num_layers);
+  void SetNumWorkers(uint32_t num_workers);
+  void SetFPComputeTime(std::map<int, float> compute_time);
+  void SetBPComputeTime(std::map<int, float> compute_time);
+
   void SetInflightRingallreduceStatus(bool status){
     m_ringallreduce_inflight_status = status;
   };
@@ -200,15 +208,15 @@ class HorovodWorker : public Application {
   std::string m_runDir;
   std::map<int, uint64_t> m_layer_size_bytes{
       {0, 1000000}, {1, 2000000}};  // later initialized in a function
-  std::map<uint32_t, float> m_bp_layer_compute_time_ms{{0, 5}, {1, 10}};
-  std::map<uint32_t, float> m_fp_layer_compute_time_ms{{0, 6}, {1, 4}};
+  std::map<int, float> m_bp_layer_compute_time_ms{{0, 5}, {1, 10}};
+  std::map<int, float> m_fp_layer_compute_time_ms{{0, 6}, {1, 4}};
   uint32_t m_layer_idx;
   uint32_t m_num_layers = 50;
   uint32_t m_num_workers = 3;
   EventId m_bp_compute;
   uint32_t m_tx_layer_idx;
   // uint32_t m_fused_tensor_size_bytes = 2000000;
-  uint32_t m_fused_tensor_size_bytes;
+  uint64_t m_fused_tensor_size_bytes;
   uint32_t m_worker_id;
   std::queue<RingAllReduce *> m_fifo_transmission_queue;
   std::priority_queue<RingAllReduce *, std::vector<RingAllReduce *>,
@@ -262,7 +270,6 @@ class HorovodWorker : public Application {
   void InitializeLayerWeight();
   void InitializeComputeTime();
 
-  void SetFusionBufferSize(uint32_t size);
 
   bool CheckAllPartitionSynced(uint32_t excluded_partition_idx){
     // excluded partition implicitly is at program 2(num_workers - 1)
@@ -291,4 +298,4 @@ class HorovodWorker : public Application {
 
 };  // namespace ns3
 }
-#endif /* FLOW_SINK_H */
+#endif 
