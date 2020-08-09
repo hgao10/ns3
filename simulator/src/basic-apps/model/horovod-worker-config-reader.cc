@@ -50,7 +50,7 @@ namespace ns3{
             //split on ,
             std::vector<std::string> comma_split = split_string(line, ",", 2);
             int layer_idx = parse_positive_int64(comma_split[0]);
-            float layer_data = parse_positive_double(comma_split[1]);
+            float layer_data = float(parse_positive_double(comma_split[1]));
             m_layer_compute_time[layer_idx] = layer_data;            
         }
     }
