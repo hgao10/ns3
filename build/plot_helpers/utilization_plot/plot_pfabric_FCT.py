@@ -71,13 +71,14 @@ class AllFlowStats:
 def ns_to_ms(ns_val):
     return float(ns_val)/float(10**6)
 
-
-def ecdf(data):
-    """ Compute ECDF """
-    x = np.sort(data)
-    n = x.size
-    y = np.arange(1, n+1) / n
-    return(x,y)
+# TODO: move ecdf to a new module
+# defined in horovod_worker_plot 
+# def ecdf(data):
+#     """ Compute ECDF """
+#     x = np.sort(data)
+#     n = x.size
+#     y = np.arange(1, n+1) / n
+#     return(x,y)
 
 
 def generate_flow_stats(durations_ns):
@@ -93,16 +94,32 @@ def generate_flow_stats(durations_ns):
     return FlowStats(min_FCT_ms, max_FCT_ms, median_FCT_ms, avg_FCT_ms, percentile_90th_ms, percentile_99th_ms, ecdf_x_y, flows_cnt)
 
 
-def plot_pfabric_utilization(log_dir):
+def plot_link_utilization_direct_connect_btw_servers(log_dir, num_nodes):
     # log_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/pfabric_flows_horovod/logs_ns3"
     data_out_dir = log_dir
     pdf_out_dir = log_dir
-
-    from_to_node_id = [(0,1), (1,2),(2,0)]
+    from_to_node_id = []
+    for i in range(num_nodes):
+        for j in range(num_nodes):
+            if i != j:
+                from_to_node_id.append((i,j))
 
     for n1, n2 in from_to_node_id:
         utilization_plot.utilization_plot(log_dir, data_out_dir, pdf_out_dir, n1, n2)
 
+
+def plot_link_utilization_single_tor(log_dir, num_nodes):
+    data_out_dir = log_dir
+    pdf_out_dir = log_dir
+    from_to_node_id = []
+    for i in range(num_nodes-1):
+        # link between the server and tor in each direction
+        from_to_node_id.append((i,num_nodes-1))
+        from_to_node_id.append((num_nodes-1, i))
+
+    for n1, n2 in from_to_node_id:
+        utilization_plot.utilization_plot(log_dir, data_out_dir, pdf_out_dir, n1, n2)
+    
 
 @dataclass
 class Flow:
@@ -384,32 +401,6 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
         fig.savefig(f"small_large_small_99th_flows_FCT_{curr_date}_single_pkt_dev_queue_w_new_tcpto_10G_low_util", bbox_inches='tight')
 
 
-def calculate_avg_horovod_iter_and_log_summary(horovod_progress_txt, horovod_iteration_time_summary, log_dir, horovod_iteration_times_s):
-    with open(horovod_iteration_time_summary, "w") as s_file:
-        s_file.write("Iter Idx, Iter Duration in S\n")
-        if pathlib.Path(horovod_progress_txt).exists() == False:
-            horovod_iteration_times_s.append(None)
-            s_file.write("0, 0\n")
-        else:
-            event_dict, _, _ = construct_event_list_from_progress_file(horovod_progress_txt)
-            _, _, iter_time_ns = construct_timeline_and_priority_events_from_event_list(event_dict, log_dir)
-            print(f"log_dir: {log_dir}")
-            avg_iter_time_ns = None
-            if len(iter_time_ns) != 0:
-                avg_iter_time_ns = sum(iter_time_ns)/len(iter_time_ns)
-                avg_iter_time_s = float(avg_iter_time_ns)/float(1000000000)
-                horovod_iteration_times_s.append(avg_iter_time_s)
-                for i in range(len(iter_time_ns)):
-                    s_file.write(f"{i}, {iter_time_ns[i]/10**9}\n")
-                s_file.write("Iter Cnt, Avg Iter Duration\n")
-                s_file.write(f"{len(iter_time_ns)}, {avg_iter_time_s}\n")
-            else:
-                horovod_iteration_times_s.append(None)
-                s_file.write("0, 0\n")
-
-    return horovod_iteration_times_s
-
-
 # def plot_application_bw_distribution(link_cap, actual_utiliazation):
 def get_flows_expected_utilization(link_cap_Gbits, expected_flows_per_s):
     # Start times (ns)
@@ -547,5 +538,8 @@ if __name__  == "__main__":
             (300, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to), \
             (400, bg_alone, baseline_both_P0,h_p2_single_pkt_new_TCP_to)]#, \
 
+
     print(f"save_fig: {args.save_fig}")
-    plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, args.save_fig)
+    # plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, args.save_fig)
+    t_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/pfabric_flows_horovod_100ms_arrival_10_runhvd_true_hrvprio_0x10_num_hvd_8_link_bw_10.0Gbit_11_17_2020_08_08/logs_ns3"
+    plot_link_utilization_single_tor(t_dir, 9)
