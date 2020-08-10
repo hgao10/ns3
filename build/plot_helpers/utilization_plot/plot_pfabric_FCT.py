@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Tuple
 import statistics
 from horovod_worker_plot_class import *
-
+from ecdf import ecdf
 def delta_percent(a, divider):    
     return (a-divider)/divider * 100
 
@@ -71,15 +71,6 @@ class AllFlowStats:
 def ns_to_ms(ns_val):
     return float(ns_val)/float(10**6)
 
-# TODO: move ecdf to a new module
-# defined in horovod_worker_plot 
-# def ecdf(data):
-#     """ Compute ECDF """
-#     x = np.sort(data)
-#     n = x.size
-#     y = np.arange(1, n+1) / n
-#     return(x,y)
-
 
 def generate_flow_stats(durations_ns):
     min_FCT_ms = ns_to_ms(min(durations_ns))
@@ -136,7 +127,8 @@ class Flow:
     def __post_init__(self):
         # initialized with unit Byte in __init__
         self.size_KB = float(self.size_KB/1000)
-
+        self.throughput_Gbits = self.size_KB * 8 * (10 ** 3) / self.duration
+        
 
 def plot_flows_FCT(run_dir):
     run_dir_root = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
@@ -204,10 +196,16 @@ def plot_flows_FCT(run_dir):
                     all_finished_flows_duration.append(curr_flow.duration)
                 flows_count["mid"] += 1
 
-    print(f" cnt small finished flows: {len(small_finished_flows_duration)}, expected: {flows_count['small']}")
-    print(f" cnt large finished flows: {len(large_finished_flows_duration)}, expected: {flows_count['large']}")
-    assert len(small_finished_flows_duration) == flows_count["small"], "Some small flows are not finished during considered interval"
-    assert len(large_finished_flows_duration) == flows_count["large"], "Some large flows are not finished during considered interval"
+    # assert len(small_finished_flows_duration) == flows_count["small"], "Some small flows are not finished during considered interval"
+    # assert len(large_finished_flows_duration) == flows_count["large"], "Some large flows are not finished during considered interval"
+
+    print("Collected flows:")
+    print(f"  > {flows_count['all']} out of {num_entries} flows were in the measurement interval")
+    print("  > Within the interval:")
+    print(f"    >> All flows...... {len(all_finished_flows_duration)}/{flows_count['all']} completed")
+    print(f"    >> Small flows.... {len(small_finished_flows_duration)}/{flows_count['small']} completed")
+    print(f"    >> Medium flows.... {len(midsize_finished_flows_duration)}/{flows_count['mid']} completed")
+    print(f"    >> Medium flows.... {len(large_finished_flows_duration)}/{flows_count['large']} completed")
 
     small_flows_stats = generate_flow_stats(small_finished_flows_duration)
     large_flows_stats = generate_flow_stats(large_finished_flows_duration)
