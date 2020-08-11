@@ -1,9 +1,10 @@
 from networkload import *
 import random
 
-def generate_pfabric_flows(schedule_file, servers, flow_rate_per_link, simulation_ns, link_bw_Mbits):    
-    total_flow_rates = servers * flow_rate_per_link
-    random.seed(123456789)
+def generate_pfabric_flows(schedule_file, servers, flow_rate_per_link, simulation_ns, link_bw_Mbits, seed):    
+    total_flow_rates = len(servers) * flow_rate_per_link
+    # random.seed(123456789)
+    random.seed(seed)
     seed_start_times = random.randint(0, 100000000)
     seed_flow_size = random.randint(0, 100000000)
     seed_from_to = random.randint(0, 100000000)
