@@ -90,37 +90,7 @@ def generate_horovod_layer_size(model_size_in_byte, num_layers):
     
     print(f"model_size: {model_size_in_byte}, num_layers: {num_layers}, total_bytes: {total_layer_size}")
     return layer_size_dict
-
-
-def generate_horovod_FP_BP_compute_time(iteration_time_ms, num_layers):
-    fp_layer_compute_time_ms = collections.defaultdict()
-    bp_layer_compute_time_ms = collections.defaultdict()
-
-    fp_total_time_ms = 1.0/3.0 * iteration_time_ms
-    bp_total_time_ms = 2.0/3.0 * iteration_time_ms
-
-    fp_diff_per_layer_ms = 2.0 * fp_total_time_ms / (num_layers * (num_layers -1 ))
-
-    fp_first_layer_ms = 2.0 * fp_total_time_ms / num_layers
-
-    bp_diff_per_layer_ms = 2.0 * bp_total_time_ms / (num_layers * (num_layers -1 ))
-
-    for i in range(num_layers):
-        fp_layer_compute_time_ms[i] = fp_first_layer_ms - i * fp_diff_per_layer_ms
-        bp_layer_compute_time_ms[i] = i * bp_diff_per_layer_ms
-
-        if i == num_layers-1:
-            fp_layer_compute_time_ms[num_layers-1] = fp_diff_per_layer_ms
-        if i == 0:
-            bp_layer_compute_time_ms[0] = bp_diff_per_layer_ms
-
-        # overwrite last layer's compute time in case its close to zero
-        assert fp_layer_compute_time_ms[i] != 0.0, f"fp compute layer [{i}] is zero"
         
-        assert bp_layer_compute_time_ms[i] != 0.0, f"bp compute layer [{i}] is zero"
-
-    return fp_layer_compute_time_ms, bp_layer_compute_time_ms                
-    
 
 def write_to_csv(data, csv_file):
     with open(csv_file, "w+") as output_file:
@@ -143,15 +113,6 @@ def test_generate_horovod_layer_size(output_dir):
             output_file = output_dir/f"layer_size_config_model_{m_size}_num_layers_{n_layer}.csv"
             generate_horovod_layer_size(m_size, n_layer)
 
-
-def estimate_network_comm_time(link_bw_Mbits, num_workers, model_size_in_byte):
-    total_bytes_transferred = model_size_in_byte * 2 * (num_workers - 1)
-    time_ms = total_bytes_transferred * 8 / (link_bw_Mbits * (10**3))
-    return time_ms
-
-
-def cal_compute_vs_network_ratio(iteration_time_ms, network_time_ms):
-    return iteration_time_ms / network_time_ms
 
     
 def individual_pfabric_run(args):
@@ -242,20 +203,23 @@ def launch_multiprocess_run(p_hrvd_configs):
 @dataclass
 class HorovodConfig:
     num_workers: int
-    num_layers: int
-    model_size_in_byte: int
+    num_layers: int 
+    model_size_in_byte: int 
     fusion_buffer_size: int
-    iteration_time_ms: int
-    layer_size: DefaultDict = field(default_factory=collections.defaultdict,repr= False)
-    fp_compute_time: DefaultDict = field(default_factory=collections.defaultdict, repr= False)
-    bp_compute_time: DefaultDict = field(default_factory=collections.defaultdict, repr= False)
+    iteration_time_ms: int 
+    layer_size: DefaultDict = field(default_factory=collections.defaultdict,init= False, repr= False)
+    fp_compute_time: DefaultDict = field(default_factory=collections.defaultdict, init=False, repr= False)
+    bp_compute_time: DefaultDict = field(default_factory=collections.defaultdict, init=False, repr= False)
     expected_load_byte_per_iteration: int = field(init=False)
     expected_load_MB_per_s: float = field(init=False)
     expected_network_transfer_time_ms: float = field(init=False)
 
     def __post_init__(self):
+        self.calculate_FP_BP_compute_time()
+        self.calculate_layer_size()
+        self.fusion_buffer_size = max(self.layer_size.values()) + 1
         self.expected_load_byte_per_iteration = self.model_size_in_byte * 2 * (1 - 1/self.num_workers)
-        self.expected_load_MB_per_s = self.expected_load_byte_per_iteration / self.iteration_time_ms
+        self.expected_load_MB_per_s = self.expected_load_byte_per_iteration / (self.iteration_time_ms * (10 ** 3)) 
         self.expected_network_transfer_time_ms = 0
 
     def compute_to_network_time_ratio(self, link_bw_Mbits):
@@ -263,8 +227,47 @@ class HorovodConfig:
         return self.iteration_time_ms/ self.expected_network_transfer_time_ms
         
 
+    def calculate_FP_BP_compute_time(self):
+        fp_total_time_ms = 1.0/3.0 * self.iteration_time_ms
+        bp_total_time_ms = 2.0/3.0 * self.iteration_time_ms
+
+        fp_diff_per_layer_ms = 2.0 * fp_total_time_ms / (self.num_layers * (self.num_layers -1 ))
+
+        fp_first_layer_ms = 2.0 * fp_total_time_ms / self.num_layers
+
+        bp_diff_per_layer_ms = 2.0 * bp_total_time_ms / (self.num_layers * (self.num_layers -1 ))
+
+        for i in range(self.num_layers):
+            self.fp_compute_time[i] = fp_first_layer_ms - i * fp_diff_per_layer_ms
+            self.bp_compute_time[i] = i * bp_diff_per_layer_ms
+
+            if i == self.num_layers-1:
+                self.fp_compute_time[self.num_layers-1] = fp_diff_per_layer_ms
+            if i == 0:
+                self.bp_compute_time[0] = bp_diff_per_layer_ms
+
+            # overwrite last layer's compute time in case its close to zero
+            assert self.fp_compute_time[i] != 0.0, f"fp compute layer [{i}] is zero"
+            
+            assert self.bp_compute_time[i] != 0.0, f"bp compute layer [{i}] is zero"
+
+    def calculate_layer_size(self):
+        min_layer_size_bytes = int(2 * self.model_size_in_byte / (9 * self.num_layers))
+        print(f"min_layer_size_bytes: {min_layer_size_bytes}")
+        
+        for i in range(self.num_layers):
+            if i < self.num_layers/2:
+                self.layer_size[i] = min_layer_size_bytes
+            elif self.num_layers/2 <= i <= 0.75 * self.num_layers:
+                self.layer_size[i] = 4 * min_layer_size_bytes
+            else:
+                self.layer_size[i] = 12 * min_layer_size_bytes
+            
+            assert self.layer_size[i] != 0.0, f"layer {i} has 0 weights"
+        
+
 @dataclass
-class pfabric_horovod_config:
+class PfabricHorovodConfig:
     c_link_bw_Mbits : float
     c_simulation_ns : int
     c_flow_arr_rate: float
@@ -278,31 +281,89 @@ class pfabric_horovod_config:
 
     def __post_init__(self):
         # avg flow size = 1.7 MB * flows_per_s
-        print("Post init starts")
         self.expected_pfabric_load_MB_per_s = self.c_flow_arr_rate * 1.7 * 8 
         print(f"expected_pfabric_load_MB_per_s: {self.expected_pfabric_load_MB_per_s}")
         self.expected_pfabric_to_hrvd_load_ratio = self.expected_pfabric_load_MB_per_s/self.c_hrvd_specifics.expected_load_MB_per_s
         self.hrvd_expected_compute_to_network_ratio = self.c_hrvd_specifics.compute_to_network_time_ratio(self.c_link_bw_Mbits)
 
 
+    def calculate_expected_link_utilization(self):
+        return self.c_flow_arr_rate * 1.7 * 8 / self.c_link_bw_Mbits
+
+
+def calculate_iteration_time_for_hrvd(link_bw_Mbits, num_workers, model_size_in_byte, c_to_n_ratio):
+    return c_to_n_ratio * model_size_in_byte * 2 * (1 - 1/num_workers) * 8 / (link_bw_Mbits * (10 ** 3))
+
+
+def test_calculate_iteration_time_for_hrvd():
+    num_workers= 8
+    num_layers= 50
+    model_size_in_byte = 100 * (10**6)
+    link_bw_Mbits = 10* (10 ** 3)
+    for r in [6.4, 6, 4, 2, 1]:
+        iteration_time_ms = calculate_iteration_time_for_hrvd(link_bw_Mbits, num_workers, model_size_in_byte, r)
+        print(f"ratio: {r}, iteration_time: {iteration_time_ms} ms")
+
+
+def generate_pfabric_horovod_configs_with_app_ratio():
+    pfabric_to_hrvd_ratios = [0.5, 1, 2, 4, 8]
+    hrvd_compute_to_network_ratios = [4, 2, 1]
+    num_workers= 8
+    num_layers= 50
+    model_size_in_byte = 100 * (10**6)
+    fusion_buffer_size = 2 * (10**6)
+    link_bw_Mbits = 10000.0
+    simulation_ns =12000000000
+    horovod_prio ="0x10"
+    run_horovod="true"
+    # master_seed = 123456789876
+
+    configs= []
+    iteration_time_ms_list = [calculate_iteration_time_for_hrvd(link_bw_Mbits,num_workers,model_size_in_byte, r) for r in hrvd_compute_to_network_ratios]
+    print(f"iteration_time_ms_list: {iteration_time_ms_list}")
+    for i, iteration_time_ms in enumerate(iteration_time_ms_list):
+        hrvd_config = HorovodConfig(num_workers,\
+                                num_layers, \
+                                model_size_in_byte,\
+                                fusion_buffer_size, \
+                                iteration_time_ms)
+
+        expected_flows_load_MB_s = [r * hrvd_config.expected_load_MB_per_s  for r in pfabric_to_hrvd_ratios]
+
+        expected_flow_rates = [x/ (1.7 * 8) for x in expected_flows_load_MB_s]
+
+        for j, flow_rate in enumerate(expected_flow_rates):
+            pfabric_hrvd_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio, "true", hrvd_config)
+            print(f"flow_rate: {flow_rate}")
+            print(f"ratio between pfabric and hrvd: {pfabric_hrvd_config.expected_pfabric_to_hrvd_load_ratio}, expecting: {pfabric_to_hrvd_ratios[j]}")
+            print(f"ratio between hrvd compute and netwrok : {pfabric_hrvd_config.hrvd_expected_compute_to_network_ratio}, expecting: {hrvd_compute_to_network_ratios[i]}")
+            print(f"link utilization: {pfabric_hrvd_config.calculate_expected_link_utilization()}")
+
+            configs.append(pfabric_horovod_run)
+    
+    return configs
+
+
 def test_pfabric_horovod_config_class():
     num_workers = 8
     num_layers = 50
-    fusion_buffer_size = 4 * (10**6)
     model_size = 100 * (10 ** 6)
-    layer_size_dict = generate_horovod_layer_size(model_size, num_layers)
     iteration_time_ms = 900
+    fusion_buffer_size = 4 * (10**6)
 
-    fp_compute_time, bp_compute_time = generate_horovod_FP_BP_compute_time(iteration_time_ms, num_layers)
+    # layer_size_dict = generate_horovod_layer_size(model_size, num_layers)
+    # fp_compute_time, bp_compute_time = generate_horovod_FP_BP_compute_time(iteration_time_ms, num_layers)
 
     hrvd_config = HorovodConfig(num_workers,\
                                 num_layers, \
                                 model_size,\
                                 fusion_buffer_size, \
-                                iteration_time_ms, \
-                                layer_size_dict, \
-                                fp_compute_time, \
-                                bp_compute_time)
+                                iteration_time_ms)
+                                # layer_size_dict, \
+                                # fp_compute_time, \
+                                # bp_compute_time)
+
+
     print(hrvd_config)
     link_bw_Mbits = 10000.0
     simulation_ns =12000000000
@@ -310,7 +371,7 @@ def test_pfabric_horovod_config_class():
     horovod_prio ="0x10"
     run_horovod="true"
 
-    all_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio, run_horovod, hrvd_config)
+    all_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio, run_horovod, hrvd_config)
     print(all_config)
     print(hrvd_config)
 
@@ -326,7 +387,7 @@ def test_reading_layer_size():
     run_horovod="true"
     num_workers = 3
 
-    new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+    new_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
     
     model_size = 100 * (10**6)
     num_layers = 50
@@ -356,12 +417,12 @@ def Test_5G_low_utilization():
             for horovod_prio in ["0x10", "0x08"]:
                 for flows in flows_per_s_test_cases_low_utilization_5G:
                 # for flows in test_flows:
-                    new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+                    new_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
                     # print(new_config.__dict__)
                     configs.append(new_config)
         else:
             for flows in flows_per_s_test_cases_low_utilization_5G:
-                new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+                new_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
                 configs.append(new_config)
 
     return configs
@@ -378,7 +439,7 @@ def Test_5G_Bg_only():
     num_workers = 3
 
     for flows in flows_per_s_test_cases_low_utilization_5G:
-        new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+        new_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
         configs.append(new_config)
 
     return configs
@@ -404,12 +465,12 @@ def Test_10G_8_workers():
             for horovod_prio in horovod_prio_cases:
                 for flows in flows_per_s_test_cases:
                 # for flows in test_flows:
-                    new_config  = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+                    new_config  = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
                     # print(new_config.__dict__)
                     configs.append(new_config)
         else:
             for flows in flows_per_s_test_cases:
-                new_config = pfabric_horovod_config(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
+                new_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flows, horovod_prio, run_horovod, num_workers)
                 configs.append(new_config)
 
     return configs
@@ -428,8 +489,8 @@ if __name__ == "__main__":
     flows_per_s_test_cases_low_utilization_5G =[int(x)/int(2) for x in flows_per_s_test_cases_low_utilization] 
     # launch_multiprocess_run(flows_per_s_test_cases)
     
-    configs_to_test = test_pfabric_horovod_config_class()
-
+    # configs_to_test = test_pfabric_horovod_config_class()
+    generate_pfabric_horovod_configs_with_app_ratio()
     # individual_pfabric_run((0, configs_to_test[0]))
     # launch_multiprocess_run(configs_to_test)
 

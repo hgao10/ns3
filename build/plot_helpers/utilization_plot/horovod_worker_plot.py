@@ -236,15 +236,51 @@ def plot_prio_samples(sample_file_list, save_fig):
             fig.savefig(f"{path_parent/plot_name}")
 
         
+def calculate_avg_horovod_iter_and_log_summary(horovod_progress_txt, horovod_iteration_time_summary, log_dir, horovod_iteration_times_s):
+    with open(horovod_iteration_time_summary, "w") as s_file:
+        s_file.write("Iter Idx, Iter Duration in S\n")
+        if pathlib.Path(horovod_progress_txt).exists() == False:
+            horovod_iteration_times_s.append(None)
+            s_file.write("0, 0\n")
+        else:
+            event_dict, _, _ = construct_event_list_from_progress_file(horovod_progress_txt)
+            _, _, iter_time_ns = construct_timeline_and_priority_events_from_event_list(event_dict, log_dir)
+            print(f"log_dir: {log_dir}")
+            avg_iter_time_ns = None
+            if len(iter_time_ns) != 0:
+                avg_iter_time_ns = sum(iter_time_ns)/len(iter_time_ns)
+                avg_iter_time_s = float(avg_iter_time_ns)/float(1000000000)
+                horovod_iteration_times_s.append(avg_iter_time_s)
+                for i in range(len(iter_time_ns)):
+                    s_file.write(f"{i}, {iter_time_ns[i]/10**9}\n")
+                s_file.write("Iter Cnt, Avg Iter Duration\n")
+                s_file.write(f"{len(iter_time_ns)}, {avg_iter_time_s}\n")
+            else:
+                horovod_iteration_times_s.append(None)
+                s_file.write("0, 0\n")
+
+    return horovod_iteration_times_s
 
 
-def plot_progress_files(progress_file_lists):
+def plot_progress_files(progress_file_lists,log_dir):
     for p_file in progress_file_lists:
         event_dict, num_layers, max_time_ns = construct_event_list_from_progress_file(p_file)
 
         timeline_event, priority_duration_timestamp, iteration_times_ns = construct_timeline_and_priority_events_from_event_list(event_dict, log_dir)
         plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns, p_file, True)
 
+
+def plot_hrvd_prg_prio_samples(progress_file, worker_id,log_dir, save_fig):
+    event_dict, num_layers, max_time_ns = construct_event_list_from_progress_file(progress_file)
+
+    timeline_event, priority_duration_timestamp, iteration_times_ns = construct_timeline_and_priority_events_from_event_list(event_dict, log_dir)
+    plot_horovod_worker_event_progress(timeline_event, num_layers, max_time_ns, progress_file, save_fig)
+
+    available_prio_samples_files = write_to_priority_sample_files(priority_duration_timestamp, log_dir)
+    plot_prio_samples(available_prio_samples_files, save_fig)
+
+    iteration_summary_filename = pathlib.Path(log_dir)/f"HorovodWorker_{worker_id}_iteration_summary.txt"
+    calculate_avg_horovod_iter_and_log_summary(progress_file,iteration_summary_filename, log_dir, iteration_times_ns)
 
 
 if __name__ == "__main__":
