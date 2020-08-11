@@ -16,7 +16,8 @@ class Event:
     event_name: str
     time: int 
 
-
+WARM_UP_PERIOD_NS = 2 * (10 **9)
+COOL_DOWN_PERIOD_NS = 2 * (10 **9)
 class HorovodWorkerProgress:
     def __init__(self, progress_filename, save_fig):
         self.progress_file_abs_path = pathlib.Path(progress_filename)
@@ -144,9 +145,14 @@ class HorovodWorkerProgress:
             if prio_sample_file not in self.available_prio_samples_files:
                 self.available_prio_samples_files.append(prio_sample_file)
             with open(prio_sample_file, "a") as sample_file:
-                for dur_ms, time_s in duration_stamp_pairs:
-                    if time_s >= 2000000000:
-                        sample_file.write(f"{dur_ms/1000000:.2f},{time_s/1000000000:.1f}\n")  
+                print(f"append to prio file: {prio_sample_file}")
+                for dur_ns, time_ns in duration_stamp_pairs:
+                    upperbound = self.max_time_ns - COOL_DOWN_PERIOD_NS
+                    lowerbound = WARM_UP_PERIOD_NS
+                    if upperbound <= lowerbound:
+                        upperbound = self.max_time_ns                        
+                    if lowerbound <= time_ns <= upperbound  :
+                        sample_file.write(f"{dur_ns/1000000:.2f},{time_ns/1000000:.2f}\n")  
         
 
     def plot_event_progress(self, save_fig):
@@ -162,25 +168,23 @@ class HorovodWorkerProgress:
         num_timelines = len(self.timeline_event)
         ylim = [5, (num_timelines + 1) * 10]
         y_ticks = [ 15 + i*10 for i in range(num_timelines)]
-        # ypos = [(10 * i, 9) for i in range(1, num_timelines+1)]
         bar_width = 8
         ypos = [(tick - bar_width/2, bar_width) for tick in y_ticks]
         yticklabels = []
         for key, value in self.timeline_event.items():
-            print(f"barh values [{key}]: {value}")
+            # print(f"barh values [{key}]: {value}")
             num_intervals = len(value)
             c = num_intervals//len_c * colors + colors[:num_intervals % len_c] 
-            # ax.broken_barh(value, ypos[idx], facecolors = colors[idx])
             ax.broken_barh(value, ypos[idx], facecolors = c)
             idx += 1
             yticklabels.append(key)
         ax.set_ylim(ylim)
 
         timeline_start_time = self.timeline_event[self.num_layers-1][0][0] - 1000
-        print(f"timeline_start_time : {timeline_start_time}")
+        # print(f"timeline_start_time : {timeline_start_time}")
         timeline_finish_time = self.max_time_ns +10 
         xlim = (timeline_start_time, timeline_finish_time)
-        print(f"xlim: {xlim}, ylim: {ylim}")
+        # print(f"xlim: {xlim}, ylim: {ylim}")
         ax.set_xlim(xlim)
 
         ax.set_yticks(y_ticks)
@@ -235,7 +239,7 @@ class HorovodWorkerProgress:
             
             # scatter plot
             ax1.scatter(x, y,s=0.8, marker='o')
-            ax1.set_xlabel(f"Simulation Time(s)")
+            ax1.set_xlabel(f"Simulation Time(ms)")
             ax1.set_ylabel("Network Transfer time(ms)")
             ax1.set_title(f"{scatter_plot_name}")
             
@@ -268,8 +272,12 @@ def plot_progress_files(progress_file_lists,log_dir, save_fig):
 
 if __name__ == "__main__":
     run_dir_parent_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
-    run_dir = "pfabric_flows_horovod_100ms_arrival_10_runhvd_true_hrvprio_0x10_num_hvd_8_link_bw_10.0Gbit_11_17_2020_08_08_test"
+    run_dir = "pfabric_flows_horovod_100ms_arrival_11_runhvd_true_hrvprio_0x10_num_hvd_8_link_bw_10.0Gbit_run_idx_0_ctn_4.0_pftohrvd_0.47872_00_47_2020_08_11"
     progress_file_abs_path = f"{run_dir_parent_dir}/{run_dir}/logs_ns3/HorovodWorker_0_layer_50_port_1024_progress.txt"
 
-    save_fig = True
-    test_p = HorovodWorkerProgress(progress_file_abs_path, save_fig)
+    save_fig = False
+    num_workers=8
+
+    for i in range(num_workers):
+        progress_file_abs_path = f"{run_dir_parent_dir}/{run_dir}/logs_ns3/HorovodWorker_{i}_layer_50_port_1024_progress.txt"
+        test_p = HorovodWorkerProgress(progress_file_abs_path, save_fig)
