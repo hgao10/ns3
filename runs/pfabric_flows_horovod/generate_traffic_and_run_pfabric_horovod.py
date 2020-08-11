@@ -27,7 +27,7 @@ except ImportError:
     print("Can't import plot_pfabric_FCT")
 
 try:
-    from horovod_worker_plot import *                   
+    from horovod_worker_plot_class import *                   
 except ImportError:
     print("Can't import horovod_worker_plot")
 
@@ -129,6 +129,9 @@ def individual_pfabric_run(args):
                   f"hrvprio_{config.c_horovod_prio}_"+\
                   f"num_hvd_{config.c_hrvd_specifics.num_workers}_"+\
                   f"link_bw_{config.c_link_bw_Mbits/1000}Gbit_"+\
+                  f"run_idx_{config.c_run_idx}_"+\
+                  f"ctn_{config.hrvd_expected_compute_to_network_ratio}_"+\
+                  f"pftohrvd_{config.expected_pfabric_to_hrvd_load_ratio}_"+\
                   f"{curr_date}"
 
     new_run_dir_path_abs = f"{ns3_basic_sim_dir}/runs/{new_run_dir}" 
@@ -161,7 +164,7 @@ def individual_pfabric_run(args):
     sh.sed("-i", f"s/\\[NUM\\-WORKER\\]/{config.c_hrvd_specifics.num_workers}/g", f"{new_hrvd_config_file}")
     sh.sed("-i", f"s/\\[NUM\\-LAYERS\\]/{config.c_hrvd_specifics.num_layers}/g", f"{new_hrvd_config_file}")
     sh.sed("-i", f"s/\\[FUSION\\-SIZE\\]/{config.c_hrvd_specifics.fusion_buffer_size}/g", f"{new_hrvd_config_file}")
-    sh.sed("-i", f"s/\\[MODEL\\-SIZE\\]/{config.c_hrvd_specifics.model_size_in_byte}/g", f"{new_hrvd_config_file}")
+    sh.sed("-i", f"s/\\[MODEL\\-SIZE\\]/{config.c_hrvd_specifics.model_size_in_byte/(10**6)}/g", f"{new_hrvd_config_file}")
     sh.sed("-i", f"s/\\[ITER\\-TIME\\]/{config.c_hrvd_specifics.iteration_time_ms}/g", f"{new_hrvd_config_file}")
 
     layer_size_file=f"{new_run_dir_path_abs}/layer_weight_model_size_{config.c_hrvd_specifics.model_size_in_byte/(10**6)}MB.csv"
@@ -176,11 +179,13 @@ def individual_pfabric_run(args):
     schedule_file_name = f"schedule_{config.c_flow_arr_rate}.csv"
 
     # Write pfabric flow schedule
+    servers = [x for x in range(config.c_hrvd_specifics.num_workers)]
     generate_pfabric_flows(f"{new_run_dir_path_abs}/{schedule_file_name}", \
-                            config.c_hrvd_specifics.num_workers, \
+                            servers, \
                             config.c_flow_arr_rate,\
                             config.c_simulation_ns, \
-                            config.c_link_bw_Mbits)
+                            config.c_link_bw_Mbits, \
+                            config.c_master_seed)
 
 
     # run the program
@@ -190,14 +195,37 @@ def individual_pfabric_run(args):
     sh.cd(f"{utilization_plot_dir}")
     plot_link_utilization_single_tor(f"{new_run_dir_path_abs}/logs_ns3", config.c_hrvd_specifics.num_workers + 1)
 
-    # plot horovod progress and priority samples      
-
+    # TODO plot horovod progress and priority samples  
+    for i in range(config.c_hrvd_specifics.num_workers):
+        progress_file_abs_path = f"{new_run_dir_path_abs}/logs_ns3/HorovodWorker_{i}_layer_50_port_1024_progress.txt"
+        save_fig = True
+        HorovodWorkerProgress(progress_file_abs_path, save_fig)    
     sh.cd(f"{config_dir}")
 
 
+    
+
+def expand_number_of_runs(num_runs, p_hrvd_configs):
+    p_hrvd_configs_multi_runs = []
+    for p_hrvd_config in p_hrvd_configs:
+        master_seed =  123456789876
+        for i in range(num_runs):
+            new_seed = master_seed + i
+            p_hrvd_config.set_master_seed(new_seed)
+            p_hrvd_config.set_run_idx(i)
+            print(f"p_hrvd_config: {p_hrvd_config}")
+            p_hrvd_configs_multi_runs.append(p_hrvd_config)
+    
+    print(f"total number of tests: {len(p_hrvd_configs_multi_runs)}")
+
+    return p_hrvd_configs_multi_runs
+
 def launch_multiprocess_run(p_hrvd_configs):
+    num_runs = 3
+    p_hrvd_configs_multi_runs = expand_number_of_runs(num_runs, p_hrvd_configs) 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        executor.map(individual_pfabric_run, enumerate(p_hrvd_configs))
+        # executor.map(individual_pfabric_run, enumerate(p_hrvd_configs))
+        executor.map(individual_pfabric_run, enumerate(p_hrvd_configs_multi_runs))
 
 
 @dataclass
@@ -273,6 +301,8 @@ class PfabricHorovodConfig:
     c_flow_arr_rate: float
     c_horovod_prio: str
     c_run_horovod: str
+    c_master_seed: int
+    c_run_idx : int
     c_hrvd_specifics: HorovodConfig
     expected_pfabric_load_MB_per_s: float = field(init=False)
     expected_pfabric_to_hrvd_load_ratio: float = field(init=False)
@@ -283,12 +313,22 @@ class PfabricHorovodConfig:
         # avg flow size = 1.7 MB * flows_per_s
         self.expected_pfabric_load_MB_per_s = self.c_flow_arr_rate * 1.7 * 8 
         print(f"expected_pfabric_load_MB_per_s: {self.expected_pfabric_load_MB_per_s}")
-        self.expected_pfabric_to_hrvd_load_ratio = self.expected_pfabric_load_MB_per_s/self.c_hrvd_specifics.expected_load_MB_per_s
-        self.hrvd_expected_compute_to_network_ratio = self.c_hrvd_specifics.compute_to_network_time_ratio(self.c_link_bw_Mbits)
+        if self.c_run_horovod == "true":
+            self.expected_pfabric_to_hrvd_load_ratio = self.expected_pfabric_load_MB_per_s/self.c_hrvd_specifics.expected_load_MB_per_s
+            self.hrvd_expected_compute_to_network_ratio = self.c_hrvd_specifics.compute_to_network_time_ratio(self.c_link_bw_Mbits)
+        else:
+            self.expected_pfabric_to_hrvd_load_ratio = 0
+            self.hrvd_expected_compute_to_network_ratio = 0
 
 
     def calculate_expected_link_utilization(self):
         return self.c_flow_arr_rate * 1.7 * 8 / self.c_link_bw_Mbits
+    
+    def set_master_seed(self, new_seed):
+        self.c_master_seed = new_seed
+
+    def set_run_idx(self, new_idx):
+        self.c_run_idx = new_idx
 
 
 def calculate_iteration_time_for_hrvd(link_bw_Mbits, num_workers, model_size_in_byte, c_to_n_ratio):
@@ -316,7 +356,8 @@ def generate_pfabric_horovod_configs_with_app_ratio():
     simulation_ns =12000000000
     horovod_prio ="0x10"
     run_horovod="true"
-    # master_seed = 123456789876
+    master_seed = 123456789876
+    run_idx = 0
 
     configs= []
     iteration_time_ms_list = [calculate_iteration_time_for_hrvd(link_bw_Mbits,num_workers,model_size_in_byte, r) for r in hrvd_compute_to_network_ratios]
@@ -330,16 +371,16 @@ def generate_pfabric_horovod_configs_with_app_ratio():
 
         expected_flows_load_MB_s = [r * hrvd_config.expected_load_MB_per_s  for r in pfabric_to_hrvd_ratios]
 
-        expected_flow_rates = [x/ (1.7 * 8) for x in expected_flows_load_MB_s]
+        expected_flow_rates = [ round(x/ (1.7 * 8)) for x in expected_flows_load_MB_s]
 
         for j, flow_rate in enumerate(expected_flow_rates):
-            pfabric_hrvd_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio, "true", hrvd_config)
+            pfabric_hrvd_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio,run_horovod,master_seed, run_idx,hrvd_config)
             print(f"flow_rate: {flow_rate}")
             print(f"ratio between pfabric and hrvd: {pfabric_hrvd_config.expected_pfabric_to_hrvd_load_ratio}, expecting: {pfabric_to_hrvd_ratios[j]}")
             print(f"ratio between hrvd compute and netwrok : {pfabric_hrvd_config.hrvd_expected_compute_to_network_ratio}, expecting: {hrvd_compute_to_network_ratios[i]}")
             print(f"link utilization: {pfabric_hrvd_config.calculate_expected_link_utilization()}")
 
-            configs.append(pfabric_horovod_run)
+            configs.append(pfabric_hrvd_config)
     
     return configs
 
@@ -362,7 +403,6 @@ def test_pfabric_horovod_config_class():
                                 # layer_size_dict, \
                                 # fp_compute_time, \
                                 # bp_compute_time)
-
 
     print(hrvd_config)
     link_bw_Mbits = 10000.0
@@ -490,8 +530,8 @@ if __name__ == "__main__":
     # launch_multiprocess_run(flows_per_s_test_cases)
     
     # configs_to_test = test_pfabric_horovod_config_class()
-    generate_pfabric_horovod_configs_with_app_ratio()
-    # individual_pfabric_run((0, configs_to_test[0]))
+    configs_to_test = generate_pfabric_horovod_configs_with_app_ratio()
+    individual_pfabric_run((0, configs_to_test[0]))
     # launch_multiprocess_run(configs_to_test)
 
     
