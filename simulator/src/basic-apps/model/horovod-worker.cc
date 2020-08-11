@@ -42,13 +42,6 @@
 #include <fstream>
 
 #include "ns3/address-utils.h"
-// #define DEBUG
-// #ifdef DEBUG
-// #define DEBUG_MSG(str) do {WORKER; std::cout << str << std::endl; } while( false )
-// #else
-// #define DEBUG_MSG(str) do { } while ( false )
-// #endif
-
 
 namespace ns3 {
 
@@ -684,8 +677,8 @@ void RingAllReduce::SetPartition(uint32_t num_workers, RingAllReduce* parent){
         r_partitions[i]->SetSize(r_partition_bytes);
         r_partitions[i]->SetIdx(i);
         r_partitions[i]->SetParent(parent);
-        DEBUG_MSG("    > Initialize Parition for R["<<r_partitions[i]->GetParent()->GetPriority()<<"]"<<" : "
-                                                <<","<<" idx: "<<r_partitions[i]->GetIdx());
+        // DEBUG_MSG("    > Initialize Parition for R["<<r_partitions[i]->GetParent()->GetPriority()<<"]"<<" : "
+        //                                         <<","<<" idx: "<<r_partitions[i]->GetIdx());
     }
     std::cout <<"   > Partition size: "<<r_partition_bytes<<"\n";
 }
@@ -950,6 +943,7 @@ bool HorovodWorker::IsClosedByError() {
 
 void HorovodWorker::SocketClosedNormal(Ptr <Socket> socket) {
     DEBUG_MSG("SOCKET CLOSED NORMAL");
+    std::cout<<"SOCKET CLOSED NORMAL"<<std::endl;
     m_completionTimeNs = Simulator::Now().GetNanoSeconds();
     m_connFailed = false;
     m_closedByError = false;
