@@ -42,7 +42,7 @@
 #define ITERBARRIER 1
 
 
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
 #define DEBUG_MSG(str) do {WORKER; std::cout << str << std::endl; } while( false )
 #else
@@ -149,6 +149,10 @@ class HorovodWorker : public Application {
     return m_bytes_sent_vector;
   };
 
+  std::vector<std::string> & GetEventString(){
+    return m_event_strings; 
+  };
+  
  protected:
   virtual void DoDispose(void);
 
@@ -245,6 +249,8 @@ class HorovodWorker : public Application {
   uint32_t m_bytes_sent = 0;
   std::vector<uint32_t> m_bytes_sent_vector;
   std::vector<uint32_t> m_bytes_received_vector;
+  std::uint32_t m_last_received_index = 0;
+  std::vector<std::string> m_event_strings;
 
  private:
   void ConnectionSucceeded(Ptr<Socket> socket);

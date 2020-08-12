@@ -56,7 +56,16 @@ protected:
     std::vector<std::vector<int64_t>> m_horovod_neighbors; // [left_nei, node, right_nei]
     std::map<int, std::shared_ptr<InetSocketAddress>> m_ipv4_addr_self; //Local addr
     std::map<int, std::shared_ptr<InetSocketAddress>> m_ipv4_addr_remote; //Remote addr
-
+    bool m_run_horovod;
+    std::map<std::string, std::string> m_config;
+    std::string m_prio_config;
+    int64_t m_num_workers;
+    int64_t m_num_layers;
+    int64_t m_fusion_size_bytes;
+    std::string m_layer_size_file;
+    std::string m_fp_compute_time_file;
+    std::string m_bp_compute_time_file;
+    uint32_t m_port;
     GlobalRingAllReduceSyncer m_global_ringallreduce_syncer;
 };
 

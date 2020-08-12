@@ -306,15 +306,18 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         // std::cout<<"  > Curr time: "<< Simulator::Now()<<std::endl;
         std::map<uint32_t, FusionPartition*> map = m_leftneighbor->GetInflightFusions();
         DEBUG_MSG("leftneighbor bytes sent vector lastest: "<<m_leftneighbor->GetBytesSentVector().back());
-        for( std::vector<uint32_t>::reverse_iterator it = m_leftneighbor->GetBytesSentVector().rbegin(); it != m_leftneighbor->GetBytesSentVector().rend(); ++it ){
+        // for( std::vector<uint32_t>::reverse_iterator it = m_leftneighbor->GetBytesSentVector().rbegin(); it != m_leftneighbor->GetBytesSentVector().rend(); ++it ){
+        uint32_t update_last_received_index = m_last_received_index;
+        for( std::vector<uint32_t>::iterator it = m_leftneighbor->GetBytesSentVector().begin() + m_last_received_index; it != m_leftneighbor->GetBytesSentVector().end(); ++it ){
             // Debug(format_string("left neighbor byte sent vector: %u", *it));
 
             if (m_totalRx >= *it) {
-                // Debug(format_string("m_totalRx: %u >= *it", m_totalRx));
                 DEBUG_MSG("m_totalRx:"<<m_totalRx<<" >= *it "<<*it);
                 // Debug(format_string("received vector empty %u", m_bytes_received_vector.empty()));
                 // std::cout<<"received vector empty"<< m_bytes_received_vector.empty()<<std::endl;
-                if((m_bytes_received_vector.empty()) || (*it != m_bytes_received_vector.back())){
+                // if((m_bytes_received_vector.empty()) || (*it != m_bytes_received_vector.back())){
+
+                    update_last_received_index += 1;
                     // found fusion, push it back to received vector
                     m_bytes_received_vector.push_back(*it);
                     // matches whats being sent by the neighbor
@@ -341,7 +344,6 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                         m_bytes_sent += map[*it]->GetSize();
                         DEBUG_MSG("    > Update fusion map ["<<m_bytes_sent<<"] "<< partition_idx);
                         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[partition_idx];
-                        DEBUG_MSG("    > Update fusion map [1777776] "<< m_inflight_fusion_map[1777776]);
                         m_bytes_sent_vector.push_back(m_bytes_sent);   
 
                         // for(auto layer: m_inflight_allreduce->GetTensors()){
@@ -381,10 +383,14 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                         }
                     }
                     SendData(m_send_socket, 0);
-                }
+                // }
+                // break;
+            }
+            else{
                 break;
             }
-        }         
+        }
+        m_last_received_index = update_last_received_index;         
     }
 }
 
@@ -877,13 +883,15 @@ void HorovodWorker::ConnectionFailed(Ptr <Socket> socket) {
 }
 
 void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
-    std::ofstream ofs;
-    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_prio_%" PRIu32 "_progress.txt", m_worker_id, m_num_layers, unsigned(m_send_socket->GetPriority())),
-    ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_port_%u_progress.txt", m_worker_id, m_num_layers, m_port),
-    std::ofstream::out | std::ofstream::app);
-    ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
-    ofs.close(); 
+    // std::ofstream ofs;
+    // ofs.open(m_baseLogsDir + "/" + format_string("HorovodWorker_%" PRIu32 "_layer_%" PRIu32 "_port_%u_progress.txt", m_worker_id, m_num_layers, m_port),
+    // std::ofstream::out | std::ofstream::app);
+    // ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
+    // ofs.close(); 
+    std::string event_str = format_string("%d,%d,%s,%d\n", m_iteration_idx,layer_idx,event.c_str(),Simulator::Now().GetNanoSeconds());
+    m_event_strings.push_back(event_str);
 }
+
 
 void HorovodWorker::Debug(std::string event){
     std::ofstream ofs;
@@ -908,7 +916,7 @@ void HorovodWorker::DebugAll(std::string event){
 void HorovodWorker::NotifyDataSent(Ptr<Socket>, uint32_t datasent){
     // Notify the applications that bytes being flushed from transport layer buffer 
     m_notify_datasent += datasent;
-    DEBUG_MSG("m_notify_datasent: "<<m_notify_datasent <<"m_bytes_sent: "<<m_bytes_sent);
+    DEBUG_MSG("m_notify_datasent: "<<m_notify_datasent <<" m_bytes_sent: "<<m_bytes_sent);
     return;
 }
 
