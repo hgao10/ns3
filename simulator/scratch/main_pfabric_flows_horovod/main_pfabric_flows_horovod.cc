@@ -76,6 +76,7 @@ int main(int argc, char *argv[]) {
     // Write utilization results
     utilTrackerHelper.WriteResults();
     
+    horovodscheduler.WriteResults();
     // Finalize the simulation
     basicSimulation->Finalize();
 
