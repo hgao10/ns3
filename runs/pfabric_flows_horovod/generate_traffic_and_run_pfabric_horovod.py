@@ -8,7 +8,7 @@ import importlib.util
 import sys
 import concurrent.futures
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import DefaultDict
 from ring_topology_helper import *
 from pfabric_flows import *
@@ -116,6 +116,7 @@ def test_generate_horovod_layer_size(output_dir):
 
     
 def individual_pfabric_run(args):
+    print(args)
     utilization_interval_ns = ("100ms", 100000000)
     index, config = args
     time.sleep(index * 30)
@@ -211,10 +212,11 @@ def expand_number_of_runs(num_runs, p_hrvd_configs):
         master_seed =  123456789876
         for i in range(num_runs):
             new_seed = master_seed + i
-            p_hrvd_config.set_master_seed(new_seed)
-            p_hrvd_config.set_run_idx(i)
-            print(f"p_hrvd_config: {p_hrvd_config}")
-            p_hrvd_configs_multi_runs.append(p_hrvd_config)
+            new_config = p_hrvd_config.copy()
+            new_config.set_master_seed(new_seed)
+            new_config.set_run_idx(i)
+            print(f"p_hrvd_config: {new_config}")
+            p_hrvd_configs_multi_runs.append(new_config)
     
     print(f"total number of tests: {len(p_hrvd_configs_multi_runs)}")
 
@@ -243,6 +245,8 @@ class HorovodConfig:
     expected_network_transfer_time_ms: float = field(init=False)
 
     def __post_init__(self):
+        if self.num_layers == 0: #
+            return 
         self.calculate_FP_BP_compute_time()
         self.calculate_layer_size()
         self.fusion_buffer_size = max(self.layer_size.values()) + 1
@@ -293,6 +297,17 @@ class HorovodConfig:
             
             assert self.layer_size[i] != 0.0, f"layer {i} has 0 weights"
         
+    def copy(self):
+        new_config = make_horovod_config()
+        for field in fields(HorovodConfig):
+        # print(f"{field.name}")
+            setattr(new_config, field.name, getattr(self, field.name))
+        return new_config
+
+
+def make_horovod_config():
+    return HorovodConfig(0, 0, 0, 0, 0)
+
 
 @dataclass
 class PfabricHorovodConfig:
@@ -303,32 +318,52 @@ class PfabricHorovodConfig:
     c_run_horovod: str
     c_master_seed: int
     c_run_idx : int
-    c_hrvd_specifics: HorovodConfig
+    c_hrvd_specifics: HorovodConfig = field(default_factory=make_horovod_config)
     expected_pfabric_load_MB_per_s: float = field(init=False)
     expected_pfabric_to_hrvd_load_ratio: float = field(init=False)
     hrvd_expected_compute_to_network_ratio: float= field(init=False)
-
+    expected_link_util_pfabric: float = field(init=False)
+    expected_link_util_hrvd: float = field(init=False)
+    expected_total_link_util: float = field(init=False)
 
     def __post_init__(self):
         # avg flow size = 1.7 MB * flows_per_s
-        self.expected_pfabric_load_MB_per_s = self.c_flow_arr_rate * 1.7 * 8 
-        print(f"expected_pfabric_load_MB_per_s: {self.expected_pfabric_load_MB_per_s}")
+        self.expected_pfabric_load_MB_per_s = self.c_flow_arr_rate * 1.7
         if self.c_run_horovod == "true":
             self.expected_pfabric_to_hrvd_load_ratio = self.expected_pfabric_load_MB_per_s/self.c_hrvd_specifics.expected_load_MB_per_s
             self.hrvd_expected_compute_to_network_ratio = self.c_hrvd_specifics.compute_to_network_time_ratio(self.c_link_bw_Mbits)
+            self.calculate_expected_avg_link_usage_by_pfabric()
+            self.calculate_expected_avg_link_usage_by_hrvd()    
+            self.expected_total_link_util = self.expected_link_util_pfabric + self.expected_link_util_hrvd
         else:
             self.expected_pfabric_to_hrvd_load_ratio = 0
             self.hrvd_expected_compute_to_network_ratio = 0
 
 
-    def calculate_expected_link_utilization(self):
-        return self.c_flow_arr_rate * 1.7 * 8 / self.c_link_bw_Mbits
+    def calculate_expected_avg_link_usage_by_pfabric(self):
+        self.expected_link_util_pfabric =  self.c_flow_arr_rate * 1.7 * 8 / self.c_link_bw_Mbits
+
+    def calculate_expected_avg_link_usage_by_hrvd(self):
+        self.expected_link_util_hrvd= self.c_hrvd_specifics.expected_load_MB_per_s * 8 / self.c_link_bw_Mbits
     
     def set_master_seed(self, new_seed):
         self.c_master_seed = new_seed
 
     def set_run_idx(self, new_idx):
         self.c_run_idx = new_idx
+
+    def copy(self):
+        new_config = PfabricHorovodConfig(0, 0,0, 0, 0, 0, 0, 0)
+        for field in fields(PfabricHorovodConfig):
+        # print(f"{field.name}")
+            setattr(new_config, field.name, getattr(self, field.name))
+        
+        new_config.c_hrvd_specifics = new_config.c_hrvd_specifics.copy()
+        return new_config
+
+
+def calculate_flow_rate_based_on_link_utilization(link_bw_Mbits, link_utilization):
+    return link_utilization * link_bw_Mbits / (1.7 * 8)
 
 
 def calculate_iteration_time_for_hrvd(link_bw_Mbits, num_workers, model_size_in_byte, c_to_n_ratio):
@@ -342,7 +377,48 @@ def test_calculate_iteration_time_for_hrvd():
     link_bw_Mbits = 10* (10 ** 3)
     for r in [6.4, 6, 4, 2, 1]:
         iteration_time_ms = calculate_iteration_time_for_hrvd(link_bw_Mbits, num_workers, model_size_in_byte, r)
-        print(f"ratio: {r}, iteration_time: {iteration_time_ms} ms")
+
+
+def generate_low_utilization_constant_hrvd_compute_to_nw_ratio():
+    hrvd_compute_to_network_ratios = [16, 8, 4, 2]
+    expected_hrvd_link_utilization = [1/x for x in hrvd_compute_to_network_ratios]
+    expected_pfabric_link_utilization = [1/16 * x for x in [0.5, 1, 2, 4]]
+
+    
+    num_workers= 8
+    num_layers= 50
+    model_size_in_byte = 100 * (10**6)
+    fusion_buffer_size = 2 * (10**6)
+    link_bw_Mbits = 10000.0
+    simulation_ns =12000000000
+    horovod_prio ="0x10"
+    run_horovod="true"
+    master_seed = 123456789876
+    run_idx = 0
+
+    configs= []
+    iteration_time_ms_list = [calculate_iteration_time_for_hrvd(link_bw_Mbits,num_workers,model_size_in_byte, r) for r in hrvd_compute_to_network_ratios]
+    print(f"iteration_time_ms_list : {iteration_time_ms_list}")
+    for i, iteration_time_ms in enumerate(iteration_time_ms_list):
+        hrvd_config = HorovodConfig(num_workers,\
+                                num_layers, \
+                                model_size_in_byte,\
+                                fusion_buffer_size, \
+                                iteration_time_ms)
+
+
+        expected_flow_rates = [ round(calculate_flow_rate_based_on_link_utilization(link_bw_Mbits, r)) for r in expected_pfabric_link_utilization]
+
+        for j, flow_rate in enumerate(expected_flow_rates):
+            pfabric_hrvd_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio,run_horovod,master_seed, run_idx,hrvd_config)
+            print(f"flow_rate: {flow_rate}")
+            print(f"ratio between pfabric and hrvd: {pfabric_hrvd_config.expected_pfabric_to_hrvd_load_ratio}")
+            print(f"ratio between hrvd compute and netwrok : {pfabric_hrvd_config.hrvd_expected_compute_to_network_ratio}, expecting: {hrvd_compute_to_network_ratios[i]}")
+            print(f"total link usage: {pfabric_hrvd_config.expected_total_link_util}")            
+            print(f"hrvd link utilization: {pfabric_hrvd_config.expected_link_util_hrvd}")
+            configs.append(pfabric_hrvd_config)
+    
+    return configs
 
 
 def generate_pfabric_horovod_configs_with_app_ratio():
@@ -354,6 +430,7 @@ def generate_pfabric_horovod_configs_with_app_ratio():
     fusion_buffer_size = 2 * (10**6)
     link_bw_Mbits = 10000.0
     simulation_ns =12000000000
+    # simulation_ns =2000000000
     horovod_prio ="0x10"
     run_horovod="true"
     master_seed = 123456789876
@@ -371,17 +448,18 @@ def generate_pfabric_horovod_configs_with_app_ratio():
 
         expected_flows_load_MB_s = [r * hrvd_config.expected_load_MB_per_s  for r in pfabric_to_hrvd_ratios]
 
-        expected_flow_rates = [ round(x/ (1.7 * 8)) for x in expected_flows_load_MB_s]
+        expected_flow_rates = [ round(x/ 1.7) for x in expected_flows_load_MB_s]
 
         for j, flow_rate in enumerate(expected_flow_rates):
             pfabric_hrvd_config = PfabricHorovodConfig(link_bw_Mbits, simulation_ns, flow_rate, horovod_prio,run_horovod,master_seed, run_idx,hrvd_config)
             print(f"flow_rate: {flow_rate}")
             print(f"ratio between pfabric and hrvd: {pfabric_hrvd_config.expected_pfabric_to_hrvd_load_ratio}, expecting: {pfabric_to_hrvd_ratios[j]}")
             print(f"ratio between hrvd compute and netwrok : {pfabric_hrvd_config.hrvd_expected_compute_to_network_ratio}, expecting: {hrvd_compute_to_network_ratios[i]}")
-            print(f"link utilization: {pfabric_hrvd_config.calculate_expected_link_utilization()}")
+            print(f"total link usage: {pfabric_hrvd_config.expected_total_link_util}")            
 
             configs.append(pfabric_hrvd_config)
     
+    print(configs[0])
     return configs
 
 
@@ -530,8 +608,10 @@ if __name__ == "__main__":
     # launch_multiprocess_run(flows_per_s_test_cases)
     
     # configs_to_test = test_pfabric_horovod_config_class()
-    configs_to_test = generate_pfabric_horovod_configs_with_app_ratio()
-    individual_pfabric_run((0, configs_to_test[0]))
-    # launch_multiprocess_run(configs_to_test)
+    # configs_to_test = generate_pfabric_horovod_configs_with_app_ratio()
+    configs_to_test = generate_low_utilization_constant_hrvd_compute_to_nw_ratio()
+    # individual_pfabric_run((0, configs_to_test[0]))
+    config = configs_to_test[0]
+    launch_multiprocess_run(configs_to_test)
 
     
