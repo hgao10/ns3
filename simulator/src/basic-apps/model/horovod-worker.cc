@@ -305,10 +305,10 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
         DEBUG_MSG("  > Received up to "<< m_totalRx);
         // std::cout<<"  > Curr time: "<< Simulator::Now()<<std::endl;
         std::map<uint32_t, FusionPartition*> map = m_leftneighbor->GetInflightFusions();
-        DEBUG_MSG("leftneighbor bytes sent vector lastest: "<<m_leftneighbor->GetBytesSentVector().back());
+        DEBUG_MSG("left neighbor bytes sent vector lastest: "<<m_leftneighbor->GetBytesSentVector().back());
         // for( std::vector<uint32_t>::reverse_iterator it = m_leftneighbor->GetBytesSentVector().rbegin(); it != m_leftneighbor->GetBytesSentVector().rend(); ++it ){
         uint32_t update_last_received_index = m_last_received_index;
-        for( std::vector<uint32_t>::iterator it = m_leftneighbor->GetBytesSentVector().begin() + m_last_received_index; it != m_leftneighbor->GetBytesSentVector().end(); ++it ){
+        for( std::vector<uint64_t>::iterator it = m_leftneighbor->GetBytesSentVector().begin() + m_last_received_index; it != m_leftneighbor->GetBytesSentVector().end(); ++it ){
             // Debug(format_string("left neighbor byte sent vector: %u", *it));
 
             if (m_totalRx >= *it) {
@@ -359,7 +359,7 @@ void HorovodWorker::HandleRead(Ptr<Socket> socket) {
                         // Check if all paritions have truly been synced and if other workers have done, otherwise                         
                         if(CheckAllPartitionSynced(partition_idx)){
                             // std::cout<<"    > all local partitions are synced "<<std::endl;
-                            DEBUG_MSG("    > all local partitions are synced for Piro"<< m_inflight_allreduce->GetPriority());
+                            DEBUG_MSG("    > all local partitions are synced for Prio "<< m_inflight_allreduce->GetPriority());
                             DEBUG_MSG("    > Update Global ");
                             UpdateGlobalRingallreduceSyncer();
  
@@ -523,7 +523,6 @@ void HorovodWorker::SendData(Ptr <Socket>, uint32_t) {
         m_bytes_sent_vector.push_back(m_bytes_sent);
         DEBUG_MSG("    > Update fusion map ["<<m_bytes_sent<<"] "<< m_worker_id);
         m_inflight_fusion_map[m_bytes_sent] = m_inflight_allreduce->GetPartitions()[m_worker_id];
-        DEBUG_MSG("    > Update fusion map [1777776] "<< m_inflight_fusion_map[1777776]);
 
         // ***** Scheduling scheme 1:
         // *************************** allreduce priority <= 14 : P0
@@ -888,7 +887,7 @@ void HorovodWorker::RecordEvent(uint32_t layer_idx, std::string event){
     // std::ofstream::out | std::ofstream::app);
     // ofs << m_iteration_idx << "," << layer_idx << "," <<  event << ","<<Simulator::Now().GetNanoSeconds()<< std::endl;
     // ofs.close(); 
-    std::string event_str = format_string("%d,%d,%s,%d\n", m_iteration_idx,layer_idx,event.c_str(),Simulator::Now().GetNanoSeconds());
+    std::string event_str = format_string("%d,%d,%s,%" PRId64 "\n", m_iteration_idx,layer_idx,event.c_str(),Simulator::Now().GetNanoSeconds());
     m_event_strings.push_back(event_str);
 }
 
@@ -916,7 +915,7 @@ void HorovodWorker::DebugAll(std::string event){
 void HorovodWorker::NotifyDataSent(Ptr<Socket>, uint32_t datasent){
     // Notify the applications that bytes being flushed from transport layer buffer 
     m_notify_datasent += datasent;
-    DEBUG_MSG("m_notify_datasent: "<<m_notify_datasent <<" m_bytes_sent: "<<m_bytes_sent);
+    // DEBUG_MSG("m_notify_datasent: "<<m_notify_datasent <<" m_bytes_sent: "<<m_bytes_sent);
     return;
 }
 

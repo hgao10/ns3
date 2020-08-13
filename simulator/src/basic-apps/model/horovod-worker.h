@@ -145,14 +145,14 @@ class HorovodWorker : public Application {
   };
 
 
-  std::vector<uint32_t> & GetBytesSentVector(){
+  std::vector<uint64_t> & GetBytesSentVector(){
     return m_bytes_sent_vector;
   };
 
   std::vector<std::string> & GetEventString(){
     return m_event_strings; 
   };
-  
+
  protected:
   virtual void DoDispose(void);
 
@@ -246,16 +246,16 @@ class HorovodWorker : public Application {
   uint32_t m_iteration_idx = 0;
   uint32_t m_max_iteration = 2;
   std::map<uint32_t, FusionPartition *> m_inflight_fusion_map;
-  uint32_t m_bytes_sent = 0;
-  std::vector<uint32_t> m_bytes_sent_vector;
-  std::vector<uint32_t> m_bytes_received_vector;
+  uint64_t m_bytes_sent = 0;
+  std::vector<uint64_t> m_bytes_sent_vector;
+  std::vector<uint64_t> m_bytes_received_vector;
   std::uint32_t m_last_received_index = 0;
   std::vector<std::string> m_event_strings;
 
  private:
   void ConnectionSucceeded(Ptr<Socket> socket);
   void ConnectionFailed(Ptr<Socket> socket);
-  void DataSend(Ptr<Socket>, uint32_t tosend);
+  void DataSend(Ptr<Socket>, uint64_t tosend);
   void SocketClosedNormal(Ptr<Socket> socket);
   void SocketClosedError(Ptr<Socket> socket);
 
