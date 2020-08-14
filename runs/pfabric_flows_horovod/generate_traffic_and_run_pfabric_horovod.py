@@ -196,15 +196,14 @@ def individual_pfabric_run(args):
     sh.cd(f"{utilization_plot_dir}")
     plot_link_utilization_single_tor(f"{new_run_dir_path_abs}/logs_ns3", config.c_hrvd_specifics.num_workers + 1)
 
-    # TODO plot horovod progress and priority samples  
+    # plot horovod progress and priority samples  
     for i in range(config.c_hrvd_specifics.num_workers):
         progress_file_abs_path = f"{new_run_dir_path_abs}/logs_ns3/HorovodWorker_{i}_layer_50_port_1024_progress.txt"
         save_fig = True
         HorovodWorkerProgress(progress_file_abs_path, save_fig)    
+    
     sh.cd(f"{config_dir}")
 
-
-    
 
 def expand_number_of_runs(num_runs, p_hrvd_configs):
     p_hrvd_configs_multi_runs = []
@@ -381,8 +380,10 @@ def test_calculate_iteration_time_for_hrvd():
 
 def generate_low_utilization_constant_hrvd_compute_to_nw_ratio():
     hrvd_compute_to_network_ratios = [16, 8, 4, 2]
+    # hrvd_compute_to_network_ratios = [2]
     expected_hrvd_link_utilization = [1/x for x in hrvd_compute_to_network_ratios]
     expected_pfabric_link_utilization = [1/16 * x for x in [0.5, 1, 2, 4]]
+    # expected_pfabric_link_utilization = [1/16 * x for x in [0.5, 1]]
 
     
     num_workers= 8
@@ -611,7 +612,7 @@ if __name__ == "__main__":
     # configs_to_test = generate_pfabric_horovod_configs_with_app_ratio()
     configs_to_test = generate_low_utilization_constant_hrvd_compute_to_nw_ratio()
     # individual_pfabric_run((0, configs_to_test[0]))
-    config = configs_to_test[0]
-    launch_multiprocess_run(configs_to_test)
+    # config = configs_to_test[0]
+    # launch_multiprocess_run(configs_to_test)
 
     

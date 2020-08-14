@@ -41,6 +41,11 @@ class FlowStats:
     def compare_99th_pct(self, other):
         return delta_percent(self.percentile_99th_ms, other.percentile_99th_ms)
 
+    def compare_90th_pct(self, other):
+        return delta_percent(self.percentile_90th_ms, other.percentile_90th_ms)
+
+
+
 
 @dataclass
 class AllFlowStats:
@@ -67,6 +72,15 @@ class AllFlowStats:
 
         return delta
 
+    def compare_90th_pct(self, other):
+        delta = collections.defaultdict()
+        delta["small"] = self.small_flows.compare_90th_pct(other.small_flows)
+        delta["large"] = self.large_flows.compare_90th_pct(other.large_flows)
+        delta["mid"] = self.mid_flows.compare_90th_pct(other.mid_flows)
+        delta["all"] = self.all_flows.compare_90th_pct(other.all_flows)
+
+        return delta
+        
 
 def ns_to_ms(ns_val):
     return float(ns_val)/float(10**6)
@@ -110,7 +124,15 @@ def plot_link_utilization_single_tor(log_dir, num_nodes):
 
     for n1, n2 in from_to_node_id:
         utilization_plot.utilization_plot(log_dir, data_out_dir, pdf_out_dir, n1, n2)
-    
+
+
+def plot_utilization_and_hrvd_progress(new_run_dir_path_abs, number_workers, save_fig):
+    plot_link_utilization_single_tor(f"{new_run_dir_path_abs}/logs_ns3", number_workers + 1)
+
+    for i in range(number_workers):
+        progress_file_abs_path = f"{new_run_dir_path_abs}/logs_ns3/HorovodWorker_{i}_layer_50_port_1024_progress.txt"
+        save_fig = True
+        HorovodWorkerProgress(progress_file_abs_path, save_fig)    
 
 @dataclass
 class Flow:
@@ -129,6 +151,93 @@ class Flow:
         self.size_KB = float(self.size_KB/1000)
         self.throughput_Gbits = self.size_KB * 8 * (10 ** 3) / self.duration
         
+
+def plot_multi_FCT_runs(run_dirs):
+    small_finished_flows_duration = []
+    large_finished_flows_duration = []
+
+    midsize_finished_flows_duration = []
+    all_finished_flows_duration = []
+    flows_count = collections.defaultdict(int)
+    total_entries = 0
+    for run_dir in run_dirs:
+        run_dir_root = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
+        data_file = f"{run_dir_root}/{run_dir}/logs_ns3/flows.csv"
+
+        data_file_path = pathlib.Path(data_file)
+        if data_file_path.exists() == False:
+            print(f"data_file: {data_file_path} doesn't exist")
+            return None, None, None
+        # Read in csv data
+        flows_csv_columns = read_csv_direct_in_columns(
+            data_file,
+            # flows_id, source, target, size,    start_time (ns), end_time(ns), duration(ns), sent(bytes),finished_state, meta_data
+            "pos_int,pos_int,pos_int,pos_int,pos_int,pos_int,pos_int,pos_int,string,string"
+        )
+
+        num_entries = len(flows_csv_columns[0])
+        total_entries += num_entries
+        flows_id = flows_csv_columns[0]
+        source = flows_csv_columns[1]
+        target = flows_csv_columns[2]
+        size = flows_csv_columns[3]
+        start_time = flows_csv_columns[4]
+        end_time = flows_csv_columns[5]
+        duration = flows_csv_columns[6]
+        sent_bytes = flows_csv_columns[7]
+        finished_state = flows_csv_columns[8]
+
+        small_flows_threshold_KB = 100      #100 KB 
+        large_flows_threshold_KB = 10000    #10MB 
+
+        # Only consider flows that were completed between warmup and cooldown period
+        warmup_period_ns = 2 * (10**9) 
+        cooldown_period_ns = 2 * (10**9)
+        last_flow_start_timestamp_ns = start_time[-1]
+        valid_period_upperbound = last_flow_start_timestamp_ns - cooldown_period_ns
+
+
+        for i in range(num_entries):
+            curr_flow = Flow(flows_id[i], source[i], target[i], size[i], start_time[i], duration[i], end_time[i],sent_bytes[i], finished_state[i]  )
+
+            # print(curr_flow)
+
+            if warmup_period_ns < curr_flow.start_time < valid_period_upperbound:  
+                flows_count["all"] +=1
+                if curr_flow.size_KB <= small_flows_threshold_KB:
+                    if curr_flow.finished_status == "YES":
+                        small_finished_flows_duration.append(curr_flow.duration)
+                        all_finished_flows_duration.append(curr_flow.duration)
+                    flows_count["small"] += 1
+                elif curr_flow.size_KB >= large_flows_threshold_KB:
+                    if curr_flow.finished_status == "YES":
+                        large_finished_flows_duration.append(curr_flow.duration)
+                        all_finished_flows_duration.append(curr_flow.duration)
+                    flows_count["large"] += 1
+                else: # flows between [100KB, 10MB]
+                    if curr_flow.finished_status == "YES":
+                        midsize_finished_flows_duration.append(curr_flow.duration)
+                        all_finished_flows_duration.append(curr_flow.duration)
+                    flows_count["mid"] += 1
+
+    print("Collected flows:")
+    print(f"  > {flows_count['all']} out of {total_entries} flows were in the measurement interval")
+    print("  > Within the interval:")
+    print(f"    >> All flows...... {len(all_finished_flows_duration)}/{flows_count['all']} completed")
+    print(f"    >> Small flows.... {len(small_finished_flows_duration)}/{flows_count['small']} completed")
+    print(f"    >> Medium flows.... {len(midsize_finished_flows_duration)}/{flows_count['mid']} completed")
+    print(f"    >> Large flows.... {len(large_finished_flows_duration)}/{flows_count['large']} completed")
+
+    small_flows_stats = generate_flow_stats(small_finished_flows_duration)
+    large_flows_stats = generate_flow_stats(large_finished_flows_duration)
+    mid_flows_stats = generate_flow_stats(midsize_finished_flows_duration)
+    all_flows_stats = generate_flow_stats(all_finished_flows_duration)
+    
+    run_flow_summary = AllFlowStats(small_flows_stats, large_flows_stats, mid_flows_stats, all_flows_stats)
+
+    print(run_flow_summary)
+
+    return run_flow_summary
 
 def plot_flows_FCT(run_dir):
     run_dir_root = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
@@ -228,13 +337,19 @@ def extract_average_utilization(run_dir):
         return None
 
     with open(data_file, "r") as file:
-        line = file.readlines()
-        from_0_to_1_link = line[1]
-        from_0_to_1_link = from_0_to_1_link.strip("\n")
-        from_0_to_1_link = from_0_to_1_link.split()
-        link_utilization = float(from_0_to_1_link[-1].strip("%"))
-        # print(f"from_0_to_1_link: {from_0_to_1_link}, utilization: {link_utilization}")
-
+        lines = file.readlines()
+        link_utilization = 0
+        for i in range(1, len(lines)):
+            line = lines[i]
+            line = line.strip("\n").split()
+            link_utilization += float(line[-1].strip("%"))
+        # from_0_to_1_link = line[1]
+        # from_0_to_1_link = from_0_to_1_link.strip("\n")
+        # from_0_to_1_link = from_0_to_1_link.split()
+        # link_utilization = float(from_0_to_1_link[-1].strip("%"))
+        # # print(f"from_0_to_1_link: {from_0_to_1_link}, utilization: {link_utilization}")
+        link_utilization = link_utilization/(len(lines)-1)
+        print(f"link_utilization: {link_utilization}")
     return link_utilization
 
 
@@ -398,6 +513,176 @@ def plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, save_fig):
         fig.savefig(f"small_large_small_99th_flows_FCT_{curr_date}_single_pkt_dev_queue_w_new_tcpto_10G_low_util", bbox_inches='tight')
 
 
+
+def construct_run_dir(flow_rate, hrvprio, run_idx, ctn_ratio, pftohvd_ratio, timestamp):
+    #  "pfabric_flows_horovod_100ms_arrival_23_runhvd_true_hrvprio_0x10_num_hvd_8_link_bw_10.0Gbit_run_idx_0_ctn_16.0_pftohrvd_0.50048_02_30_2020_08_12"
+    # pfabric_flows_horovod_100ms_arrival_92_runhvd_true_hrvprio_0x08_num_hvd_8_link_bw_10.0Gbit_run_idx_0_ctn_8.0_pftohrvd_1.00096_02_04_2020_08_13
+    dir_name =f"pfabric_flows_horovod_100ms_arrival_{flow_rate}_runhvd_true_hrvprio_{hrvprio}_num_hvd_8_link_bw_10.0Gbit_run_idx_{run_idx}_ctn_{ctn_ratio}_pftohrvd_{pftohvd_ratio}_{timestamp}" 
+    return dir_name
+
+
+def construct_list_of_dirs():
+    flow_rates = [23, 46, 92, 184]
+    hrvprio_list = ["0x10", "0x08"]
+    run_idx_list = [0, 1, 2]
+    ctn_ratio_list = [16.0, 8.0, 4.0] # TODO add the test results of 2
+    ptohvd_ratio_dic = collections.defaultdict() # key: ctn_ratio
+    ptohvd_ratio_dic[16.0] = [0.50048, 1.00096, 2.00192, 4.00384] 
+    ptohvd_ratio_dic[8.0] = [0.25024, 0.50048, 1.00096, 2.00192] 
+    ptohvd_ratio_dic[4.0] = [0.12512,  0.25024, 0.50048, 1.00096]
+    # ptohvd_ratio_dic[4.0] = [0.12512,  0.25024, 0.50048, 1.00096]
+
+    
+    timestamp = ["02_30_2020_08_12", "02_04_2020_08_13"]
+
+    list_run_dirs = []
+    root_run_dir = pathlib.Path("/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs")
+    if root_run_dir.exists() == False:
+        print(f"runs directory doesn't exist: {root_run_dir}")
+    for i, hrvprio in enumerate(hrvprio_list):
+        for ctn_r in ctn_ratio_list:
+            for j, f_rate in enumerate(flow_rates):
+                for r_idx in run_idx_list:
+                    dir_name = construct_run_dir(f_rate, hrvprio, r_idx, ctn_r, ptohvd_ratio_dic[ctn_r][j], timestamp[i])
+                    print(f"dir_name: {dir_name}")
+                    dir_path = root_run_dir/dir_name
+                    if dir_path.exists() == False:
+                        print(f"Can't locate run dir: {dir_name}")
+                        return []
+                    else:
+                        list_run_dirs.append(dir_name)
+    
+    return list_run_dirs
+
+
+def extract_hrvd_avg_time(progress_file_abs_path):
+    with open(progress_file_abs_path, "r") as inputfile:
+        lines = inputfile.readlines()        
+        avg_time_s =float(lines[-1].strip("\n").split(",")[1])
+        print(f"avg_time_s: {avg_time_s}")
+    
+    return avg_time_s
+
+def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates, num_runs, link_cap_Gbits):
+    dir_idx = 0
+    flow_summary = collections.defaultdict()
+    hrvd_summary = collections.defaultdict()
+    link_util = collections.defaultdict()
+    flows_util = collections.defaultdict()
+    hrvd_util = collections.defaultdict()
+    leftover_util = collections.defaultdict()
+
+    run_root_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
+    num_workers = 8
+    # for run_dir in run_dir_lists:
+    for prio in ["0x10", "0x08"]:
+        for ctn_r in ctn_ratios:
+            for flow_rate in flow_rates:
+                num_run_dirs = []
+                total_link_utilization = []
+                for num_run in range(num_runs):
+                    num_run_dirs.append(run_dir_lists[dir_idx])
+                    hrvd_avg_iter_time_s = 0
+                    total_link_utilization.append(extract_average_utilization(run_dir_lists[dir_idx]))
+                    for n_worker in range(num_workers):
+                        print(f"run_dir: {run_dir_lists[dir_idx]}")
+                        hrvd_progress_file = f"{run_root_dir}/{run_dir_lists[dir_idx]}/logs_ns3/HorovodWorker_{n_worker}_iteration_summary.txt"
+                        # hrvd_progress_avg_iter_time_s = extract_hrvd_avg_time(hrvd_progress_file)
+                        hrvd_avg_iter_time_s += extract_hrvd_avg_time(hrvd_progress_file)
+                    hrvd_avg_iter_time_s = hrvd_avg_iter_time_s/num_workers
+                    dir_idx +=1
+                # flow_summary = plot_multi_FCT_runs(num_run_dirs)
+                flow_summary[(prio, ctn_r, flow_rate)] = plot_multi_FCT_runs(num_run_dirs)
+                hrvd_summary[(prio, ctn_r, flow_rate)] = hrvd_avg_iter_time_s
+                link_util[(prio, ctn_r, flow_rate)] = sum(total_link_utilization)/len(total_link_utilization)
+                flows_util[(prio, ctn_r, flow_rate)] = get_flows_expected_utilization(link_cap_Gbits, flow_rate)
+                hrvd_util[(prio, ctn_r, flow_rate)] = link_util[(prio, ctn_r, flow_rate)] - flows_util[(prio, ctn_r, flow_rate)]
+                leftover_util[(prio, ctn_r, flow_rate)]= 100.0 - link_util[(prio, ctn_r, flow_rate)] 
+
+                print(f"flow_rate: {flow_rate}, small_flows: {flow_summary[(prio, ctn_r, flow_rate)].small_flows.avg_FCT_ms}")
+                print(f"horovod time: {hrvd_summary[(prio, ctn_r, flow_rate)]}")
+
+
+    for ctn_r in ctn_ratios:
+        num_plots = 7
+        fig, (ax1, ax2, ax3, ax4, ax5, ax6, ax7) = plt.subplots(1,num_plots)
+
+        ax1.plot(flow_rates,[flow_summary[("0x10", ctn_r, f_rate)].small_flows.avg_FCT_ms for f_rate in flow_rates], label='Same Prio', marker='x')
+        ax1.plot(flow_rates,[flow_summary[("0x08", ctn_r, f_rate)].small_flows.avg_FCT_ms for f_rate in flow_rates], label='HRVD LoPrio', marker='x')
+
+        ax5.plot(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)].compare_avg_FCT(flow_summary[("0x08", ctn_r, f_rate)])["small"] for f_rate in flow_rates], label='Small Flows', marker='x')
+        ax5.plot(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)].compare_avg_FCT(flow_summary[("0x08", ctn_r, f_rate)])["large"] for f_rate in flow_rates],label='Large Flows', marker='x')
+        # ax5.plot(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)].compare_99th_pct(flow_summary[("0x08", ctn_r, f_rate)])["small"] for f_rate in flow_rates],label='99th Small Flows', marker='x')
+        # ax5.plot(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)].compare_90th_pct(flow_summary[("0x08", ctn_r, f_rate)])["small"] for f_rate in flow_rates],label='90th Small Flows', marker='x')
+
+        ax2.plot(flow_rates,[flow_summary[("0x10", ctn_r, f_rate)].large_flows.avg_FCT_ms for f_rate in flow_rates], label='Same Prio', marker='x')
+        ax2.plot(flow_rates,[flow_summary[("0x08", ctn_r, f_rate)].large_flows.avg_FCT_ms for f_rate in flow_rates], label='HRVD LoPrio', marker='x')
+
+        ax3.plot(flow_rates,[flow_summary[("0x10", ctn_r, f_rate)].small_flows.percentile_99th_ms for f_rate in flow_rates], label='Same Prio', marker='x')
+        ax3.plot(flow_rates,[flow_summary[("0x08", ctn_r, f_rate)].small_flows.percentile_99th_ms for f_rate in flow_rates], label='HRVD LoPrio', marker='x')
+
+        ax4.plot(flow_rates,[hrvd_summary[("0x10", ctn_r, f_rate)] for f_rate in flow_rates], label='Same Prio', marker='x')
+        ax4.plot(flow_rates,[hrvd_summary[("0x08", ctn_r, f_rate)] for f_rate in flow_rates], label='HRVD LoPrio', marker='x')
+
+        hrvd_iter_delta = [(hrvd_summary[("0x08", ctn_r, f_rate)] - hrvd_summary[("0x10", ctn_r, f_rate)])/ hrvd_summary[("0x10", ctn_r, f_rate)] for f_rate in flow_rates]
+
+        for i, (x, y) in enumerate(zip(flow_rates, [hrvd_summary[("0x08", ctn_r, f_rate)] for f_rate in flow_rates])):
+            ax4.annotate(f"{hrvd_iter_delta[i] * 100: .1f}%", # this is the text
+                            (x,y), # this is the point to label
+                            textcoords="offset points", # how to position the text
+                            xytext=(0,10), # distance from text to points (x,y)
+                            ha='center') # horizontal alignment can be left, right or center
+
+        ax6.plot(flow_rates,[link_util[("0x10", ctn_r, f_rate)] for f_rate in flow_rates], label='Same Prio', marker='x')
+        ax6.plot(flow_rates,[link_util[("0x08", ctn_r, f_rate)] for f_rate in flow_rates], label='HRVD LoPrio', marker='x')
+
+
+        # TODO create a plot for lower priority and compare
+        plot_stacked_bw_distribution(ax7, \
+                                    flow_rates, \
+                                    [ flows_util[("0x10", ctn_r, f_rate)] for f_rate in flow_rates], \
+                                    [ hrvd_util[("0x10", ctn_r, f_rate)] for f_rate in flow_rates], \
+                                    [ leftover_util[("0x10", ctn_r, f_rate)] for f_rate in flow_rates])
+
+        ax1.set_title("Avg FCT for Small flows\n (<100KB)")
+        ax2.set_title("Avg FCT for Large flows\n (>10MB)")
+        ax3.set_title("99th Percentile FCT for Small flows\n (<100KB)")
+        ax4.set_title("Horovod Iteration Time in s")
+        ax5.set_title("FCT change % \n")
+        ax6.set_title("Link Utilization % \n")
+        ax7.set_title("Application Link Utilization% \n")
+
+        # x label
+        fig.text(0.5, 0.04, f"Flow Rates/s with Horovod Compute to Network Ratio {ctn_r} ", ha='center', va='center')
+        # y label
+        fig.text(0.06, 0.5, "average FCT in ms", ha='center', va='center', rotation='vertical')
+
+
+        ax1.legend()
+        ax2.legend()
+        ax3.legend()
+        ax4.legend()
+        ax5.legend()
+        ax6.legend()
+        fig.set_size_inches(26.5, 10.5)
+        # fig.set_title(f"Horovod Compute TO Network Ratio {ctn_r}")
+
+
+        plt.show(block=True)
+
+
+def test_plot_FCT_per_compute_to_network_ratio():
+    run_dir_lists = construct_list_of_dirs()
+    print(f"run_dir_lists: {run_dir_lists}")
+    ctn_ratios = [16.0, 8.0, 4.0] 
+    flow_rates = [23, 46, 92, 184]
+    num_runs = 3
+
+    # TODO, extract link cap Gbit from run dir
+    link_cap_Gbits = 10
+    plot_FCT_per_compute_to_network_ratio(run_dir_lists,ctn_ratios, flow_rates, num_runs,link_cap_Gbits)
+
+
 # def plot_application_bw_distribution(link_cap, actual_utiliazation):
 def get_flows_expected_utilization(link_cap_Gbits, expected_flows_per_s):
     # Start times (ns)
@@ -409,7 +694,7 @@ def get_flows_expected_utilization(link_cap_Gbits, expected_flows_per_s):
 
 
 def plot_stacked_bw_distribution(ax, link_utilization, bg_bw, horovod_bw, free_bw):
-    barwidth = 1
+    barwidth = 3
     ax.bar(link_utilization, bg_bw, color='#b5ffb9', edgecolor='white', label = "pfabric", width =barwidth)
     ax.bar(link_utilization, horovod_bw, bottom=bg_bw, color='#f9bc86', edgecolor='white', label = "horovod", width =barwidth)
     ax.bar(link_utilization, free_bw, bottom=[i+j for i,j in zip(bg_bw, horovod_bw)], color='#a3acff', edgecolor='white', label="Leftover", width =barwidth)
@@ -539,4 +824,14 @@ if __name__  == "__main__":
     print(f"save_fig: {args.save_fig}")
     # plot_FCT_summary(input_run_dirs_timestamp, link_cap_Gbits, args.save_fig)
     t_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/pfabric_flows_horovod_100ms_arrival_10_runhvd_true_hrvprio_0x10_num_hvd_8_link_bw_10.0Gbit_11_17_2020_08_08/logs_ns3"
-    plot_link_utilization_single_tor(t_dir, 9)
+    # plot_link_utilization_single_tor(t_dir, 9)
+    t_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs/pfabric_flows_horovod_100ms_arrival_46_runhvd_true_hrvprio_0x10_num_hvd_8_link_bw_10.0Gbit_run_idx_2_ctn_16.0_pftohrvd_1.00096_02_30_2020_08_12"
+    
+    # plot_utilization_and_hrvd_progress(t_dir, 8, args.save_fig)
+
+    # construct_list_of_dirs()
+    # test_plot_FCT_per_compute_to_network_ratio()
+
+    extract_hrvd_avg_time(f"{t_dir}/logs_ns3/HorovodWorker_0_iteration_summary.txt")
+
+    test_plot_FCT_per_compute_to_network_ratio()
