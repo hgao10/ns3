@@ -160,6 +160,8 @@ def individual_pfabric_run(args):
     sh.sed("-i", f"s/\\[LINK\\-DATARATE\\-MBITS\\]/{config.c_link_bw_Mbits}/g", f"{new_config_file}")
     sh.sed("-i", f"s/\\[PRIORITY\\-HEX\\]/{config.c_horovod_prio}/g", f"{new_config_file}")
     sh.sed("-i", f"s/\\[RUN\\-HOROVOD\\]/{config.c_run_horovod}/g", f"{new_config_file}")
+    sh.sed("-i", f"s/\\[MASTER\\-SEED\\]/{config.c_master_seed}/g", f"{new_config_file}")
+    
     
     # prepare horovod.properties
     sh.sed("-i", f"s/\\[NUM\\-WORKER\\]/{config.c_hrvd_specifics.num_workers}/g", f"{new_hrvd_config_file}")
