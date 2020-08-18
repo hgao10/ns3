@@ -357,11 +357,7 @@ def extract_average_utilization(run_dir):
             line = lines[i]
             line = line.strip("\n").split()
             link_utilization += float(line[-1].strip("%"))
-        # from_0_to_1_link = line[1]
-        # from_0_to_1_link = from_0_to_1_link.strip("\n")
-        # from_0_to_1_link = from_0_to_1_link.split()
-        # link_utilization = float(from_0_to_1_link[-1].strip("%"))
-        # # print(f"from_0_to_1_link: {from_0_to_1_link}, utilization: {link_utilization}")
+
         link_utilization = link_utilization/(len(lines)-1)
         print(f"link_utilization: {link_utilization}")
     return link_utilization
@@ -616,17 +612,12 @@ def plot_ecdf_from_run_dir(run_dir_lists, ctn_ratios, flow_rates, num_runs, link
                 # flow_summary = plot_multi_FCT_runs(num_run_dirs)
                 print(f"prio: {prio}, ctn_r: {ctn_r}, flow_rate: {flow_rate}")
                 flow_summary[(prio, ctn_r, flow_rate)] = (plot_multi_FCT_runs(num_run_dirs), [plot_flows_FCT(r_dir) for r_dir in num_run_dirs])
-                # plot_ecdf_from_all_flow_summary(flow_summary[(prio, ctn_r, flow_rate)][1], True, "s")
-                # for r_idx in range(num_runs):
-                #     flow_summary[(prio, ctn_r, flow_rate)][1][r_idx].small_flows.show_ecdf(True, \
-                #                         f"ecdf_prio_{prio}_run_idx_{r_idx}_ctn_r_{ctn_r}_flow_rate_{flow_rate}")
-
                 # (average value among all runs , results of all runs) 
                 print(f"flow_rate: {flow_rate}, small_flows: {flow_summary[(prio, ctn_r, flow_rate)][0].small_flows.avg_FCT_ms}")
                 # break
     
     # plot for prio x10 and x08 at ctn = 16 and flow rate = 23
-    ctn_r = 16.0
+    ctn_r = 4.0
     flow_rate = 23
     fig, axes = plt.subplots(1, num_runs)
     for run_idx in range(num_runs):
@@ -640,9 +631,131 @@ def plot_ecdf_from_run_dir(run_dir_lists, ctn_ratios, flow_rates, num_runs, link
         axes[run_idx].set_title(f"Run index: {run_idx}")
         # plt.savefig(f"duration_cdf_small_flows_Rctn_16_flow_rate_23_run_num_{run_idx}")
     fig.set_size_inches(16.5, 8.5)
-    fig.suptitle("Duration CDF of Small Flows \n(R_ctn = 16, flows/s = 23)")
-    # plt.show()
-    fig.savefig(f"duration_cdf_small_flows_Rctn_16_flow_rate_23_two_priorities")
+    fig.suptitle(f"Duration CDF of Small Flows \n(R_ctn = {ctn_r}, flows/s = {flow_rate})")
+    plt.show(block=True)
+    # fig.savefig(f"duration_cdf_small_flows_Rctn_8_flow_rate_23_two_priorities")
+
+
+def plot_FCT_per_flow_rate_different_cp_to_nw_ratio(run_dir_lists, ctn_ratios, flow_rates, num_runs, link_cap_Gbits):
+    dir_idx = 0
+    flow_summary = collections.defaultdict()
+    hrvd_summary = collections.defaultdict()
+    link_util = collections.defaultdict()
+    flows_util = collections.defaultdict()
+    hrvd_util = collections.defaultdict()
+    leftover_util = collections.defaultdict()
+
+    run_root_dir = "/mnt/raid10/hanjing/thesis/ns3/ns3-basic-sim/runs"
+    num_workers = 8
+    # for run_dir in run_dir_lists:
+    for prio in ["0x10", "0x08"]:
+        for ctn_r in ctn_ratios:
+            for flow_rate in flow_rates:
+                print(f"prio: {prio}, ctn_r: {ctn_r}, flow_rate: {flow_rate}")
+                num_run_dirs = []
+                total_link_utilization = []
+                hrvd_avg_iter_time_s_all_runs = []
+                for num_run in range(num_runs):
+                    num_run_dirs.append(run_dir_lists[dir_idx])
+                    hrvd_avg_iter_time_s = 0
+                    total_link_utilization.append(extract_average_utilization(run_dir_lists[dir_idx]))
+                    for n_worker in range(num_workers):
+                        hrvd_progress_file = f"{run_root_dir}/{run_dir_lists[dir_idx]}/logs_ns3/HorovodWorker_{n_worker}_iteration_summary.txt"
+                        hrvd_avg_iter_time_s += extract_hrvd_avg_time(hrvd_progress_file)
+                    hrvd_avg_iter_time_s = hrvd_avg_iter_time_s/num_workers
+                    dir_idx +=1
+                    hrvd_avg_iter_time_s_all_runs.append(hrvd_avg_iter_time_s)
+                # flow_summary = plot_multi_FCT_runs(num_run_dirs)
+                flow_summary[(prio, ctn_r, flow_rate)] = (plot_multi_FCT_runs(num_run_dirs), [plot_flows_FCT(r_dir) for r_dir in num_run_dirs])
+                # (average value among all runs , results of all runs) 
+                hrvd_summary[(prio, ctn_r, flow_rate)] = (mean(hrvd_avg_iter_time_s_all_runs), hrvd_avg_iter_time_s_all_runs)
+                link_util[(prio, ctn_r, flow_rate)] = (sum(total_link_utilization)/len(total_link_utilization), total_link_utilization)
+                flows_util[(prio, ctn_r, flow_rate)] = get_flows_expected_utilization(link_cap_Gbits, flow_rate)
+                hrvd_util[(prio, ctn_r, flow_rate)] = link_util[(prio, ctn_r, flow_rate)][0] - flows_util[(prio, ctn_r, flow_rate)]
+                leftover_util[(prio, ctn_r, flow_rate)]= 100.0 - link_util[(prio, ctn_r, flow_rate)][0] 
+
+                print(f"flow_rate: {flow_rate}, small_flows: {flow_summary[(prio, ctn_r, flow_rate)][0].small_flows.avg_FCT_ms}")
+                print(f"horovod time: {hrvd_summary[(prio, ctn_r, flow_rate)][0]}")
+    
+    # plot difference in FCT time
+    num_rows = 2
+    num_cols = 2
+    for f_rate in flow_rates:
+        fig, axes = plt.subplots(nrows= num_rows,ncols=num_cols)
+        flow_summary_hi_prio_all_run = [flow_summary[("0x10", ctn_r, f_rate)][1] for ctn_r in ctn_ratios]
+        flow_summary_lo_prio_all_run = [flow_summary[("0x08", ctn_r, f_rate)][1] for ctn_r in ctn_ratios]
+        flow_summary_all_prio_all_run = [list(zip(f1, f2)) for (f1, f2) in zip(flow_summary_hi_prio_all_run, flow_summary_lo_prio_all_run)]
+        avg_FCT_lists =  [[f_hi_lo[0].compare_avg_FCT(f_hi_lo[1])["small"] for f_hi_lo in f_summary] for f_summary in flow_summary_all_prio_all_run]
+        print(f"avg_FCT_lists for avg difference small flows: {avg_FCT_lists}")
+        avg_FCT_errors = cal_errors_range(avg_FCT_lists)
+        axes[0,0].errorbar(ctn_ratios, [flow_summary[("0x10", ctn_r, f_rate)][0].compare_avg_FCT(flow_summary[("0x08", ctn_r, f_rate)][0])["small"] for ctn_r in ctn_ratios],\
+                                yerr=avg_FCT_errors, label='Small Flows', \
+                                uplims= True,  lolims=True,  marker='o')
+
+        flow_summary_all_prio_all_run = [list(zip(f1, f2)) for (f1, f2) in zip(flow_summary_hi_prio_all_run, flow_summary_lo_prio_all_run)]
+        avg_FCT_lists =  [[f_hi_lo[0].compare_avg_FCT(f_hi_lo[1])["large"] for f_hi_lo in f_summary] for f_summary in flow_summary_all_prio_all_run]
+        print(f"avg_FCT_lists for avg difference large flows: {avg_FCT_lists}")
+        avg_FCT_errors = cal_errors_range(avg_FCT_lists)
+        axes[0,0].errorbar(ctn_ratios, [flow_summary[("0x10", ctn_r, f_rate)][0].compare_avg_FCT(flow_summary[("0x08", ctn_r, f_rate)][0])["large"] for ctn_r in ctn_ratios],\
+                                yerr=avg_FCT_errors, label='Large Flows', \
+                                uplims= True,  lolims=True,  marker='o')    
+
+
+        avg_FCT_lists = [hrvd_summary[("0x10", ctn_r, f_rate)][1] for ctn_r in ctn_ratios]
+        avg_FCT_errors = cal_errors_range(avg_FCT_lists)
+        print(f"avg_FCT_lists horovod iteration time avg hiprio : {avg_FCT_lists}")
+        axes[0,1].errorbar(ctn_ratios,[hrvd_summary[("0x10", ctn_r, f_rate)][0] for ctn_r in ctn_ratios],  yerr=avg_FCT_errors, label='Same Prio',  uplims= True,  lolims=True, marker='o')
+        avg_FCT_lists = [hrvd_summary[("0x08", ctn_r, f_rate)][1] for ctn_r in ctn_ratios]
+        avg_FCT_errors = cal_errors_range(avg_FCT_lists)
+        print(f"avg_FCT_lists horovod iteration time avg loprio : {avg_FCT_lists}")
+        axes[0,1].errorbar(ctn_ratios,[hrvd_summary[("0x08", ctn_r, f_rate)][0] for ctn_r in ctn_ratios], yerr=avg_FCT_errors,label='HRVD LoPrio', uplims= True,  lolims=True, marker='o')
+        hrvd_iter_delta = [(hrvd_summary[("0x08", ctn_r, f_rate)][0] - hrvd_summary[("0x10", ctn_r, f_rate)][0])/ hrvd_summary[("0x10", ctn_r, f_rate)][0] for ctn_r in ctn_ratios]
+
+        for i, (x, y) in enumerate(zip(ctn_ratios, [hrvd_summary[("0x08", ctn_r, f_rate)][0] for ctn_r in ctn_ratios])):
+            axes[0,1].annotate(f"{hrvd_iter_delta[i] * 100: .1f}%", # this is the text
+                            (x,y), # this is the point to label
+                            textcoords="offset points", # how to position the text
+                            xytext=(0,10), # distance from text to points (x,y)
+                            ha='center') # horizontal alignment can be left, right or center
+
+
+        avg_FCT_lists = [link_util[("0x10", ctn_r, f_rate)][1] for ctn_r in ctn_ratios]
+        avg_FCT_errors = cal_errors_range(avg_FCT_lists)
+        axes[1,0].errorbar(ctn_ratios,[link_util[("0x10", ctn_r, f_rate)][0] for ctn_r in ctn_ratios], yerr=avg_FCT_errors, label='Same Prio',  uplims= True,  lolims=True, marker='o')
+        avg_FCT_lists = [link_util[("0x08", ctn_r, f_rate)][1] for ctn_r in ctn_ratios]
+        avg_FCT_errors = cal_errors_range(avg_FCT_lists)
+        axes[1,0].errorbar(ctn_ratios,[link_util[("0x08", ctn_r, f_rate)][0] for ctn_r in ctn_ratios], yerr=avg_FCT_errors,label='HRVD LoPrio', uplims= True,  lolims=True, marker='o')
+
+
+        plot_stacked_bw_distribution(axes[1,1], \
+                                    ctn_ratios, \
+                                    [ flows_util[("0x10", ctn_r, f_rate)] for ctn_r in ctn_ratios], \
+                                    [ hrvd_util[("0x10", ctn_r, f_rate)] for ctn_r in ctn_ratios], \
+                                    [ leftover_util[("0x10", ctn_r, f_rate)] for ctn_r in ctn_ratios])
+
+
+        for i, j in [(x, y) for x in [0,1] for y in [0,1]]:
+            axes[i, j].legend()
+            # axes[i, j].set_xlim(ctn_ratios[0]+1, ctn_ratios[-1]-1)
+            axes[i, j].invert_xaxis()
+        # set the range for horovod iteration time to [0, 4] 
+        axes[0,1].set_ylim(ymin = 0, ymax=4)
+        # set the range for link utilization to [0,100] 
+        axes[1,0].set_ylim(ymin = 0, ymax=100)
+
+        fig.suptitle(f"Possion Arrival Rate (flows/s) = {f_rate}")
+        axes[0, 0].set_title(("Avg FCT Change (%) \n"))
+        axes[0,1].set_title("Horovod Iteration Time (s)")
+        axes[1,0].set_title("Link Utilization (%) \n")
+        axes[1,1].set_title("Application Link Utilization (%)\n")
+
+        fig.set_size_inches(12.5, 12.5)
+
+        fig.text(0.5, 0.04, "Horovod Compute to Network Ratio", ha='center', va='center')
+        plt.show(block=True)
+        # fig.savefig(f"performance comparison_fixed_flow_rate_{f_rate}")
+
+
 
 def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates, num_runs, link_cap_Gbits):
     dir_idx = 0
@@ -659,6 +772,7 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
     for prio in ["0x10", "0x08"]:
         for ctn_r in ctn_ratios:
             for flow_rate in flow_rates:
+                print(f"prio: {prio}, ctn_r: {ctn_r}, flow_rate: {flow_rate}")
                 num_run_dirs = []
                 total_link_utilization = []
                 hrvd_avg_iter_time_s_all_runs = []
@@ -673,7 +787,6 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
                     dir_idx +=1
                     hrvd_avg_iter_time_s_all_runs.append(hrvd_avg_iter_time_s)
                 # flow_summary = plot_multi_FCT_runs(num_run_dirs)
-                print(f"prio: {prio}, ctn_r: {ctn_r}, flow_rate: {flow_rate}")
                 flow_summary[(prio, ctn_r, flow_rate)] = (plot_multi_FCT_runs(num_run_dirs), [plot_flows_FCT(r_dir) for r_dir in num_run_dirs])
                 # (average value among all runs , results of all runs) 
                 hrvd_summary[(prio, ctn_r, flow_rate)] = (mean(hrvd_avg_iter_time_s_all_runs), hrvd_avg_iter_time_s_all_runs)
@@ -685,15 +798,12 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
                 print(f"flow_rate: {flow_rate}, small_flows: {flow_summary[(prio, ctn_r, flow_rate)][0].small_flows.avg_FCT_ms}")
                 print(f"horovod time: {hrvd_summary[(prio, ctn_r, flow_rate)][0]}")
 
-
-
-
     for ctn_r in ctn_ratios:
+        print(f"Rctn: {ctn_r}")
         num_plots = 6
         fig, axes = plt.subplots(1,num_plots)
         avg_FCT_lists = [[f_summary.small_flows.avg_FCT_ms for f_summary in flow_summary[("0x10", ctn_r, f_rate)][1]] for f_rate in flow_rates]
         print(f"avg_FCT_lists small flows avg hiprio : {avg_FCT_lists}")
-
         avg_FCT_errors = cal_errors_range(avg_FCT_lists)
         # axes[0].plot(flow_rates,[flow_summary[("0x10", ctn_r, f_rate)][0].small_flows.avg_FCT_ms for f_rate in flow_rates], label='Same Prio', marker='x')
         axes[0].errorbar(flow_rates,[flow_summary[("0x10", ctn_r, f_rate)][0].small_flows.avg_FCT_ms for f_rate in flow_rates],yerr=avg_FCT_errors, label='Same Prio', uplims= True,  lolims=True,  marker='o')
@@ -723,9 +833,6 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
         avg_FCT_errors = cal_errors_range(avg_FCT_lists)
         axes[3].errorbar(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)][0].compare_avg_FCT(flow_summary[("0x08", ctn_r, f_rate)][0])["large"] for f_rate in flow_rates],yerr=avg_FCT_errors, label='Large Flows', \
                              uplims= True,  lolims=True,  marker='o')
-        # ax5.plot(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)].compare_99th_pct(flow_summary[("0x08", ctn_r, f_rate)])["small"] for f_rate in flow_rates],label='99th Small Flows', marker='x')
-        # ax5.plot(flow_rates, [flow_summary[("0x10", ctn_r, f_rate)].compare_90th_pct(flow_summary[("0x08", ctn_r, f_rate)])["small"] for f_rate in flow_rates],label='90th Small Flows', marker='x')
-
 
         avg_FCT_lists = [[f_summary.large_flows.avg_FCT_ms for f_summary in flow_summary[("0x10", ctn_r, f_rate)][1]] for f_rate in flow_rates]
         # avg_FCT_errors = [(max(f_summary_list) - min(f_summary_list) ) for f_summary_list in avg_FCT_lists]
@@ -739,15 +846,6 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
         # axes[1].plot(flow_rates,[flow_summary[("0x08", ctn_r, f_rate)][0].large_flows.avg_FCT_ms for f_rate in flow_rates], label='HRVD LoPrio', marker='x')
         axes[1].errorbar(flow_rates,[flow_summary[("0x08", ctn_r, f_rate)][0].large_flows.avg_FCT_ms for f_rate in flow_rates], yerr=avg_FCT_errors,label='HRVD LoPrio', uplims= True, lolims=True, marker='o')
         
-        
-        # avg_FCT_lists = [[f_summary.small_flows.percentile_99th_ms for f_summary in flow_summary[("0x10", ctn_r, f_rate)][1]] for f_rate in flow_rates]
-        # avg_FCT_errors = cal_errors_range(avg_FCT_lists)
-        # axes[2].errorbar(flow_rates,[flow_summary[("0x10", ctn_r, f_rate)][0].small_flows.percentile_99th_ms for f_rate in flow_rates], yerr=avg_FCT_errors, label='Same Prio', uplims= True, lolims=True, marker='o')
-        
-        # avg_FCT_lists = [[f_summary.small_flows.percentile_99th_ms for f_summary in flow_summary[("0x08", ctn_r, f_rate)][1]] for f_rate in flow_rates]
-        # avg_FCT_errors = cal_errors_range(avg_FCT_lists)        
-        # axes[2].errorbar(flow_rates,[flow_summary[("0x08", ctn_r, f_rate)][0].small_flows.percentile_99th_ms for f_rate in flow_rates], yerr=avg_FCT_errors, label='HRVD LoPrio',  uplims= True, lolims=True, marker='o')
-
         avg_FCT_lists = [hrvd_summary[("0x10", ctn_r, f_rate)][1] for f_rate in flow_rates]
         avg_FCT_errors = cal_errors_range(avg_FCT_lists)
         print(f"avg_FCT_lists horovod iteration time avg hiprio : {avg_FCT_lists}")
@@ -756,7 +854,6 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
         avg_FCT_errors = cal_errors_range(avg_FCT_lists)
         print(f"avg_FCT_lists horovod iteration time avg loprio : {avg_FCT_lists}")
         axes[2].errorbar(flow_rates,[hrvd_summary[("0x08", ctn_r, f_rate)][0] for f_rate in flow_rates], yerr=avg_FCT_errors,label='HRVD LoPrio', uplims= True,  lolims=True, marker='o')
-
         hrvd_iter_delta = [(hrvd_summary[("0x08", ctn_r, f_rate)][0] - hrvd_summary[("0x10", ctn_r, f_rate)][0])/ hrvd_summary[("0x10", ctn_r, f_rate)][0] for f_rate in flow_rates]
 
         for i, (x, y) in enumerate(zip(flow_rates, [hrvd_summary[("0x08", ctn_r, f_rate)][0] for f_rate in flow_rates])):
@@ -817,7 +914,7 @@ def plot_FCT_per_compute_to_network_ratio(run_dir_lists, ctn_ratios, flow_rates,
 
         fig.set_size_inches(20.5, 10.5)
 
-        # plt.show(block=True)
+        plt.show(block=True)
         # break
         # fig.savefig(f"compute_to_network_r_{int(ctn_r)}_scaled")
 
@@ -832,6 +929,16 @@ def test_plot_FCT_per_compute_to_network_ratio():
     # TODO, extract link cap Gbit from run dir
     link_cap_Gbits = 10
     plot_FCT_per_compute_to_network_ratio(run_dir_lists,ctn_ratios, flow_rates, num_runs,link_cap_Gbits)
+
+
+def test_plot_FCT_per_flow_rate_different_cp_to_nw_ratio():
+    run_dir_lists = construct_list_of_dirs()
+    ctn_ratios = [16.0, 8.0, 4.0, 2.0] 
+    flow_rates = [23, 46, 92, 184]
+    num_runs = 3
+    link_cap_Gbits = 10
+    plot_FCT_per_flow_rate_different_cp_to_nw_ratio(run_dir_lists,ctn_ratios, flow_rates, num_runs,link_cap_Gbits)
+
 
 def test_plot_ecdf_from_run_dir():
     run_dir_lists = construct_list_of_dirs()
@@ -856,7 +963,7 @@ def get_flows_expected_utilization(link_cap_Gbits, expected_flows_per_s):
 
 
 def plot_stacked_bw_distribution(ax, link_utilization, bg_bw, horovod_bw, free_bw):
-    barwidth = 5
+    barwidth = 1
     ax.bar(link_utilization, bg_bw, color='#b5ffb9', edgecolor='white', label = "pfabric", width =barwidth)
     ax.bar(link_utilization, horovod_bw, bottom=bg_bw, color='#f9bc86', edgecolor='white', label = "horovod", width =barwidth)
     ax.bar(link_utilization, free_bw, bottom=[i+j for i,j in zip(bg_bw, horovod_bw)], color='#a3acff', edgecolor='white', label="Leftover", width =barwidth)
@@ -997,4 +1104,5 @@ if __name__  == "__main__":
     extract_hrvd_avg_time(f"{t_dir}/logs_ns3/HorovodWorker_0_iteration_summary.txt")
 
     # test_plot_FCT_per_compute_to_network_ratio()
-    test_plot_ecdf_from_run_dir()
+    # test_plot_ecdf_from_run_dir()
+    test_plot_FCT_per_flow_rate_different_cp_to_nw_ratio()
